@@ -1,11 +1,16 @@
 # Dependencies
 node_modules/
+**/node_modules/
 
 # Env files (contain secrets)
 .env
+.env.*
 
 # Build output
 client/dist/
+dist/
+build/
+.vite/
 
 # Uploaded product images (keep the folder, ignore the files)
 server/uploads/*
@@ -20,3 +25,5 @@ npm-debug.log*
 Thumbs.db
 .vscode/
 .idea/
+coverage/
+__pycache__/
