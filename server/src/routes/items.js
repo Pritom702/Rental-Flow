@@ -108,6 +108,18 @@ router.get('/', async (req, res) => {
   res.json(rows);
 });
 
+// GET /api/items/:id/bookings  — booking history for a specific item
+router.get('/:id/bookings', async (req, res) => {
+  const { rows } = await query(
+    `SELECT id, customer_name, customer_email, start_date, end_date, status, deposit_amount, late_fee_amount, notes
+       FROM bookings
+      WHERE item_id = $1
+      ORDER BY start_date ASC, id DESC`,
+    [req.params.id]
+  );
+  res.json(rows);
+});
+
 // GET /api/items/:id  — full detail
 router.get('/:id', async (req, res) => {
   const item = await getItemFull(req.params.id);

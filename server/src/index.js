@@ -11,6 +11,7 @@ import authRoutes from './routes/auth.js';
 import itemRoutes from './routes/items.js';
 import categoryRoutes from './routes/categories.js';
 import uploadRoutes, { UPLOAD_DIR } from './routes/uploads.js';
+import bookingRoutes from './routes/bookings.js';
 import { pool } from './db.js';
 
 dotenv.config();
@@ -36,6 +37,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/items', itemRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/uploads', uploadRoutes);
+app.use('/api/bookings', bookingRoutes);
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
