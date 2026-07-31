@@ -186,6 +186,12 @@ img { max-width: 100%; }
 /* ---------- Forms ---------- */
 .form { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 26px; max-width: 640px; box-shadow: var(--shadow-sm); }
 .field { margin-bottom: 18px; }
+.booking-summary { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 16px; padding: 12px 14px; border-radius: 12px; background: var(--primary-soft); color: var(--text); }
+.calendar-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 10px 0 12px; }
+.calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(34px, 1fr)); gap: 6px; }
+.calendar-cell { border: 1px solid var(--border); border-radius: 8px; min-height: 36px; display: flex; align-items: center; justify-content: center; background: var(--surface); color: var(--muted); font-size: 13px; }
+.calendar-cell.booked { background: var(--primary-soft); color: var(--primary); font-weight: 700; }
+.calendar-cell.calendar-header { background: transparent; border: none; color: var(--text); font-weight: 700; min-height: auto; }
 .field label { display: block; margin-bottom: 7px; font-size: 14px; font-weight: 600; color: var(--text); }
 .field input, .field select, .field textarea {
   width: 100%; padding: 11px 13px; border-radius: 10px;

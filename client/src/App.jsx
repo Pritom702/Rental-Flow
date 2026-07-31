@@ -10,6 +10,7 @@ import PublicBooking from './pages/PublicBooking.jsx';
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import ItemForm from './pages/ItemForm.jsx';
+import Bookings from './pages/Bookings.jsx';
 
 function Nav() {
   const { user, logout } = useAuth();
@@ -21,6 +22,7 @@ function Nav() {
       </Link>
       <NavLink to="/browse">Browse</NavLink>
       {user && <NavLink to="/dashboard">{user.role === 'admin' ? 'Manage' : 'My Listings'}</NavLink>}
+      {user && <NavLink to="/bookings">Bookings</NavLink>}
       <div className="spacer" />
       {user ? (
         <>
@@ -55,6 +57,7 @@ export default function App() {
         <Route path="/browse" element={<PublicBooking />} />
         <Route path="/login" element={<Login />} />
         <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
+        <Route path="/bookings" element={<RequireAuth><Bookings /></RequireAuth>} />
         <Route path="/items/new" element={<RequireAuth><ItemForm /></RequireAuth>} />
         <Route path="/items/:id/edit" element={<RequireAuth><ItemForm /></RequireAuth>} />
         <Route path="*" element={<Navigate to="/" replace />} />

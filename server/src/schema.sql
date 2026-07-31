@@ -5,6 +5,7 @@
 -- RentalFlow database schema (Sprint 1 scope)
 -- Raw SQL, no ORM. Run via `npm run db:init`.
 
+DROP TABLE IF EXISTS bookings CASCADE;
 DROP TABLE IF EXISTS item_images CASCADE;
 DROP TABLE IF EXISTS item_tags CASCADE;
 DROP TABLE IF EXISTS accessories CASCADE;
@@ -76,4 +77,19 @@ CREATE TABLE accessories (
   id             SERIAL PRIMARY KEY,
   parent_item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
   name           VARCHAR(120) NOT NULL
+);
+
+CREATE TABLE bookings (
+  id               SERIAL PRIMARY KEY,
+  item_id          INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+  customer_name    VARCHAR(120) NOT NULL,
+  customer_email   VARCHAR(160) NOT NULL,
+  start_date       DATE NOT NULL,
+  end_date         DATE NOT NULL,
+  status           VARCHAR(30) NOT NULL DEFAULT 'Pending'
+                   CHECK (status IN ('Pending', 'Approved', 'Cancelled', 'Completed', 'Rejected')),
+  deposit_amount   NUMERIC(10,2) NOT NULL DEFAULT 0,
+  late_fee_amount  NUMERIC(10,2) NOT NULL DEFAULT 0,
+  notes            TEXT,
+  created_at       TIMESTAMP NOT NULL DEFAULT NOW()
 );
