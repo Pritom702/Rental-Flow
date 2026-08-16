@@ -11,6 +11,7 @@ import { api } from '../api.js';
 import { useAuth } from '../auth.jsx';
 import { Icon } from '../icons.jsx';
 import { StatusBadge, TagList, CardPhoto } from '../components.jsx';
+import QrModal from '../components/QrModal.jsx';
 
 const STATUSES = ['Available', 'Rented', 'Damaged', 'Under Maintenance', 'Retired'];
 
@@ -23,6 +24,7 @@ export default function Dashboard() {
   const [statusFilter, setStatusFilter] = useState('');
   const [newCat, setNewCat] = useState('');
   const [error, setError] = useState('');
+  const [qrItem, setQrItem] = useState(null);
 
   async function load() {
     const params = new URLSearchParams();
@@ -155,12 +157,15 @@ export default function Dashboard() {
                   {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
                 <Link to={`/items/${it.id}/edit`} className="btn secondary small">Edit</Link>
+                <button className="btn secondary small" onClick={() => setQrItem(it)}><Icon name="package" size={14} /> QR</button>
                 <button className="btn danger small" onClick={() => removeItem(it.id)}>Delete</button>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      {qrItem && <QrModal item={qrItem} onClose={() => setQrItem(null)} />}
     </div>
   );
 }
