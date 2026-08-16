@@ -27,3 +27,12 @@ Thumbs.db
 .idea/
 coverage/
 __pycache__/
+
+# Large media (demo recordings — keep out of git, share via Drive)
+*.mp4
+*.mov
+
+# Local scratch / staging folders (not part of the app)
+_github_upload/
+pagestofix/
+Errors/

@@ -11,6 +11,12 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// Return DATE columns (type oid 1082) as plain 'YYYY-MM-DD' strings instead of
+// JS Date objects. The default parser builds a Date in the server's timezone,
+// which shifts booking dates by a day and breaks the day-accurate availability
+// comparisons on the frontend calendar. Keeping DATE as a string avoids that.
+pg.types.setTypeParser(1082, (value) => value);
+
 const { Pool } = pg;
 
 export const pool = new Pool({
