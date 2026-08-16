@@ -7,6 +7,7 @@
 // and accessory tracking. Every item is owned by the member who listed it.
 // Only the owner or an admin may modify a listing. All raw SQL.
 import { Router } from 'express';
+import { randomUUID } from 'crypto';
 import { query, pool } from '../db.js';
 import { authRequired } from '../middleware/auth.js';
 
@@ -120,6 +121,13 @@ router.get('/:id/bookings', async (req, res) => {
   res.json(rows);
 });
 
+// GET /api/items/:id/qr  — QR token + scan path (F4). Image is rendered client-side.
+router.get('/:id/qr', async (req, res) => {
+  const { rows } = await query('SELECT id, name, qr_token FROM items WHERE id = $1', [req.params.id]);
+  if (!rows[0]) return res.status(404).json({ error: 'Item not found' });
+  res.json({ qr_token: rows[0].qr_token, scan_path: `/scan/${rows[0].qr_token}` });
+});
+
 // GET /api/items/:id  — full detail
 router.get('/:id', async (req, res) => {
   const item = await getItemFull(req.params.id);
@@ -145,12 +153,12 @@ router.post('/', authRequired, async (req, res) => {
     await client.query('BEGIN');
     const { rows } = await client.query(
       `INSERT INTO items (owner_id, name, description, serial_number, rental_price,
-                          replacement_cost, status, category_id)
-       VALUES ($1,$2,$3,$4,$5,$6,COALESCE($7,'Available'),$8)
+                          replacement_cost, status, category_id, qr_token)
+       VALUES ($1,$2,$3,$4,$5,$6,COALESCE($7,'Available'),$8,$9)
        RETURNING id`,
       [req.user.id, name, description || null, serial_number || null,
        rental_price || 0, replacement_cost || 0,
-       status || null, category_id || null]
+       status || null, category_id || null, randomUUID()]
     );
     const itemId = rows[0].id;
 

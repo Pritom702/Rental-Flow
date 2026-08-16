@@ -5,6 +5,7 @@
 // Seeds demo data so the Sprint 1 demo video has something to show.
 // Usage: npm run db:seed  (run AFTER npm run db:init)
 import bcrypt from 'bcryptjs';
+import { randomUUID } from 'crypto';
 import { pool, query } from './db.js';
 
 async function main() {
@@ -63,11 +64,11 @@ async function main() {
 
   for (const [owner, name, desc, serial, price, repl, cat, status] of items) {
     const { rows } = await query(
-      `INSERT INTO items (owner_id, name, description, serial_number, rental_price, replacement_cost, category_id, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+      `INSERT INTO items (owner_id, name, description, serial_number, rental_price, replacement_cost, category_id, status, qr_token)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
        ON CONFLICT (serial_number) DO NOTHING
        RETURNING id`,
-      [owner, name, desc, serial, price, repl, catId(cat), status]
+      [owner, name, desc, serial, price, repl, catId(cat), status, randomUUID()]
     );
     if (rows[0]) {
       await query(
