@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { query, pool } from '../db.js';
 import { authRequired } from '../middleware/auth.js';
-import { calculateDeposit, calculateLateFee } from '../bookingUtils.js';
+import { calculateDeposit, calculateLateFee, overdueDays, calculatePenalty, buildBill } from '../bookingUtils.js';
 
 const router = Router();
 const VALID_STATUSES = ['Pending', 'Approved', 'Cancelled', 'Completed', 'Rejected'];
@@ -29,7 +29,7 @@ async function ensureNoOverlap(client, itemId, startDate, endDate, ignoreId = nu
     `SELECT id, start_date, end_date, status FROM bookings
       WHERE item_id = $1
         AND status IN ('Pending', 'Approved', 'Completed')
-        AND ($2 IS NULL OR id != $2)
+        AND ($2::int IS NULL OR id != $2::int)
         AND start_date < $3 AND end_date > $4`,
     [itemId, ignoreId, endDate, startDate]
   );
@@ -66,13 +66,13 @@ router.get('/', authRequired, async (req, res) => {
        ORDER BY b.start_date ASC, b.id DESC`,
     params
   );
-  res.json(rows);
+  res.json(rows.map((b) => ({ ...b, overdue_days: overdueDays(b.end_date) })));
 });
 
 router.get('/:id', authRequired, async (req, res) => {
   const booking = await getBookingById(req.params.id);
   if (!booking) return res.status(404).json({ error: 'Booking not found' });
-  res.json(booking);
+  res.json({ ...booking, overdue_days: overdueDays(booking.end_date) });
 });
 
 router.post('/', authRequired, async (req, res) => {
@@ -181,14 +181,25 @@ router.patch('/:id/status', authRequired, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const { rows } = await client.query('SELECT item_id FROM bookings WHERE id = $1', [req.params.id]);
+    const { rows } = await client.query(
+      `SELECT b.item_id, b.end_date, b.late_fee_amount, i.rental_price
+         FROM bookings b LEFT JOIN items i ON i.id = b.item_id
+        WHERE b.id = $1`,
+      [req.params.id]
+    );
     if (!rows[0]) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Booking not found' });
     }
+    // When a rental is completed, automatically calculate any late fee from how
+    // many days past its end date it is being returned. Not overdue -> stays 0.
+    let lateFee = Number(rows[0].late_fee_amount) || 0;
+    if (status === 'Completed') {
+      lateFee = calculateLateFee(rows[0].rental_price, overdueDays(rows[0].end_date));
+    }
     const updated = await client.query(
-      'UPDATE bookings SET status = $2 WHERE id = $1 RETURNING *',
-      [req.params.id, status]
+      'UPDATE bookings SET status = $2, late_fee_amount = $3 WHERE id = $1 RETURNING *',
+      [req.params.id, status, lateFee]
     );
     await syncItemStatus(client, rows[0].item_id);
     await client.query('COMMIT');
@@ -202,15 +213,130 @@ router.patch('/:id/status', authRequired, async (req, res) => {
 });
 
 router.post('/:id/late-fee', authRequired, async (req, res) => {
-  const { overdue_days } = req.body;
   const booking = await getBookingById(req.params.id);
   if (!booking) return res.status(404).json({ error: 'Booking not found' });
-  const lateFee = calculateLateFee(booking.rental_price, overdue_days || 0);
+  // Auto-detect overdue days from the booking's end date when the caller does
+  // not pass an explicit value, so late fees apply automatically once overdue.
+  const days = req.body.overdue_days != null
+    ? Math.max(0, Number(req.body.overdue_days) || 0)
+    : overdueDays(booking.end_date);
+  const lateFee = calculateLateFee(booking.rental_price, days);
   const { rows } = await query(
     `UPDATE bookings SET late_fee_amount = $2 WHERE id = $1 RETURNING *`,
     [req.params.id, lateFee]
   );
+  res.json({ ...rows[0], overdue_days: days });
+});
+
+// ---------------------------------------------------------------------------
+// Sprint 3: rental checkout lifecycle (F11–F15)
+// ---------------------------------------------------------------------------
+
+// Persist a condition report (F13). One 'checkout' and one 'checkin' per booking.
+async function insertConditionReport(client, bookingId, phase, body, userId) {
+  const { condition_status, notes, scratch_details, missing_accessories, photos, repair_cost, missing_charge } = body;
+  const { rows } = await client.query(
+    `INSERT INTO condition_reports
+      (booking_id, phase, condition_status, notes, scratch_details, missing_accessories, photos, repair_cost, missing_charge, created_by)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+    [bookingId, phase, condition_status, notes || null, scratch_details || null,
+     missing_accessories || null, Array.isArray(photos) ? photos : [],
+     Number(repair_cost || 0), Number(missing_charge || 0), userId || null]
+  );
+  return rows[0];
+}
+
+// POST /:id/checkout — record checkout condition, mark item Rented (F12/F13).
+router.post('/:id/checkout', authRequired, async (req, res) => {
+  if (!req.body.condition_status) return res.status(400).json({ error: 'condition_status is required' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const b = await client.query('SELECT * FROM bookings WHERE id = $1', [req.params.id]);
+    if (!b.rows[0]) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Booking not found' }); }
+    if (b.rows[0].status !== 'Approved') { await client.query('ROLLBACK'); return res.status(409).json({ error: 'Booking must be Approved before checkout' }); }
+    if (b.rows[0].checked_out_at) { await client.query('ROLLBACK'); return res.status(409).json({ error: 'Already checked out' }); }
+    const report = await insertConditionReport(client, req.params.id, 'checkout', req.body, req.user?.id);
+    const upd = await client.query('UPDATE bookings SET checked_out_at = NOW() WHERE id = $1 RETURNING *', [req.params.id]);
+    await client.query('UPDATE items SET status = $2 WHERE id = $1', [b.rows[0].item_id, 'Rented']);
+    await client.query('COMMIT');
+    res.status(201).json({ booking: upd.rows[0], report });
+  } catch (err) { await client.query('ROLLBACK'); res.status(400).json({ error: err.message }); }
+  finally { client.release(); }
+});
+
+// POST /:id/checkin — record checkin condition, compute late fee + penalty,
+// reconcile deposit, complete the booking (F12/F13/F14).
+router.post('/:id/checkin', authRequired, async (req, res) => {
+  if (!req.body.condition_status) return res.status(400).json({ error: 'condition_status is required' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const b = await client.query(
+      `SELECT b.*, i.rental_price, i.replacement_cost FROM bookings b
+         LEFT JOIN items i ON i.id = b.item_id WHERE b.id = $1`, [req.params.id]);
+    if (!b.rows[0]) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Booking not found' }); }
+    if (!b.rows[0].checked_out_at) { await client.query('ROLLBACK'); return res.status(409).json({ error: 'Cannot check in before checkout' }); }
+    if (b.rows[0].checked_in_at) { await client.query('ROLLBACK'); return res.status(409).json({ error: 'Already checked in' }); }
+    const booking = b.rows[0];
+    const report = await insertConditionReport(client, req.params.id, 'checkin', req.body, req.user?.id);
+    const lateFee = calculateLateFee(booking.rental_price, overdueDays(booking.end_date));
+    const penalty = calculatePenalty({
+      conditionStatus: req.body.condition_status,
+      replacementCost: booking.replacement_cost,
+      repairCost: req.body.repair_cost,
+      missingCharge: req.body.missing_charge,
+    });
+    const bill = buildBill({
+      rentalPrice: booking.rental_price, startDate: booking.start_date, endDate: booking.end_date,
+      depositAmount: booking.deposit_amount, lateFee, penalty,
+    });
+    const itemStatus = ['Poor', 'Damaged'].includes(req.body.condition_status) ? 'Damaged' : 'Available';
+    const upd = await client.query(
+      `UPDATE bookings SET checked_in_at = NOW(), status = 'Completed',
+         late_fee_amount = $2, penalty_amount = $3, penalty_notes = $4 WHERE id = $1 RETURNING *`,
+      [req.params.id, lateFee, penalty, req.body.notes || null]);
+    await client.query('UPDATE items SET status = $2 WHERE id = $1', [booking.item_id, itemStatus]);
+    await client.query('COMMIT');
+    res.status(201).json({ booking: upd.rows[0], report, bill });
+  } catch (err) { await client.query('ROLLBACK'); res.status(400).json({ error: err.message }); }
+  finally { client.release(); }
+});
+
+// GET /:id/condition-reports — checkout + checkin reports for comparison (F14).
+router.get('/:id/condition-reports', authRequired, async (req, res) => {
+  const { rows } = await query('SELECT * FROM condition_reports WHERE booking_id = $1 ORDER BY phase DESC', [req.params.id]);
+  res.json(rows);
+});
+
+// GET /:id/agreement — data for the rental agreement PDF (F11).
+router.get('/:id/agreement', authRequired, async (req, res) => {
+  const booking = await getBookingById(req.params.id);
+  if (!booking) return res.status(404).json({ error: 'Booking not found' });
+  res.json(booking);
+});
+
+// POST /:id/agreement — assign an agreement number the first time it is generated.
+router.post('/:id/agreement', authRequired, async (req, res) => {
+  const booking = await getBookingById(req.params.id);
+  if (!booking) return res.status(404).json({ error: 'Booking not found' });
+  const number = booking.agreement_number
+    || `RF-${booking.id}-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`;
+  const { rows } = await query(
+    `UPDATE bookings SET agreement_number = $2,
+       agreement_generated_at = COALESCE(agreement_generated_at, NOW()) WHERE id = $1 RETURNING *`,
+    [req.params.id, number]);
   res.json(rows[0]);
+});
+
+// GET /:id/bill — final settlement breakdown (F14/F15).
+router.get('/:id/bill', authRequired, async (req, res) => {
+  const booking = await getBookingById(req.params.id);
+  if (!booking) return res.status(404).json({ error: 'Booking not found' });
+  res.json(buildBill({
+    rentalPrice: booking.rental_price, startDate: booking.start_date, endDate: booking.end_date,
+    depositAmount: booking.deposit_amount, lateFee: booking.late_fee_amount, penalty: booking.penalty_amount,
+  }));
 });
 
 export default router;
