@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api.js';
 import { Icon } from '../icons.jsx';
+import { exportAgreementPdf, exportReturnSummaryPdf } from '../pdf.js';
 
 const STATUS_OPTIONS = ['Pending', 'Approved', 'Cancelled', 'Completed', 'Rejected'];
 
@@ -39,10 +40,37 @@ export default function Bookings() {
     }
   }
 
+  async function generateAgreement(id) {
+    try {
+      await api.post(`/bookings/${id}/agreement`, {});
+      const booking = await api.get(`/bookings/${id}/agreement`);
+      exportAgreementPdf(booking);
+      setSuccess(`Agreement ${booking.agreement_number} generated`);
+      load();
+    } catch (err) { setError(err.message); }
+  }
+
+  async function downloadReturnSummary(id) {
+    try {
+      const [booking, bill, reports] = await Promise.all([
+        api.get(`/bookings/${id}/agreement`),
+        api.get(`/bookings/${id}/bill`),
+        api.get(`/bookings/${id}/condition-reports`),
+      ]);
+      exportReturnSummaryPdf(booking, bill, reports);
+    } catch (err) { setError(err.message); }
+  }
+
   async function addLateFee(id) {
     try {
-      await api.post(`/bookings/${id}/late-fee`, { overdue_days: 2 });
-      setSuccess('Late fee applied');
+      // No overdue_days passed: the server auto-detects how many days past the
+      // end date the booking is and calculates the fee from that.
+      const updated = await api.post(`/bookings/${id}/late-fee`, {});
+      setSuccess(
+        updated.overdue_days > 0
+          ? `Late fee applied for ${updated.overdue_days} day(s) overdue`
+          : 'Booking is not overdue — no late fee due'
+      );
       load();
     } catch (err) {
       setError(err.message);
@@ -84,6 +112,11 @@ export default function Bookings() {
               <div className="desc">{booking.notes || 'No notes provided.'}</div>
               <div className="muted" style={{ fontSize: 13, marginBottom: 8 }}>
                 {booking.start_date} → {booking.end_date}
+                {booking.overdue_days > 0 && !['Completed', 'Cancelled', 'Rejected'].includes(booking.status) && (
+                  <span style={{ color: 'var(--danger, #c0392b)', fontWeight: 600 }}>
+                    {' '}· {booking.overdue_days} day(s) overdue
+                  </span>
+                )}
               </div>
               <div className="price" style={{ fontSize: 16 }}>
                 Deposit: ${Number(booking.deposit_amount || 0).toFixed(2)}
@@ -91,11 +124,33 @@ export default function Bookings() {
               <div className="price" style={{ fontSize: 16 }}>
                 Late fee: ${Number(booking.late_fee_amount || 0).toFixed(2)}
               </div>
+              {Number(booking.penalty_amount) > 0 && (
+                <div className="price" style={{ fontSize: 16 }}>
+                  Penalty: ${Number(booking.penalty_amount).toFixed(2)}
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '8px 0', fontSize: 12 }}>
+                {booking.agreement_number && <span className="tag">📄 {booking.agreement_number}</span>}
+                {booking.checked_out_at && <span className="tag">✔ checked out</span>}
+                {booking.checked_in_at && <span className="tag">✔ checked in</span>}
+              </div>
               <div className="card-actions">
                 <select value={booking.status} onChange={(e) => updateStatus(booking.id, e.target.value)}>
                   {STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}
                 </select>
-                <button className="btn secondary small" onClick={() => addLateFee(booking.id)}>Apply late fee</button>
+                <button className="btn secondary small" onClick={() => generateAgreement(booking.id)}>Agreement PDF</button>
+                {booking.status === 'Approved' && !booking.checked_out_at && (
+                  <Link className="btn small" to={`/bookings/${booking.id}/checkout`}>Check out</Link>
+                )}
+                {booking.checked_out_at && !booking.checked_in_at && (
+                  <Link className="btn accent small" to={`/bookings/${booking.id}/checkin`}>Check in</Link>
+                )}
+                {booking.checked_in_at && (
+                  <button className="btn secondary small" onClick={() => downloadReturnSummary(booking.id)}>Return summary PDF</button>
+                )}
+                {!booking.checked_in_at && (
+                  <button className="btn secondary small" onClick={() => addLateFee(booking.id)}>Auto-calc late fee</button>
+                )}
               </div>
             </div>
           ))}
