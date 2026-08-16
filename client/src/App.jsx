@@ -11,6 +11,8 @@ import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import ItemForm from './pages/ItemForm.jsx';
 import Bookings from './pages/Bookings.jsx';
+import Scan from './pages/Scan.jsx';
+import Checkout from './pages/Checkout.jsx';
 
 function Nav() {
   const { user, logout } = useAuth();
@@ -60,6 +62,9 @@ export default function App() {
         <Route path="/bookings" element={<RequireAuth><Bookings /></RequireAuth>} />
         <Route path="/items/new" element={<RequireAuth><ItemForm /></RequireAuth>} />
         <Route path="/items/:id/edit" element={<RequireAuth><ItemForm /></RequireAuth>} />
+        <Route path="/scan/:token" element={<Scan />} />
+        <Route path="/bookings/:id/checkout" element={<RequireAuth><Checkout mode="checkout" /></RequireAuth>} />
+        <Route path="/bookings/:id/checkin" element={<RequireAuth><Checkout mode="checkin" /></RequireAuth>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
