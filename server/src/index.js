@@ -13,6 +13,12 @@ import categoryRoutes from './routes/categories.js';
 import uploadRoutes, { UPLOAD_DIR } from './routes/uploads.js';
 import bookingRoutes from './routes/bookings.js';
 import scanRoutes from './routes/scan.js';
+import customerRoutes from './routes/customers.js';
+import analyticsRoutes from './routes/analytics.js';
+import maintenanceRoutes from './routes/maintenance.js';
+import adminRoutes from './routes/admin.js';
+import { auditLogger } from './middleware/audit.js';
+import { blockSuspended } from './middleware/accountStatus.js';
 import { pool } from './db.js';
 
 dotenv.config();
@@ -20,6 +26,11 @@ dotenv.config();
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Sprint 4 (F20): every state-changing call is written to the audit log, and a
+// suspended account is refused before it reaches any route.
+app.use('/api', blockSuspended);
+app.use('/api', auditLogger);
 
 // Health check — also confirms DB connectivity.
 app.get('/api/health', async (_req, res) => {
@@ -40,6 +51,10 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/scan', scanRoutes);
+app.use('/api/customers', customerRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/maintenance', maintenanceRoutes);
+app.use('/api/admin', adminRoutes);
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
