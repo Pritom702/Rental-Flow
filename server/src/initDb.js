@@ -15,6 +15,11 @@ async function main() {
   const sql = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
   await pool.query(sql);
   console.log('✅ Schema created (tables: users, categories, tags, items, item_tags, item_images, accessories)');
+
+  // Sprint 4 adds its own file so the sprint-by-sprint schema history stays readable.
+  const sprint4 = fs.readFileSync(path.join(__dirname, 'schema_sprint4.sql'), 'utf8');
+  await pool.query(sprint4);
+  console.log('✅ Sprint 4 schema created (maintenance_logs, audit_logs, staff accounts)');
   await pool.end();
 }
 
