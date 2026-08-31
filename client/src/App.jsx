@@ -13,6 +13,11 @@ import ItemForm from './pages/ItemForm.jsx';
 import Bookings from './pages/Bookings.jsx';
 import Scan from './pages/Scan.jsx';
 import Checkout from './pages/Checkout.jsx';
+import Customers from './pages/Customers.jsx';
+import Analytics from './pages/Analytics.jsx';
+import Documents from './pages/Documents.jsx';
+import Maintenance from './pages/Maintenance.jsx';
+import Admin from './pages/Admin.jsx';
 
 function Nav() {
   const { user, logout } = useAuth();
@@ -25,6 +30,11 @@ function Nav() {
       <NavLink to="/browse">Browse</NavLink>
       {user && <NavLink to="/dashboard">{user.role === 'admin' ? 'Manage' : 'My Listings'}</NavLink>}
       {user && <NavLink to="/bookings">Bookings</NavLink>}
+      {user && <NavLink to="/customers">Customers</NavLink>}
+      {user && <NavLink to="/analytics">Analytics</NavLink>}
+      {user && <NavLink to="/documents">Documents</NavLink>}
+      {user && <NavLink to="/maintenance">Maintenance</NavLink>}
+      {user?.role === 'admin' && <NavLink to="/admin">Admin</NavLink>}
       <div className="spacer" />
       {user ? (
         <>
@@ -41,6 +51,14 @@ function Nav() {
       )}
     </nav>
   );
+}
+
+// Guard: only an admin may pass (Sprint 4 / F20 admin console).
+function RequireAdmin({ children }) {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role !== 'admin') return <Navigate to="/dashboard" replace />;
+  return children;
 }
 
 // Guard: any logged-in user (member or admin) may pass.
@@ -65,6 +83,11 @@ export default function App() {
         <Route path="/scan/:token" element={<Scan />} />
         <Route path="/bookings/:id/checkout" element={<RequireAuth><Checkout mode="checkout" /></RequireAuth>} />
         <Route path="/bookings/:id/checkin" element={<RequireAuth><Checkout mode="checkin" /></RequireAuth>} />
+        <Route path="/customers" element={<RequireAuth><Customers /></RequireAuth>} />
+        <Route path="/analytics" element={<RequireAuth><Analytics /></RequireAuth>} />
+        <Route path="/documents" element={<RequireAuth><Documents /></RequireAuth>} />
+        <Route path="/maintenance" element={<RequireAuth><Maintenance /></RequireAuth>} />
+        <Route path="/admin" element={<RequireAdmin><Admin /></RequireAdmin>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
