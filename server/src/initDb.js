@@ -20,6 +20,11 @@ async function main() {
   const sprint4 = fs.readFileSync(path.join(__dirname, 'schema_sprint4.sql'), 'utf8');
   await pool.query(sprint4);
   console.log('✅ Sprint 4 schema created (maintenance_logs, audit_logs, staff accounts)');
+
+  // In-app notifications for the booking flow (owner <-> customer).
+  const notifications = fs.readFileSync(path.join(__dirname, 'schema_notifications.sql'), 'utf8');
+  await pool.query(notifications);
+  console.log('✅ Notifications table created');
   await pool.end();
 }
 

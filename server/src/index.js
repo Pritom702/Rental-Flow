@@ -17,6 +17,7 @@ import customerRoutes from './routes/customers.js';
 import analyticsRoutes from './routes/analytics.js';
 import maintenanceRoutes from './routes/maintenance.js';
 import adminRoutes from './routes/admin.js';
+import notificationRoutes from './routes/notifications.js';
 import { auditLogger } from './middleware/audit.js';
 import { blockSuspended } from './middleware/accountStatus.js';
 import { pool } from './db.js';
@@ -55,6 +56,7 @@ app.use('/api/customers', customerRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/maintenance', maintenanceRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
