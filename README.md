@@ -46,6 +46,7 @@ npm install
 cp .env.example .env        # (Windows PowerShell: copy .env.example .env)
 npm run db:init             # creates all tables from schema.sql
 npm run db:seed             # inserts demo users, categories, items
+npm run db:seed4            # Sprint 4: rental history, repair jobs, staff account
 npm start                   # API on http://localhost:4000
 
 # 3. Frontend (in a second terminal)
@@ -63,6 +64,7 @@ Open **http://localhost:5173**.
 | Member | rahim@rentalflow.test | member123 |
 | Member | karim@rentalflow.test | member123 |
 | Admin | admin@rentalflow.test | admin123 |
+| Staff | staff@rentalflow.test | staff123 |
 
 ---
 
@@ -166,6 +168,55 @@ opens the check-out/check-in page directly — no scanner app needed.
    PC using the **Network** URL it prints (e.g. `http://192.168.x.x:5173`).
 3. Open an item's **QR** (Dashboard → item → QR) and scan it with the phone camera.
 
+## Sprint 4 — Analytics, CRM, maintenance & admin
+
+Sprint 4 closes the loop around the rental lifecycle: what the fleet earns, who
+rents it, what it costs to keep working, and who touched what.
+
+| # | Feature | Where |
+|---|---------|-------|
+| 19 | **Revenue & utilization analytics** (KPIs, monthly revenue, per-item utilization, category split) | `routes/analytics.js`, `analyticsUtils.js`, `pages/Analytics.jsx`, `components/Charts.jsx` |
+| 17 | **Customer CRM & rental history** (tier, lifetime spend, reliability, per-customer history) | `routes/customers.js`, `customerUtils.js`, `pages/Customers.jsx` |
+| 18 | **Maintenance & repair log** (jobs, parts/labour cost, downtime, auto item hold) | `maintenance_logs` table, `routes/maintenance.js`, `maintenanceUtils.js`, `pages/Maintenance.jsx` |
+| 20 | **Staff accounts & audit logs** (staff role, suspend/reactivate, full action trail) | `audit_logs` table, `routes/admin.js`, `middleware/audit.js`, `middleware/accountStatus.js`, `pages/Admin.jsx` |
+| 15 | **Document centre** (re-issue agreement / return summary, new customer statement) | `pages/Documents.jsx`, `client/src/pdf.js`, `documentUtils.js` |
+
+Revenue is derived in SQL as `(end_date - start_date) * rental_price + late_fee +
+penalty` over `Approved`/`Completed` bookings — the refundable deposit is never
+counted as revenue. Charts are hand-written SVG (no chart library).
+
+A repair job in `Open` or `In Progress` holds its item out of the rental pool
+(`items.status = 'Under Maintenance'`); closing the last job releases it. Every
+`POST`/`PUT`/`PATCH`/`DELETE` on `/api` is written to `audit_logs` by middleware,
+and a suspended account is refused on every authenticated call.
+
+Sprint 4 adds 25 unit tests (`cd server && npm test` — 28 in total).
+
+**Sprint-4 API:**
+
+```
+GET    /api/analytics/overview?days=          KPIs + growth vs. previous period
+GET    /api/analytics/revenue-trend?months=   monthly revenue series
+GET    /api/analytics/top-items?days=         revenue + utilization per item
+GET    /api/analytics/by-category             revenue split by category
+GET    /api/analytics/inventory               item count per status
+GET    /api/customers?q=                      CRM list (tier, spend, reliability)
+GET    /api/customers/summary                 customer/repeat-rate headline numbers
+GET    /api/customers/:email                  profile + full rental history
+GET    /api/maintenance?item_id=&status=      repair log
+GET    /api/maintenance/summary               jobs, spend, downtime, cost per item
+POST   /api/maintenance                       log a repair job
+PATCH  /api/maintenance/:id                   progress / close a job, add costs
+DELETE /api/maintenance/:id                   remove a job
+GET    /api/admin/users                       staff directory (admin only)
+POST   /api/admin/users                       create a staff account
+PATCH  /api/admin/users/:id                   change role, suspend, reactivate
+GET    /api/admin/audit?entity=&limit=        audit trail
+GET    /api/admin/audit/summary               activity per area and per person
+```
+
+---
+
 ## Everyday commands
 
 ```bash
@@ -173,4 +224,6 @@ docker compose up -d      # start database
 docker compose down       # stop database (data persists in a volume)
 npm run db:init           # (server/) rebuild tables — WARNING: drops existing
 npm run db:seed           # (server/) reload demo data
+npm run db:seed4          # (server/) reload Sprint-4 history + repair jobs
+npm test                  # (server/) run the unit tests
 ```
