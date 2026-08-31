@@ -2,9 +2,37 @@ import { Router } from 'express';
 import { query, pool } from '../db.js';
 import { authRequired } from '../middleware/auth.js';
 import { calculateDeposit, calculateLateFee, overdueDays, calculatePenalty, buildBill } from '../bookingUtils.js';
+import { buildNotification, eventForStatus, recipientSide, canDecide } from '../notificationUtils.js';
 
 const router = Router();
 const VALID_STATUSES = ['Pending', 'Approved', 'Cancelled', 'Completed', 'Rejected'];
+
+// Write one in-app notification. `side` is 'owner' or 'customer'; the customer
+// only has an account if they signed up with the same email they booked with,
+// so a guest booking simply produces no customer-side row.
+async function notify(client, side, booking, type) {
+  const content = buildNotification(type, booking);
+  if (!content) return null;
+
+  let userId = null;
+  if (side === 'owner') {
+    userId = booking.owner_id || null;
+  } else {
+    const { rows } = await client.query(
+      'SELECT id FROM users WHERE LOWER(email) = LOWER($1)',
+      [booking.customer_email || '']
+    );
+    userId = rows[0]?.id || null;
+  }
+  if (!userId) return null;
+
+  const { rows } = await client.query(
+    `INSERT INTO notifications (user_id, booking_id, type, title, body)
+     VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+    [userId, booking.id, type, content.title, content.body]
+  );
+  return rows[0];
+}
 
 function parseDate(value) {
   if (!value) return null;
@@ -15,7 +43,8 @@ function parseDate(value) {
 
 async function getBookingById(id) {
   const { rows } = await query(
-    `SELECT b.*, i.name AS item_name, i.rental_price, i.replacement_cost, i.status AS item_status
+    `SELECT b.*, i.name AS item_name, i.rental_price, i.replacement_cost,
+            i.status AS item_status, i.owner_id
        FROM bookings b
        LEFT JOIN items i ON i.id = b.item_id
       WHERE b.id = $1`,
@@ -57,9 +86,18 @@ router.get('/', authRequired, async (req, res) => {
     params.push(status);
     clauses.push(`b.status = $${params.length}`);
   }
+  // A member only sees bookings that concern them: requests on the items they
+  // own, plus the bookings they made themselves. Admin and staff run the
+  // counter, so they see everything.
+  if (req.user.role !== 'admin' && req.user.role !== 'staff') {
+    params.push(req.user.id, req.user.email || '');
+    clauses.push(`(i.owner_id = $${params.length - 1} OR LOWER(b.customer_email) = LOWER($${params.length}))`);
+  }
+
   const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
   const { rows } = await query(
-    `SELECT b.*, i.name AS item_name, i.rental_price, i.replacement_cost, i.status AS item_status
+    `SELECT b.*, i.name AS item_name, i.rental_price, i.replacement_cost,
+            i.status AS item_status, i.owner_id
        FROM bookings b
        LEFT JOIN items i ON i.id = b.item_id
        ${where}
@@ -92,7 +130,7 @@ router.post('/', authRequired, async (req, res) => {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      const existingItem = await client.query('SELECT id, replacement_cost, rental_price, status FROM items WHERE id = $1', [item_id]);
+      const existingItem = await client.query('SELECT id, name, owner_id, replacement_cost, rental_price, status FROM items WHERE id = $1', [item_id]);
       if (!existingItem.rows[0]) {
         await client.query('ROLLBACK');
         return res.status(404).json({ error: 'Item not found' });
@@ -116,6 +154,14 @@ router.post('/', authRequired, async (req, res) => {
         RETURNING *`,
         [item_id, customer_name, customer_email, normalizedStart, normalizedEnd, depositAmount, notes || null]
       );
+
+      // Tell the member who owns the item that a request is waiting for them.
+      await notify(client, 'owner', {
+        ...rows[0],
+        item_name: existingItem.rows[0].name,
+        owner_id: existingItem.rows[0].owner_id,
+      }, 'booking_requested');
+
       await client.query('COMMIT');
       res.status(201).json(rows[0]);
     } catch (err) {
@@ -182,7 +228,7 @@ router.patch('/:id/status', authRequired, async (req, res) => {
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
-      `SELECT b.item_id, b.end_date, b.late_fee_amount, i.rental_price
+      `SELECT b.*, i.rental_price, i.owner_id, i.name AS item_name
          FROM bookings b LEFT JOIN items i ON i.id = b.item_id
         WHERE b.id = $1`,
       [req.params.id]
@@ -190,6 +236,14 @@ router.patch('/:id/status', authRequired, async (req, res) => {
     if (!rows[0]) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Booking not found' });
+    }
+    // Only the member who owns the item (or admin/staff) decides on a booking.
+    // A customer may cancel their own request, nothing more.
+    if (!canDecide(req.user, rows[0], status)) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({
+        error: 'Only the owner of this item can approve or reject its bookings',
+      });
     }
     // When a rental is completed, automatically calculate any late fee from how
     // many days past its end date it is being returned. Not overdue -> stays 0.
@@ -202,6 +256,17 @@ router.patch('/:id/status', authRequired, async (req, res) => {
       [req.params.id, status, lateFee]
     );
     await syncItemStatus(client, rows[0].item_id);
+
+    // Tell whichever side did not make this decision.
+    const event = eventForStatus(status);
+    if (event && status !== rows[0].status) {
+      await notify(client, recipientSide(req.user, rows[0]), {
+        ...updated.rows[0],
+        item_name: rows[0].item_name,
+        owner_id: rows[0].owner_id,
+      }, event);
+    }
+
     await client.query('COMMIT');
     res.json(updated.rows[0]);
   } catch (err) {
@@ -252,8 +317,11 @@ router.post('/:id/checkout', authRequired, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const b = await client.query('SELECT * FROM bookings WHERE id = $1', [req.params.id]);
+    const b = await client.query(
+      `SELECT b.*, i.owner_id FROM bookings b
+         LEFT JOIN items i ON i.id = b.item_id WHERE b.id = $1`, [req.params.id]);
     if (!b.rows[0]) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Booking not found' }); }
+    if (!canDecide(req.user, b.rows[0])) { await client.query('ROLLBACK'); return res.status(403).json({ error: 'Only the owner of this item can check it out' }); }
     if (b.rows[0].status !== 'Approved') { await client.query('ROLLBACK'); return res.status(409).json({ error: 'Booking must be Approved before checkout' }); }
     if (b.rows[0].checked_out_at) { await client.query('ROLLBACK'); return res.status(409).json({ error: 'Already checked out' }); }
     const report = await insertConditionReport(client, req.params.id, 'checkout', req.body, req.user?.id);
@@ -273,9 +341,10 @@ router.post('/:id/checkin', authRequired, async (req, res) => {
   try {
     await client.query('BEGIN');
     const b = await client.query(
-      `SELECT b.*, i.rental_price, i.replacement_cost FROM bookings b
-         LEFT JOIN items i ON i.id = b.item_id WHERE b.id = $1`, [req.params.id]);
+      `SELECT b.*, i.rental_price, i.replacement_cost, i.owner_id, i.name AS item_name
+         FROM bookings b LEFT JOIN items i ON i.id = b.item_id WHERE b.id = $1`, [req.params.id]);
     if (!b.rows[0]) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Booking not found' }); }
+    if (!canDecide(req.user, b.rows[0])) { await client.query('ROLLBACK'); return res.status(403).json({ error: 'Only the owner of this item can check it back in' }); }
     if (!b.rows[0].checked_out_at) { await client.query('ROLLBACK'); return res.status(409).json({ error: 'Cannot check in before checkout' }); }
     if (b.rows[0].checked_in_at) { await client.query('ROLLBACK'); return res.status(409).json({ error: 'Already checked in' }); }
     const booking = b.rows[0];
@@ -297,6 +366,10 @@ router.post('/:id/checkin', authRequired, async (req, res) => {
          late_fee_amount = $2, penalty_amount = $3, penalty_notes = $4 WHERE id = $1 RETURNING *`,
       [req.params.id, lateFee, penalty, req.body.notes || null]);
     await client.query('UPDATE items SET status = $2 WHERE id = $1', [booking.item_id, itemStatus]);
+    // The rental is closed — let the customer know.
+    await notify(client, 'customer', {
+      ...upd.rows[0], item_name: booking.item_name, owner_id: booking.owner_id,
+    }, 'booking_completed');
     await client.query('COMMIT');
     res.status(201).json({ booking: upd.rows[0], report, bill });
   } catch (err) { await client.query('ROLLBACK'); res.status(400).json({ error: err.message }); }
