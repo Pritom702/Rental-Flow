@@ -15,32 +15,37 @@ commits it **under their own GitHub identity**, pushes, and opens a PR into `mai
 
 | Chunk | Owner | Branch | Contents |
 |-------|-------|--------|----------|
-| `chunk1-M1-charts.patch` | **M1 · @shaafin01** | `s5-m1-charts` | Chart palette tokens, Taka in analytics, NID-safe item form label |
-| `chunk3-M3-money-docs.patch` | **M3 · Promit** | `s5-m3-money-docs` | Taka in PDFs and statements, Taka-scaled seed prices |
-| `chunk4-M4-design-profile.patch` | **M4 · Radowan** | `s5-m4-design-profile` | Design system, app shell, **F21 NID**, **F22 profile + payments**, **F23 renter check** |
-| `chunk5-SHARED-bookings.patch` | **see note below** | `s5-shared-bookings` | The four co-authored files |
+| `chunk1-M1-charts.zip` | **M1 · @shaafin01** | `s5-m1-charts` | Chart palette tokens, Taka in analytics, item form label |
+| `chunk3-M3-money-docs.zip` | **M3 · Promit** | `s5-m3-money-docs` | Taka in PDFs and statements, Taka-scaled seed prices |
+| `chunk4-M4-design-profile.zip` | **M4 · Radowan** | `s5-m4-design-profile` | Design system, app shell, **F21 NID**, **F22 profile + payments**, **F23 renter check** |
+| `chunk5-SHARED-bookings.zip` | **see note below** | `s5-shared-bookings` | The four co-authored files |
 
-## How to apply your chunk
+Each `.zip` holds the **complete files** at their repo-relative paths, plus a
+`READ-ME-FIRST.md` with that member's own instructions. A matching `.patch` of
+the same content is included as a fallback if you prefer applying a diff.
 
-From the repository root, on an up-to-date `main`:
+## How to use your chunk (VS Code)
 
-```bash
-git checkout main && git pull
-git checkout -b s5-<your-branch>
+1. Start from a **clean, up-to-date** repo — these are whole files and they
+   overwrite, so commit or stash anything you have in progress first:
+   ```bash
+   git checkout main && git pull
+   git status                 # must say "nothing to commit"
+   git checkout -b s5-<your-branch>
+   ```
+2. **Extract your zip over the repository root**, keeping the folder structure.
+   The paths inside (`client/src/...`, `server/src/...`) line up with the repo,
+   so every file lands where it belongs.
+3. In VS Code open the Source Control panel, review the changed files, then:
+   ```bash
+   git add -A
+   git commit -m "feat(F..): <describe your part>"
+   git push -u origin s5-<your-branch>
+   ```
+4. Open a Pull Request into `main`.
 
-# apply your patch (-p1, and -l tolerates Windows/Unix line-ending differences)
-patch -p1 -l < sprint5-handoff/chunk<N>-....patch
-
-# M4 only: the seeded demo NID card images
-mkdir -p server/uploads
-cp sprint5-handoff/assets/demo-nid-*.svg server/src/uploads/
-
-git add -A
-git commit -m "feat(F..): <describe your part>"
-git push -u origin s5-<your-branch>
-```
-
-Then open a Pull Request into `main`.
+> The zips are plain archives with forward-slash paths, so they extract correctly
+> on Windows, macOS and Linux, and open straight in VS Code.
 
 > **Commit as yourself.** Use your own GitHub account and the email attached to
 > it, so the contribution history is genuinely per-person. This is a course rule
