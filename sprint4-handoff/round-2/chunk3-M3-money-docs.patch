@@ -1,0 +1,179 @@
+--- a/client/src/pdf.js
++++ b/client/src/pdf.js
+@@ -1,12 +1,17 @@
+ // ============================================================
+-//  RentalFlow  |  Sprint 3  |  Part: PDF export (F11 agreement, F15 export)
++//  RentalFlow  |  Sprint 3-4  |  Owner: M3 - Promit Ghosh Turjo (Promit)
++//  Part: PDF export (F11 agreement, F15 export)
+ // ============================================================
+-// Client-side PDF generation with jsPDF. Two documents:
++// Client-side PDF generation with jsPDF. Three documents:
+ //   - Rental agreement (before checkout)
+ //   - Return summary (after check-in) with condition comparison + final bill
++//   - Customer statement (Sprint 4): every rental a customer has taken, billed
+ import { jsPDF } from 'jspdf';
+ 
+-const money = (n) => `$${Number(n || 0).toFixed(2)}`;
++// jsPDF's built-in Helvetica has no glyph for the Taka sign, so the PDFs print
++// the ISO code ("BDT 1,200.00") instead of '৳' — same amounts, no tofu boxes.
++import { moneyAscii as money } from './money.js';
++
+ const AGREEMENT_TERMS = [
+   '1. The customer is responsible for the rented item(s) for the full rental period.',
+   '2. A refundable deposit is held and reconciled against late fees and damage penalties.',
+@@ -24,6 +29,19 @@
+   return y + 4;
+ }
+ 
++// Sprint 4: shared footer so every document RentalFlow issues is identifiable
++// and paginated the same way.
++function stampFooter(doc, reference) {
++  const pages = doc.getNumberOfPages();
++  for (let page = 1; page <= pages; page += 1) {
++    doc.setPage(page);
++    doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(120);
++    doc.text(`RentalFlow · ${reference}`, 14, 288);
++    doc.text(`Page ${page} of ${pages}`, 196, 288, { align: 'right' });
++    doc.setTextColor(0);
++  }
++}
++
+ export function exportAgreementPdf(booking) {
+   const doc = new jsPDF();
+   const number = booking.agreement_number || `RF-${booking.id}`;
+@@ -47,6 +65,7 @@
+ 
+   doc.setFontSize(10).text('Customer signature: ______________________', 14, y + 10);
+   doc.text('Staff signature: ______________________', 14, y + 20);
++  stampFooter(doc, `Agreement ${number}`);
+   doc.save(`agreement-${number}.pdf`);
+ }
+ 
+@@ -78,5 +97,66 @@
+     `Balance due:                ${money(bill.balanceDue)}`,
+   ], y);
+ 
++  stampFooter(doc, `Return summary ${number}`);
+   doc.save(`return-${number}.pdf`);
+ }
++
++// --- Sprint 4 / F15: customer statement -------------------------------------
++// One page listing every rental a customer has taken with what each one was
++// billed, and the totals at the bottom. Staff hand this to repeat customers.
++function statementNumber(email, date = new Date()) {
++  const handle = String(email || 'guest').split('@')[0].replace(/[^a-z0-9]/gi, '').toUpperCase().slice(0, 6);
++  return `RF-ST-${handle || 'GUEST'}-${date.toISOString().slice(0, 7).replace('-', '')}`;
++}
++
++export function exportCustomerStatementPdf(profile, history = []) {
++  const doc = new jsPDF();
++  const number = statementNumber(profile.email);
++
++  doc.setFont('helvetica', 'bold').setFontSize(18).text('RentalFlow — Customer Statement', 14, 20);
++  doc.setFont('helvetica', 'normal').setFontSize(10)
++    .text(`Statement No: ${number}`, 14, 28)
++    .text(`Issued: ${new Date().toLocaleDateString()}`, 14, 33);
++
++  let y = 45;
++  y = section(doc, 'Customer', [
++    `Name:        ${profile.name || '-'}`,
++    `Email:       ${profile.email || '-'}`,
++    `Tier:        ${profile.tier}  (${profile.bookingCount} rental(s))`,
++    `Reliability: ${profile.reliability}% — ${profile.reliabilityLabel}`,
++  ], y);
++
++  doc.setFont('helvetica', 'bold').setFontSize(12).text('Rental history', 14, y);
++  y += 7;
++  doc.setFontSize(9);
++  doc.text('Item', 16, y);
++  doc.text('Period', 82, y);
++  doc.text('Status', 132, y);
++  doc.text('Billed', 196, y, { align: 'right' });
++  y += 2;
++  doc.line(14, y, 196, y);
++  y += 5;
++
++  doc.setFont('helvetica', 'normal');
++  let total = 0;
++  for (const b of history) {
++    if (y > 265) { doc.addPage(); y = 20; }
++    const billed = ['Cancelled', 'Rejected'].includes(b.status) ? 0 : Number(b.revenue || 0);
++    total += billed;
++    doc.text(String(b.item_name || `#${b.item_id}`).slice(0, 32), 16, y);
++    doc.text(`${b.start_date} - ${b.end_date}`, 82, y);
++    doc.text(b.status, 132, y);
++    doc.text(money(billed), 196, y, { align: 'right' });
++    y += 6;
++  }
++
++  y += 2;
++  doc.line(120, y, 196, y);
++  y += 6;
++  doc.setFont('helvetica', 'bold').setFontSize(11);
++  doc.text('Total billed to date', 120, y);
++  doc.text(money(total), 196, y, { align: 'right' });
++
++  stampFooter(doc, `Statement ${number}`);
++  doc.save(`statement-${number}.pdf`);
++}
+--- a/client/src/pages/Documents.jsx
++++ b/client/src/pages/Documents.jsx
+@@ -11,7 +11,7 @@
+ import { StatTile } from '../components/Charts.jsx';
+ import { exportAgreementPdf, exportReturnSummaryPdf, exportCustomerStatementPdf } from '../pdf.js';
+ 
+-const money = (n) => `$${Number(n || 0).toFixed(2)}`;
++import { money } from '../money.js';
+ const FILTERS = [
+   { key: 'all', label: 'All documents' },
+   { key: 'agreement', label: 'Agreements' },
+--- a/server/src/documentUtils.js
++++ b/server/src/documentUtils.js
+@@ -20,7 +20,9 @@
+ }
+ 
+ export function formatMoney(amount) {
+-  return `$${Number(amount || 0).toFixed(2)}`;
++  // RentalFlow is a Bangladeshi marketplace, so amounts are Taka. These strings
++  // are printed into PDFs whose font has no '৳' glyph, so use the ISO code.
++  return `BDT ${Number(amount || 0).toFixed(2)}`;
+ }
+ 
+ // Roll a customer's rental history into the totals printed at the foot of a
+--- a/server/src/documentUtils.test.js
++++ b/server/src/documentUtils.test.js
+@@ -18,8 +18,8 @@
+ });
+ 
+ test('money is always printed with two decimals', () => {
+-  assert.equal(formatMoney(12.5), '$12.50');
+-  assert.equal(formatMoney(null), '$0.00');
++  assert.equal(formatMoney(12.5), 'BDT 12.50');
++  assert.equal(formatMoney(null), 'BDT 0.00');
+ });
+ 
+ test('statement totals split rental, late fees and penalties', () => {
+--- a/server/src/seed.js
++++ b/server/src/seed.js
+@@ -53,13 +53,15 @@
+ 
+   // --- Items (listed by different members) ---
+   // [owner, name, desc, serial, price, replacement, category, status]
++  // Amounts are Bangladeshi Taka — day rates and replacement values priced for
++  // the Dhaka rental market rather than converted from another currency.
+   const items = [
+-    [rahim, 'Canon EOS R6', 'Full-frame mirrorless camera body', 'CAM-0001', 45.0, 2500.0, 'Cameras', 'Available'],
+-    [rahim, 'Canon RF 24-70mm', 'Standard zoom lens', 'LEN-0001', 20.0, 1800.0, 'Lenses', 'Available'],
+-    [rahim, 'Manfrotto Tripod', 'Aluminium video tripod', 'TRP-0001', 8.0, 250.0, 'Tripods & Supports', 'Under Maintenance'],
+-    [karim, 'Sony A7 III', 'Full-frame mirrorless camera', 'CAM-0002', 40.0, 2000.0, 'Cameras', 'Rented'],
+-    [karim, 'DeWalt Drill', 'Cordless hammer drill', 'PWR-0001', 12.0, 180.0, 'Power Tools', 'Available'],
+-    [karim, 'Bounce Castle', 'Large inflatable event castle', 'EVT-0001', 120.0, 3000.0, 'Event & Party', 'Damaged'],
++    [rahim, 'Canon EOS R6', 'Full-frame mirrorless camera body', 'CAM-0001', 5500.0, 320000.0, 'Cameras', 'Available'],
++    [rahim, 'Canon RF 24-70mm', 'Standard zoom lens', 'LEN-0001', 2500.0, 225000.0, 'Lenses', 'Available'],
++    [rahim, 'Manfrotto Tripod', 'Aluminium video tripod', 'TRP-0001', 900.0, 30000.0, 'Tripods & Supports', 'Under Maintenance'],
++    [karim, 'Sony A7 III', 'Full-frame mirrorless camera', 'CAM-0002', 4800.0, 250000.0, 'Cameras', 'Rented'],
++    [karim, 'DeWalt Drill', 'Cordless hammer drill', 'PWR-0001', 1400.0, 22000.0, 'Power Tools', 'Available'],
++    [karim, 'Bounce Castle', 'Large inflatable event castle', 'EVT-0001', 14000.0, 350000.0, 'Event & Party', 'Damaged'],
+   ];
+ 
+   for (const [owner, name, desc, serial, price, repl, cat, status] of items) {
