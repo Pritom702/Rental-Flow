@@ -15,6 +15,7 @@ import bookingRoutes from './routes/bookings.js';
 import scanRoutes from './routes/scan.js';
 import adminRoutes from './routes/admin.js';
 import maintenanceRoutes from './routes/maintenance.js';
+import analyticsRoutes from './routes/analytics.js';
 import { auditLogger } from './middleware/audit.js';
 import { pool } from './db.js';
 
@@ -46,6 +47,7 @@ app.use('/api/bookings', bookingRoutes);
 app.use('/api/scan', scanRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/maintenance', maintenanceRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
