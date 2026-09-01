@@ -23,7 +23,8 @@ export function eventForStatus(status) {
   return STATUS_EVENT[status] || null;
 }
 
-const money = (n) => `$${Number(n || 0).toFixed(2)}`;
+// Notification text is rendered as HTML in the bell, so the Taka sign is safe here.
+const money = (n) => `৳${Number(n || 0).toFixed(2)}`;
 
 // The title + body stored on the row. Written once here so the bell, the list
 // and any future email all read the same sentence.

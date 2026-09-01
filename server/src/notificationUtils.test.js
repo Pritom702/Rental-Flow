@@ -32,7 +32,7 @@ test('the request notification tells the owner who wants what', () => {
 test('the approval notification names the item and the held deposit', () => {
   const n = buildNotification('booking_approved', BOOKING);
   assert.match(n.title, /was approved/);
-  assert.match(n.body, /\$36\.00/);
+  assert.match(n.body, /৳36\.00/);
 });
 
 test('an unknown event type builds nothing', () => {

@@ -8,7 +8,7 @@ import { api } from '../api.js';
 import { Icon } from '../icons.jsx';
 import { StatTile } from '../components/Charts.jsx';
 
-const money = (n) => `$${Number(n || 0).toFixed(2)}`;
+import { money } from '../money.js';
 
 export default function Customers() {
   const [customers, setCustomers] = useState([]);
