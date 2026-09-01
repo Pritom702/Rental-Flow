@@ -25,6 +25,11 @@ async function main() {
   const notifications = fs.readFileSync(path.join(__dirname, 'schema_notifications.sql'), 'utf8');
   await pool.query(notifications);
   console.log('✅ Notifications table created');
+
+  // NID verification for damage control + permanent payment methods.
+  const profile = fs.readFileSync(path.join(__dirname, 'schema_profile.sql'), 'utf8');
+  await pool.query(profile);
+  console.log('✅ Profile schema created (NID columns, payment_methods)');
   await pool.end();
 }
 

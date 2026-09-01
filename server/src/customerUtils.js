@@ -11,10 +11,17 @@ export function normalizeEmail(email) {
 }
 
 // Loyalty tier, driven by lifetime spend and how many rentals they've taken.
+// Thresholds are in Bangladeshi Taka and are set against the real day rates on
+// the platform (roughly ৳900–৳14,000 a day). ৳1,00,000 of lifetime spend is
+// several substantial rentals; ৳25,000 is about one. Getting this scale wrong
+// is not cosmetic — it decides who the platform treats as a trusted customer.
+export const TIER_VIP_SPEND = 100000;
+export const TIER_REGULAR_SPEND = 25000;
+
 export function customerTier({ totalSpend = 0, bookingCount = 0 } = {}) {
   const spend = Number(totalSpend || 0);
-  if (spend >= 1000 || bookingCount >= 8) return 'VIP';
-  if (spend >= 300 || bookingCount >= 3) return 'Regular';
+  if (spend >= TIER_VIP_SPEND || bookingCount >= 8) return 'VIP';
+  if (spend >= TIER_REGULAR_SPEND || bookingCount >= 3) return 'Regular';
   return 'New';
 }
 
