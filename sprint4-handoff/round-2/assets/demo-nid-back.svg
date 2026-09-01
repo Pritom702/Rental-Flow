@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="300" viewBox="0 0 480 300" role="img" aria-label="Demo NID front">
+  <rect width="480" height="300" rx="14" fill="#F2EFE8" stroke="#D2CBBB" stroke-width="2"/>
+  <rect x="0" y="0" width="480" height="52" rx="14" fill="#1F4335"/>
+  <rect x="0" y="38" width="480" height="14" fill="#1F4335"/>
+  <text x="24" y="33" font-family="Inter,Segoe UI,sans-serif" font-size="15" font-weight="700" fill="#F7F5F0">GOVERNMENT OF BANGLADESH</text>
+  <text x="24" y="82" font-family="Inter,Segoe UI,sans-serif" font-size="12" font-weight="700" fill="#78736A" letter-spacing="1.4">NATIONAL ID CARD — REVERSE</text>
+  <rect x="24" y="98" width="96" height="112" rx="7" fill="#D2CBBB"/>
+  <circle cx="72" cy="140" r="21" fill="#B4AC9B"/>
+  <path d="M40 204c0-19 15-31 32-31s32 12 32 31z" fill="#B4AC9B"/>
+  <text x="140" y="118" font-family="Inter,Segoe UI,sans-serif" font-size="11" fill="#78736A">ISSUED</text>
+  <text x="140" y="139" font-family="Inter,Segoe UI,sans-serif" font-size="17" font-weight="600" fill="#16150F">ADDRESS ON FILE</text>
+  <text x="140" y="169" font-family="Inter,Segoe UI,sans-serif" font-size="11" fill="#78736A">ID NO</text>
+  <text x="140" y="190" font-family="ui-monospace,Consolas,monospace" font-size="17" font-weight="600" fill="#16150F">•••• •••• ••••</text>
+  <text x="24" y="240" font-family="Inter,Segoe UI,sans-serif" font-size="11" fill="#9A6534" font-weight="700">SAMPLE IMAGE — SEEDED DEMO DATA, NOT A REAL ID</text>
+  <text x="24" y="262" font-family="Inter,Segoe UI,sans-serif" font-size="10.5" fill="#78736A">RentalFlow · CSE470 project</text>
+</svg>
