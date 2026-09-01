@@ -1,0 +1,2988 @@
+--- a/client/src/styles.css
++++ b/client/src/styles.css
+@@ -3,75 +3,120 @@
+    GitHub: @___ | Part: Design system (theme, components, responsive)
+    ============================================================ */
+ /* ============================================================================
+-   RentalFlow design system  —  original styles, hand-written for this project.
+-   Palette: trust purple + transaction green. Type: Lexend / Source Sans 3.
+-   Light + dark themes via CSS variables (dark follows the OS preference).
++   RentalFlow design system — hand-written for this project.
++
++   Direction: editorial / premium. Warm paper ground, near-black ink, a single
++   deep evergreen accent with a copper highlight. Display serif for titles,
++   grotesque sans for interface text. Light + dark themes via CSS variables.
+    ============================================================================ */
+-@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap');
++@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap');
+ 
+ :root {
+-  /* Brand */
+-  --primary: #7C3AED;
+-  --primary-hover: #6D28D9;
+-  --primary-soft: #F3EEFE;
+-  --on-primary: #FFFFFF;
+-  --accent: #16A34A;         /* transaction green */
+-  --accent-hover: #15803D;
+-
+-  /* Neutrals (light) */
+-  --bg: #F7F5FC;
+-  --bg-tint: #F1ECFB;
+-  --surface: #FFFFFF;
+-  --surface-2: #F4F1FB;
+-  --border: #E7E1F5;
+-  --text: #241C38;
+-  --muted: #6E6784;
+-
+-  /* Status */
+-  --green: #16A34A;
+-  --blue: #2563EB;
+-  --amber: #D97706;
+-  --red: #DC2626;
+-  --gray: #6B7280;
++  /* Brand — deep evergreen ink, copper highlight */
++  --primary: #1F4335;
++  --primary-hover: #16332A;
++  --primary-soft: #E9EFEA;
++  --on-primary: #F7F5F0;
++  --accent: #9A6534;          /* copper */
++  --accent-hover: #83552B;
++  --accent-soft: #F5EDE3;
++
++  /* Neutrals (warm paper) */
++  --bg: #F7F5F0;
++  --bg-tint: #F1EEE7;
++  --surface: #FFFDF9;
++  --surface-2: #F2EFE8;
++  --border: #E2DDD1;
++  --border-strong: #D2CBBB;
++  --text: #16150F;
++  --text-2: #3D3A31;
++  --muted: #78736A;
++
++  /* Status — desaturated, never neon */
++  --green: #3F7A5A;
++  --blue: #41586B;
++  --amber: #9A6534;
++  --red: #9E3B2F;
++  --gray: #78736A;
++
++  /* Categorical chart series — distinct hues that still sit in the palette.
++     Kept separate from the status colours so a chart never implies a status. */
++  --chart-1: #2F6350;   /* evergreen  */
++  --chart-2: #9A6534;   /* copper     */
++  --chart-3: #41586B;   /* slate      */
++  --chart-4: #7D8F62;   /* olive      */
++  --chart-5: #A8553F;   /* clay       */
++  --chart-6: #8A7F6B;   /* warm grey  */
++
++  /* Type — Noto Sans Bengali carries the '৳' glyph the Latin faces lack. */
++  --font-display: 'Fraunces', 'Noto Sans Bengali', 'Iowan Old Style', Georgia, serif;
++  --font-ui: 'Inter', 'Noto Sans Bengali', system-ui, -apple-system, 'Segoe UI', sans-serif;
+ 
+   /* Effects */
+-  --radius: 14px;
+-  --radius-sm: 10px;
+-  --shadow-sm: 0 1px 2px rgba(36, 28, 56, .06), 0 1px 3px rgba(36, 28, 56, .04);
+-  --shadow-md: 0 6px 20px rgba(76, 29, 149, .10);
+-  --shadow-lg: 0 20px 50px rgba(76, 29, 149, .16);
+-  --ring: 0 0 0 3px rgba(124, 58, 237, .35);
+-  --nav-bg: rgba(255, 255, 255, .82);
++  --radius: 10px;
++  --radius-sm: 7px;
++  --radius-lg: 16px;
++  --shadow-sm: 0 1px 2px rgba(22, 21, 15, .05);
++  --shadow-md: 0 4px 16px rgba(22, 21, 15, .07);
++  --shadow-lg: 0 18px 48px rgba(22, 21, 15, .14);
++  --ring: 0 0 0 3px rgba(31, 67, 53, .22);
++
++  /* Shell */
++  --sidebar-w: 248px;
++  --topbar-h: 60px;
++  --sidebar-bg: #16241E;
++  --sidebar-text: #C9D3CD;
++  --sidebar-text-strong: #F4F1EA;
++  --sidebar-border: rgba(244, 241, 234, .10);
++  --sidebar-active: rgba(244, 241, 234, .10);
++  --nav-bg: rgba(247, 245, 240, .86);
+ }
+ 
+ @media (prefers-color-scheme: dark) {
+   :root {
+-    --primary: #8B5CF6;
+-    --primary-hover: #7C3AED;
+-    --primary-soft: #241A38;
+-    --on-primary: #FFFFFF;
+-    --accent: #22C55E;
+-    --accent-hover: #16A34A;
+-
+-    --bg: #100D1A;
+-    --bg-tint: #171226;
+-    --surface: #1A1526;
+-    --surface-2: #221B33;
+-    --border: #322845;
+-    --text: #ECE8F6;
+-    --muted: #A79FBB;
+-
+-    --green: #34D399;
+-    --blue: #60A5FA;
+-    --amber: #FBBF24;
+-    --red: #F87171;
+-    --gray: #9AA0AE;
+-
+-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
+-    --shadow-md: 0 8px 24px rgba(0, 0, 0, .45);
+-    --shadow-lg: 0 24px 60px rgba(0, 0, 0, .55);
+-    --ring: 0 0 0 3px rgba(139, 92, 246, .45);
+-    --nav-bg: rgba(20, 16, 32, .78);
++    --primary: #8FB6A0;
++    --primary-hover: #A6C7B4;
++    --primary-soft: #1E2A24;
++    --on-primary: #10120F;
++    --accent: #C79055;
++    --accent-hover: #D8A369;
++    --accent-soft: #2A2118;
++
++    --bg: #121210;
++    --bg-tint: #191917;
++    --surface: #1A1A17;
++    --surface-2: #232320;
++    --border: #2E2E29;
++    --border-strong: #3D3D36;
++    --text: #EDEAE1;
++    --text-2: #C6C2B7;
++    --muted: #8E8A80;
++
++    --green: #6FA987;
++    --blue: #7E97AC;
++    --amber: #C79055;
++    --red: #C97467;
++    --gray: #8E8A80;
++
++    /* Chart series, lifted for contrast against the dark ground */
++    --chart-1: #6FA987;
++    --chart-2: #C79055;
++    --chart-3: #7E97AC;
++    --chart-4: #A3B285;
++    --chart-5: #C97E66;
++    --chart-6: #9A9184;
++
++    --shadow-sm: 0 1px 2px rgba(0, 0, 0, .5);
++    --shadow-md: 0 6px 20px rgba(0, 0, 0, .5);
++    --shadow-lg: 0 20px 52px rgba(0, 0, 0, .62);
++    --ring: 0 0 0 3px rgba(143, 182, 160, .3);
++
++    --sidebar-bg: #0E100E;
++    --sidebar-text: #9C9B92;
++    --sidebar-text-strong: #EDEAE1;
++    --sidebar-border: rgba(237, 234, 225, .09);
++    --sidebar-active: rgba(237, 234, 225, .08);
++    --nav-bg: rgba(18, 18, 16, .86);
+   }
+ }
+ 
+@@ -79,246 +124,703 @@
+ html { scroll-behavior: smooth; }
+ body {
+   margin: 0;
+-  font-family: 'Source Sans 3', system-ui, -apple-system, sans-serif;
++  font-family: var(--font-ui);
+   background: var(--bg);
+   color: var(--text);
+   -webkit-font-smoothing: antialiased;
+-  line-height: 1.6;
+-  overflow-x: hidden;   /* never allow horizontal scroll */
++  -moz-osx-font-smoothing: grayscale;
++  font-size: 15px;
++  line-height: 1.55;
++  overflow-x: hidden;
+ }
+-h1, h2, h3, h4 { font-family: 'Lexend', system-ui, sans-serif; line-height: 1.15; margin: 0; letter-spacing: -.02em; }
++h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 600; line-height: 1.16; margin: 0; letter-spacing: -.015em; font-optical-sizing: auto; }
+ a { color: var(--primary); text-decoration: none; }
+ img { max-width: 100%; }
++:focus-visible { outline: none; box-shadow: var(--ring); border-radius: var(--radius-sm); }
+ 
+ @media (prefers-reduced-motion: reduce) {
+   html { scroll-behavior: auto; }
+   * { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+ }
+ 
+-/* ---------- Nav ---------- */
+-.nav {
+-  display: flex; align-items: center; gap: 22px;
+-  padding: 14px 28px;
+-  background: var(--nav-bg);
+-  backdrop-filter: saturate(180%) blur(12px);
+-  border-bottom: 1px solid var(--border);
+-  position: sticky; top: 0; z-index: 50;
+-}
+-.nav .brand { font-family: 'Lexend'; font-weight: 800; font-size: 21px; color: var(--text); letter-spacing: -.03em; display: flex; align-items: center; gap: 8px; }
+-.nav .brand .logo-mark { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, var(--primary), var(--accent)); display: inline-flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0; }
+-.nav .brand .wordmark span { color: var(--primary); }
+-.nav a { color: var(--muted); font-weight: 600; font-size: 15px; transition: color .2s; }
+-.nav a.active, .nav a:hover { color: var(--text); }
+-/* Buttons that happen to be links inside the nav must keep button colors
+-   (the generic `.nav a` rule would otherwise override them). */
+-.nav a.btn { color: var(--on-primary); }
+-.nav a.btn:hover { color: var(--on-primary); }
+-.nav a.btn.secondary { color: var(--text); }
+-.nav .spacer { flex: 1; }
+-.nav .who { color: var(--muted); font-size: 14px; }
+-.nav .who b { color: var(--text); text-transform: capitalize; }
++/* ============================================================================
++   App shell — persistent sidebar + topbar (signed-in app pages)
++   ============================================================================ */
++.shell { display: flex; min-height: 100dvh; }
++
++.sidebar {
++  width: var(--sidebar-w); flex: none; background: var(--sidebar-bg);
++  color: var(--sidebar-text); display: flex; flex-direction: column;
++  position: sticky; top: 0; height: 100dvh; z-index: 60;
++}
++.sidebar .brand {
++  display: flex; align-items: center; gap: 10px; padding: 20px 20px 18px;
++  font-family: var(--font-display); font-weight: 600; font-size: 19px;
++  color: var(--sidebar-text-strong); letter-spacing: -.02em;
++}
++.sidebar .logo-mark {
++  width: 30px; height: 30px; border-radius: 8px; flex: none;
++  background: linear-gradient(150deg, #2F6350, #9A6534);
++  display: inline-flex; align-items: center; justify-content: center; color: #F7F5F0;
++}
++.sidebar .brand .wordmark span { color: var(--accent); }
++
++.side-nav { flex: 1; overflow-y: auto; padding: 4px 12px 16px; }
++.side-group { margin-bottom: 20px; }
++.side-group-label {
++  font-size: 10.5px; font-weight: 600; letter-spacing: .11em; text-transform: uppercase;
++  color: var(--muted); padding: 0 10px 7px; opacity: .8;
++}
++.side-link {
++  display: flex; align-items: center; gap: 11px; padding: 8px 10px; margin-bottom: 1px;
++  border-radius: var(--radius-sm); color: var(--sidebar-text);
++  font-size: 14px; font-weight: 500; transition: background .16s, color .16s;
++  position: relative;
++}
++.side-link svg { flex: none; opacity: .75; }
++.side-link:hover { background: var(--sidebar-active); color: var(--sidebar-text-strong); }
++.side-link.active { background: var(--sidebar-active); color: var(--sidebar-text-strong); font-weight: 600; }
++.side-link.active svg { opacity: 1; color: var(--accent); }
++.side-link.active::before {
++  content: ''; position: absolute; left: -12px; top: 7px; bottom: 7px;
++  width: 2.5px; border-radius: 0 3px 3px 0; background: var(--accent);
++}
++
++.side-foot { border-top: 1px solid var(--sidebar-border); padding: 14px 14px 16px; }
++.side-user { display: flex; align-items: center; gap: 10px; margin-bottom: 11px; min-width: 0; }
++.side-avatar {
++  width: 32px; height: 32px; border-radius: 50%; flex: none;
++  background: linear-gradient(150deg, #2F6350, #9A6534); color: #F7F5F0;
++  display: flex; align-items: center; justify-content: center;
++  font-size: 12.5px; font-weight: 600; font-family: var(--font-ui);
++}
++.side-user-meta { min-width: 0; }
++.side-user-name { font-size: 13.5px; font-weight: 600; color: var(--sidebar-text-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
++.side-user-role { font-size: 11.5px; color: var(--muted); text-transform: capitalize; }
++.side-logout {
++  display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%;
++  padding: 7px 12px; border-radius: var(--radius-sm); cursor: pointer;
++  background: transparent; border: 1px solid var(--sidebar-border);
++  color: var(--sidebar-text); font-family: inherit; font-size: 13px; font-weight: 500;
++  transition: background .16s, color .16s;
++}
++.side-logout:hover { background: var(--sidebar-active); color: var(--sidebar-text-strong); }
++
++.shell-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
++.topbar {
++  height: var(--topbar-h); flex: none; display: flex; align-items: center; gap: 14px;
++  padding: 0 30px; background: var(--nav-bg); backdrop-filter: saturate(160%) blur(10px);
++  border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50;
++}
++.topbar .crumb { font-size: 13.5px; color: var(--muted); font-weight: 500; }
++.topbar .crumb b { color: var(--text); font-weight: 600; }
++.topbar .spacer { flex: 1; }
++.menu-btn {
++  display: none; align-items: center; justify-content: center; width: 34px; height: 34px;
++  border-radius: var(--radius-sm); border: 1px solid var(--border);
++  background: var(--surface); color: var(--text); cursor: pointer;
++}
++.sidebar-scrim { display: none; }
++
++/* Slim public header (landing / login / guest browse) */
++.pubnav {
++  display: flex; align-items: center; gap: 24px; padding: 16px 32px;
++  background: var(--nav-bg); backdrop-filter: saturate(160%) blur(10px);
++  border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50;
++}
++.pubnav .brand {
++  display: flex; align-items: center; gap: 9px; font-family: var(--font-display);
++  font-weight: 600; font-size: 20px; color: var(--text); letter-spacing: -.02em;
++}
++.pubnav .logo-mark {
++  width: 29px; height: 29px; border-radius: 8px; flex: none;
++  background: linear-gradient(150deg, #2F6350, #9A6534);
++  display: inline-flex; align-items: center; justify-content: center; color: #F7F5F0;
++}
++.pubnav .brand .wordmark span { color: var(--accent); }
++.pubnav > a:not(.brand):not(.btn) { color: var(--muted); font-weight: 500; font-size: 14.5px; transition: color .18s; }
++.pubnav > a:not(.brand):not(.btn):hover, .pubnav > a.active:not(.brand) { color: var(--text); }
++.pubnav .spacer { flex: 1; }
+ 
+-.container { max-width: 1120px; margin: 0 auto; padding: 32px 28px; }
++.container { max-width: 1160px; margin: 0 auto; padding: 30px 30px 64px; width: 100%; }
+ 
+-/* ---------- Buttons ---------- */
++/* ============================================================================
++   Buttons
++   ============================================================================ */
+ .btn {
+-  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+-  background: var(--primary); color: var(--on-primary); border: none;
+-  padding: 11px 20px; border-radius: 10px; cursor: pointer;
+-  font-family: 'Lexend'; font-size: 14px; font-weight: 600;
+-  transition: transform .15s ease, background .2s, box-shadow .2s;
+-  box-shadow: var(--shadow-sm);
++  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
++  background: var(--primary); color: var(--on-primary); border: 1px solid transparent;
++  padding: 9px 17px; border-radius: var(--radius-sm); cursor: pointer;
++  font-family: var(--font-ui); font-size: 13.5px; font-weight: 600; letter-spacing: -.005em;
++  transition: background .17s, border-color .17s, color .17s, box-shadow .17s;
++  white-space: nowrap;
+ }
+-.btn:hover { background: var(--primary-hover); transform: translateY(-1px); box-shadow: var(--shadow-md); }
+-.btn:active { transform: translateY(0); }
++.btn:hover { background: var(--primary-hover); }
+ .btn:focus-visible { outline: none; box-shadow: var(--ring); }
+-.btn.accent { background: var(--accent); }
++.btn.accent { background: var(--accent); color: #FFFDF9; }
+ .btn.accent:hover { background: var(--accent-hover); }
+-.btn.secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); box-shadow: none; }
+-.btn.secondary:hover { background: var(--surface-2); }
+-.btn.danger { background: var(--red); }
+-.btn.ghost { background: transparent; color: var(--primary); box-shadow: none; }
+-.btn.ghost:hover { background: var(--primary-soft); }
+-.btn.small { padding: 7px 12px; font-size: 13px; border-radius: 8px; }
+-.btn.lg { padding: 14px 26px; font-size: 16px; }
+-.btn:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
++.btn.secondary { background: var(--surface); color: var(--text); border-color: var(--border-strong); }
++.btn.secondary:hover { background: var(--surface-2); border-color: var(--muted); }
++.btn.danger { background: transparent; color: var(--red); border-color: color-mix(in srgb, var(--red) 40%, transparent); }
++.btn.danger:hover { background: color-mix(in srgb, var(--red) 10%, transparent); border-color: var(--red); }
++.btn.ghost { background: transparent; color: var(--text-2); border-color: transparent; }
++.btn.ghost:hover { background: var(--surface-2); color: var(--text); }
++.btn.small { padding: 6px 11px; font-size: 12.5px; }
++.btn.lg { padding: 12px 24px; font-size: 15px; border-radius: var(--radius); }
++/* A disabled control must LOOK disabled — flat, neutral, no accent colour. */
++.btn:disabled, .btn[disabled] {
++  background: var(--surface-2); color: var(--muted); border-color: var(--border);
++  cursor: not-allowed; box-shadow: none;
++}
++.btn:disabled:hover { background: var(--surface-2); color: var(--muted); border-color: var(--border); }
+ 
+-/* ---------- Cards / grid ---------- */
+-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 20px; }
++/* ============================================================================
++   Cards / grid
++   ============================================================================ */
++.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); gap: 18px; }
+ .card {
+   background: var(--surface); border: 1px solid var(--border);
+-  border-radius: var(--radius); padding: 18px;
+-  box-shadow: var(--shadow-sm);
+-  transition: transform .18s ease, box-shadow .2s, border-color .2s;
+-}
+-.card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: color-mix(in srgb, var(--primary) 35%, var(--border)); }
+-.card h3 { font-size: 18px; margin: 0 0 2px; }
+-.card .serial { color: var(--muted); font-size: 13px; }
+-.card .serial b { color: var(--text); }
+-.card .desc { color: var(--muted); font-size: 14px; margin: 10px 0; min-height: 20px; }
+-.card .price { font-family: 'Lexend'; font-weight: 700; font-size: 20px; color: var(--text); }
+-.card .price span { font-size: 13px; color: var(--muted); font-weight: 400; }
+-.card-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
+-
+-/* Card cover image */
+-.card-photo { width: calc(100% + 36px); height: 172px; margin: -18px -18px 14px; background: var(--surface-2); overflow: hidden; position: relative; }
+-.card-photo img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .4s ease; }
+-.card:hover .card-photo img { transform: scale(1.05); }
+-.card-photo .no-photo { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--muted); font-size: 13px; gap: 6px; background: repeating-linear-gradient(45deg, var(--surface-2), var(--surface-2) 10px, var(--bg-tint) 10px, var(--bg-tint) 20px); }
+-.card-photo .count-badge { position: absolute; bottom: 10px; right: 10px; background: rgba(0,0,0,.62); color: #fff; font-size: 11px; padding: 3px 9px; border-radius: 999px; backdrop-filter: blur(4px); }
++  border-radius: var(--radius); padding: 16px;
++  transition: border-color .18s, box-shadow .18s;
++  display: flex; flex-direction: column;
++}
++.card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm); }
++.card h3 { font-size: 16.5px; margin: 0 0 2px; letter-spacing: -.01em; }
++.card .serial { color: var(--muted); font-size: 12.5px; }
++.card .serial b { color: var(--text-2); font-weight: 600; }
++.card .desc { color: var(--muted); font-size: 13.5px; margin: 9px 0 0; line-height: 1.5; }
++.card .price {
++  font-family: var(--font-display); font-weight: 600; font-size: 19px; color: var(--text);
++  font-variant-numeric: tabular-nums;
++}
++.card .price span { font-size: 12.5px; color: var(--muted); font-weight: 400; font-family: var(--font-ui); }
++.card-actions { display: flex; gap: 7px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
++.card-actions select {
++  padding: 6px 9px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong);
++  background: var(--surface); color: var(--text); font-size: 12.5px; font-family: inherit;
++}
++/* Push the action row to the bottom so cards in a row line up. */
++.card > .card-actions:last-child { margin-top: auto; padding-top: 14px; }
++
++/* Cover image — shorter, so the card is about the item, not the placeholder */
++.card-photo {
++  width: calc(100% + 32px); height: 132px; margin: -16px -16px 13px;
++  background: var(--surface-2); overflow: hidden; position: relative;
++  border-bottom: 1px solid var(--border);
++  border-radius: var(--radius) var(--radius) 0 0;
++}
++.card-photo img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .5s ease; }
++.card:hover .card-photo img { transform: scale(1.04); }
++.card-photo .no-photo {
++  display: flex; align-items: center; justify-content: center; height: 100%;
++  color: var(--muted); font-size: 12px; gap: 6px; opacity: .65;
++}
++.card-photo .count-badge {
++  position: absolute; bottom: 9px; right: 9px; background: rgba(22, 21, 15, .72); color: #F7F5F0;
++  font-size: 10.5px; font-weight: 500; padding: 3px 8px; border-radius: 4px; backdrop-filter: blur(4px);
++}
+ 
+-/* ---------- Tags + status ---------- */
++/* ============================================================================
++   Tags + status badges
++   ============================================================================ */
+ .tag {
+-  display: inline-flex; align-items: center; background: var(--primary-soft); color: var(--primary);
+-  border-radius: 999px; padding: 3px 11px; font-size: 12px; font-weight: 600; margin: 2px 4px 2px 0;
++  display: inline-flex; align-items: center; background: var(--surface-2); color: var(--text-2);
++  border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px;
++  font-size: 11.5px; font-weight: 500; margin: 2px 4px 2px 0;
+ }
+ .badge {
+-  display: inline-flex; align-items: center; gap: 5px; padding: 4px 11px; border-radius: 999px;
+-  font-size: 12px; font-weight: 700; white-space: nowrap;
++  display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 4px;
++  font-size: 11.5px; font-weight: 600; white-space: nowrap; letter-spacing: .01em;
++  border: 1px solid transparent;
++}
++.badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex: none; }
++.badge.Available { background: color-mix(in srgb, var(--green) 11%, transparent); color: var(--green); border-color: color-mix(in srgb, var(--green) 24%, transparent); }
++.badge.Rented { background: color-mix(in srgb, var(--blue) 11%, transparent); color: var(--blue); border-color: color-mix(in srgb, var(--blue) 24%, transparent); }
++.badge.Damaged { background: color-mix(in srgb, var(--red) 11%, transparent); color: var(--red); border-color: color-mix(in srgb, var(--red) 24%, transparent); }
++.badge.Under-Maintenance { background: color-mix(in srgb, var(--amber) 12%, transparent); color: var(--amber); border-color: color-mix(in srgb, var(--amber) 26%, transparent); }
++.badge.Retired { background: color-mix(in srgb, var(--gray) 12%, transparent); color: var(--gray); border-color: color-mix(in srgb, var(--gray) 26%, transparent); }
++
++/* ============================================================================
++   Forms
++   ============================================================================ */
++.form {
++  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
++  padding: 26px; max-width: 640px;
+ }
+-.badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+-.badge.Available { background: color-mix(in srgb, var(--green) 15%, transparent); color: var(--green); }
+-.badge.Rented { background: color-mix(in srgb, var(--blue) 15%, transparent); color: var(--blue); }
+-.badge.Damaged { background: color-mix(in srgb, var(--red) 15%, transparent); color: var(--red); }
+-.badge.Under-Maintenance { background: color-mix(in srgb, var(--amber) 18%, transparent); color: var(--amber); }
+-.badge.Retired { background: color-mix(in srgb, var(--gray) 20%, transparent); color: var(--gray); }
+-
+-/* ---------- Forms ---------- */
+-.form { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 26px; max-width: 640px; box-shadow: var(--shadow-sm); }
+-.field { margin-bottom: 18px; }
+-.booking-summary { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 16px; padding: 12px 14px; border-radius: 12px; background: var(--primary-soft); color: var(--text); }
+-.calendar-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 10px 0 12px; }
+-.calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(34px, 1fr)); gap: 6px; }
+-.calendar-cell { border: 1px solid var(--border); border-radius: 8px; min-height: 36px; display: flex; align-items: center; justify-content: center; background: var(--surface); color: var(--muted); font-size: 13px; }
+-.calendar-cell.booked { background: var(--primary-soft); color: var(--primary); font-weight: 700; }
+-.calendar-cell.calendar-header { background: transparent; border: none; color: var(--text); font-weight: 700; min-height: auto; }
+-.field label { display: block; margin-bottom: 7px; font-size: 14px; font-weight: 600; color: var(--text); }
++.field { margin-bottom: 16px; }
++.field label, .field > span { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: var(--text-2); }
+ .field input, .field select, .field textarea {
+-  width: 100%; padding: 11px 13px; border-radius: 10px;
+-  border: 1px solid var(--border); background: var(--bg); color: var(--text);
+-  font-size: 15px; font-family: inherit; transition: border-color .2s, box-shadow .2s;
++  width: 100%; padding: 9px 12px; border-radius: var(--radius-sm);
++  border: 1px solid var(--border-strong); background: var(--surface); color: var(--text);
++  font-size: 14.5px; font-family: inherit; transition: border-color .17s, box-shadow .17s;
+ }
++.field input::placeholder, .field textarea::placeholder { color: var(--muted); opacity: .8; }
+ .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--primary); box-shadow: var(--ring); }
+-.field input[type="file"] { padding: 9px; cursor: pointer; }
+-.row { display: flex; gap: 18px; }
+-.row .field { flex: 1; }
++.field input[type="file"] { padding: 8px; cursor: pointer; font-size: 13px; }
++.row { display: flex; gap: 16px; }
++.row .field { flex: 1; min-width: 0; }
++
++.booking-summary {
++  display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 14px; padding: 12px 14px;
++  border-radius: var(--radius-sm); background: var(--surface-2); border: 1px solid var(--border);
++  color: var(--text-2); font-size: 13.5px;
++}
++.booking-summary b { color: var(--text); font-variant-numeric: tabular-nums; }
++
++/* Availability calendar */
++.calendar-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 8px 0 12px; }
++.calendar-toolbar strong { font-family: var(--font-display); font-weight: 600; font-size: 15px; }
++.calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(32px, 1fr)); gap: 4px; }
++.calendar-cell {
++  border: 1px solid var(--border); border-radius: var(--radius-sm); min-height: 34px;
++  display: flex; align-items: center; justify-content: center;
++  background: var(--surface); color: var(--text-2); font-size: 12.5px;
++  font-variant-numeric: tabular-nums;
++}
++.calendar-cell.booked {
++  background: color-mix(in srgb, var(--red) 10%, transparent); color: var(--red);
++  border-color: color-mix(in srgb, var(--red) 25%, transparent); font-weight: 600;
++}
++.calendar-cell.calendar-header {
++  background: transparent; border: none; color: var(--muted); font-weight: 600;
++  min-height: auto; font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
++}
++.calendar-key { display: flex; gap: 16px; align-items: center; margin-top: 10px; font-size: 12.5px; color: var(--muted); }
++.calendar-key i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 6px; vertical-align: -1px; }
+ 
+-/* ---------- Toolbar / page head ---------- */
+-.toolbar { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; align-items: center; }
++/* ============================================================================
++   Toolbar / page head
++   ============================================================================ */
++.toolbar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+ .toolbar input, .toolbar select {
+-  padding: 11px 14px; border-radius: 10px; border: 1px solid var(--border);
+-  background: var(--surface); color: var(--text); font-size: 15px; font-family: inherit;
++  padding: 9px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong);
++  background: var(--surface); color: var(--text); font-size: 14px; font-family: inherit;
+ }
+ .toolbar input:focus, .toolbar select:focus { outline: none; border-color: var(--primary); box-shadow: var(--ring); }
+ .search-field { position: relative; display: flex; align-items: center; }
+-.search-field svg { position: absolute; left: 12px; color: var(--muted); pointer-events: none; }
+-.search-field input { padding-left: 38px; }
++.search-field svg { position: absolute; left: 11px; color: var(--muted); pointer-events: none; }
++.search-field input { padding-left: 35px; }
++
+ .page-head { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 24px; gap: 16px; }
+-.page-head h1 { font-size: 30px; }
+-.page-head .sub { color: var(--muted); margin-top: 6px; }
++.page-head h1 { font-size: 30px; letter-spacing: -.02em; }
++.page-head .sub { color: var(--muted); margin-top: 5px; font-size: 14.5px; max-width: 62ch; }
+ 
+-/* ---------- Auth ---------- */
+-.auth-split { min-height: calc(100dvh - 60px); display: grid; grid-template-columns: 1.1fr 1fr; }
+-.auth-aside { position: relative; padding: 56px; color: #fff; background: linear-gradient(150deg, #4C1D95, #7C3AED 55%, #16A34A); overflow: hidden; display: flex; flex-direction: column; justify-content: center; }
+-.auth-aside::after { content: ''; position: absolute; inset: 0; background: radial-gradient(600px circle at 80% 20%, rgba(255,255,255,.18), transparent 60%); }
+-.auth-aside h2 { font-size: 38px; color: #fff; position: relative; }
+-.auth-aside p { font-size: 17px; opacity: .9; margin-top: 14px; max-width: 380px; position: relative; }
+-.auth-aside .points { margin-top: 28px; display: grid; gap: 14px; position: relative; }
+-.auth-aside .points div { display: flex; gap: 10px; align-items: center; font-weight: 500; }
+-.auth-main { display: flex; align-items: center; justify-content: center; padding: 40px 24px; }
+-.auth-wrap { width: 100%; max-width: 400px; }
+-.error { color: var(--red); font-size: 14px; margin: 10px 0; display: flex; gap: 6px; align-items: center; }
+-.muted { color: var(--muted); font-size: 14px; }
+-.hint { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 13px; font-size: 13px; color: var(--muted); margin-top: 18px; line-height: 1.7; }
+-.center-empty { text-align: center; color: var(--muted); padding: 64px 20px; background: var(--surface); border: 1px dashed var(--border); border-radius: var(--radius); }
+-
+-/* ---------- Image upload previews ---------- */
+-.image-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+-.thumb { position: relative; width: 96px; height: 96px; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); background: var(--bg); }
++/* ============================================================================
++   Auth
++   ============================================================================ */
++.auth-split { min-height: 100dvh; display: grid; grid-template-columns: 1.05fr 1fr; }
++.auth-aside {
++  position: relative; padding: 56px; color: #F4F1EA; overflow: hidden;
++  background: linear-gradient(155deg, #16241E 0%, #1F4335 58%, #5C4227 100%);
++  display: flex; flex-direction: column; justify-content: center;
++}
++.auth-aside::after {
++  content: ''; position: absolute; inset: 0;
++  background: radial-gradient(680px circle at 78% 18%, rgba(244, 241, 234, .10), transparent 62%);
++}
++.auth-aside h2 { font-size: 40px; color: #F4F1EA; position: relative; letter-spacing: -.025em; }
++.auth-aside p { font-size: 16.5px; opacity: .82; margin-top: 16px; max-width: 400px; position: relative; line-height: 1.6; }
++.auth-aside .points { margin-top: 32px; display: grid; gap: 13px; position: relative; }
++.auth-aside .points div { display: flex; gap: 10px; align-items: center; font-size: 14.5px; opacity: .9; }
++.auth-aside .points svg { color: var(--accent); flex: none; }
++.auth-main { display: flex; align-items: center; justify-content: center; padding: 40px 24px; background: var(--bg); }
++.auth-wrap { width: 100%; max-width: 396px; }
++.auth-wrap .form { border: none; background: transparent; padding: 0; }
++
++.error {
++  color: var(--red); font-size: 13.5px; margin: 10px 0; display: flex; gap: 7px; align-items: center;
++  background: color-mix(in srgb, var(--red) 8%, transparent); border: 1px solid color-mix(in srgb, var(--red) 22%, transparent);
++  padding: 9px 12px; border-radius: var(--radius-sm);
++}
++.success {
++  color: var(--green); font-size: 13.5px; margin: 10px 0; display: flex; gap: 7px; align-items: center;
++  background: color-mix(in srgb, var(--green) 8%, transparent); border: 1px solid color-mix(in srgb, var(--green) 22%, transparent);
++  padding: 9px 12px; border-radius: var(--radius-sm);
++}
++.muted { color: var(--muted); font-size: 13.5px; }
++.hint {
++  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
++  padding: 13px; font-size: 12.5px; color: var(--muted); margin-top: 18px; line-height: 1.75;
++}
++.hint b { color: var(--text-2); }
++.center-empty {
++  text-align: center; color: var(--muted); padding: 56px 24px; font-size: 14px;
++  background: var(--surface); border: 1px dashed var(--border-strong); border-radius: var(--radius);
++}
++.center-empty svg { color: var(--border-strong); margin-bottom: 10px; }
++.center-empty .empty-title { font-family: var(--font-display); font-size: 17px; color: var(--text); margin-bottom: 5px; font-weight: 600; }
++.center-empty .btn { margin-top: 16px; }
++
++/* Image upload previews */
++.image-grid { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 11px; }
++.thumb { position: relative; width: 88px; height: 88px; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border-strong); background: var(--surface-2); }
+ .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+-.thumb-remove { position: absolute; top: 3px; right: 3px; width: 22px; height: 22px; border: none; border-radius: 50%; background: rgba(0,0,0,.66); color: #fff; cursor: pointer; font-size: 15px; line-height: 1; display: flex; align-items: center; justify-content: center; }
+-.cover-tag { position: absolute; bottom: 0; left: 0; right: 0; background: var(--primary); color: #fff; font-size: 10px; font-weight: 600; text-align: center; padding: 2px 0; }
++.thumb-remove {
++  position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border: none; border-radius: 50%;
++  background: rgba(22, 21, 15, .74); color: #F7F5F0; cursor: pointer; font-size: 14px; line-height: 1;
++  display: flex; align-items: center; justify-content: center;
++}
++.cover-tag {
++  position: absolute; bottom: 0; left: 0; right: 0; background: var(--primary); color: var(--on-primary);
++  font-size: 9.5px; font-weight: 600; text-align: center; padding: 2px 0; letter-spacing: .05em; text-transform: uppercase;
++}
+ 
+ /* ============================================================================
+    Landing page
+    ============================================================================ */
+-.hero { position: relative; overflow: hidden; padding: 80px 28px 64px; text-align: center; }
+-.hero::before { content: ''; position: absolute; inset: 0; z-index: -2; background:
+-  radial-gradient(560px circle at 15% 0%, color-mix(in srgb, var(--primary) 22%, transparent), transparent 55%),
+-  radial-gradient(620px circle at 90% 30%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 55%); }
+-.hero-inner { max-width: 860px; margin: 0 auto; }
+-.eyebrow { display: inline-flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; max-width: 100%; background: var(--surface); border: 1px solid var(--border); color: var(--muted); padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; box-shadow: var(--shadow-sm); margin-bottom: 22px; }
+-.eyebrow b { color: var(--primary); }
+-.hero-title { font-size: clamp(38px, 6vw, 62px); font-weight: 800; letter-spacing: -.03em; }
+-.hero-title .grad { background: linear-gradient(120deg, var(--primary), var(--accent)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+-.hero-sub { font-size: clamp(16px, 2.2vw, 20px); color: var(--muted); max-width: 620px; margin: 20px auto 0; }
+-.hero-search { display: flex; gap: 8px; width: 100%; max-width: 560px; margin: 34px auto 0; background: var(--surface); border: 1px solid var(--border); padding: 8px; border-radius: 16px; box-shadow: var(--shadow-lg); }
++.hero { position: relative; overflow: hidden; padding: 88px 30px 68px; text-align: center; }
++.hero::before {
++  content: ''; position: absolute; inset: 0; z-index: -2;
++  background:
++    radial-gradient(680px circle at 12% -8%, color-mix(in srgb, var(--primary) 11%, transparent), transparent 60%),
++    radial-gradient(620px circle at 92% 22%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 58%);
++}
++.hero-inner { max-width: 830px; margin: 0 auto; }
++.eyebrow {
++  display: inline-flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px;
++  max-width: 100%; background: var(--surface); border: 1px solid var(--border); color: var(--muted);
++  padding: 5px 13px; border-radius: 999px; font-size: 12.5px; font-weight: 500; margin-bottom: 24px;
++}
++.eyebrow b { color: var(--text-2); font-weight: 600; }
++.eyebrow svg { color: var(--accent); }
++.hero-title { font-size: clamp(40px, 6vw, 64px); font-weight: 600; letter-spacing: -.035em; line-height: 1.06; }
++.hero-title .grad { color: var(--accent); font-style: italic; font-weight: 500; }
++.hero-sub { font-size: clamp(16px, 2vw, 18.5px); color: var(--muted); max-width: 600px; margin: 22px auto 0; line-height: 1.6; }
++.hero-search {
++  display: flex; gap: 7px; width: 100%; max-width: 540px; margin: 34px auto 0;
++  background: var(--surface); border: 1px solid var(--border-strong); padding: 7px;
++  border-radius: var(--radius-lg); box-shadow: var(--shadow-md);
++}
+ .hero-search .search-field { flex: 1; }
+-.hero-search input { width: 100%; border: none; background: transparent; padding: 12px 12px 12px 40px; font-size: 16px; color: var(--text); }
++.hero-search input { width: 100%; border: none; background: transparent; padding: 11px 12px 11px 38px; font-size: 15px; color: var(--text); font-family: inherit; }
+ .hero-search input:focus { outline: none; }
+-.chip-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 20px; }
+-.chip { background: var(--surface); border: 1px solid var(--border); color: var(--muted); padding: 7px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s; }
+-.chip:hover { color: var(--primary); border-color: var(--primary); transform: translateY(-1px); }
+-.hero-stats { display: flex; gap: 40px; justify-content: center; margin-top: 48px; flex-wrap: wrap; }
+-.hero-stats .stat b { font-family: 'Lexend'; font-size: 30px; font-weight: 800; color: var(--text); display: block; }
+-.hero-stats .stat span { color: var(--muted); font-size: 14px; }
++.chip-row { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; margin-top: 18px; }
++.chip {
++  background: transparent; border: 1px solid var(--border-strong); color: var(--muted);
++  padding: 6px 13px; border-radius: 999px; font-size: 12.5px; font-weight: 500;
++  cursor: pointer; font-family: inherit; transition: color .18s, border-color .18s, background .18s;
++}
++.chip:hover { color: var(--text); border-color: var(--muted); background: var(--surface); }
++.hero-stats { display: flex; gap: 48px; justify-content: center; margin-top: 52px; flex-wrap: wrap; }
++.hero-stats .stat b { font-family: var(--font-display); font-size: 30px; font-weight: 600; color: var(--text); display: block; font-variant-numeric: tabular-nums; }
++.hero-stats .stat span { color: var(--muted); font-size: 13px; }
+ 
+-.section { max-width: 1120px; margin: 0 auto; padding: 56px 28px; }
++.section { max-width: 1160px; margin: 0 auto; padding: 60px 30px; }
+ .section-head { text-align: center; margin-bottom: 36px; }
+-.section-head h2 { font-size: clamp(26px, 4vw, 36px); font-weight: 700; }
+-.section-head p { color: var(--muted); margin-top: 10px; font-size: 17px; }
++.section-head h2 { font-size: clamp(27px, 3.6vw, 36px); font-weight: 600; letter-spacing: -.025em; }
++.section-head p { color: var(--muted); margin-top: 10px; font-size: 16px; }
+ 
+-.cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+-.cat-card { display: flex; flex-direction: column; gap: 10px; padding: 20px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); cursor: pointer; transition: all .2s; box-shadow: var(--shadow-sm); }
+-.cat-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: var(--primary); }
+-.cat-card .cat-icon { width: 44px; height: 44px; border-radius: 12px; background: var(--primary-soft); color: var(--primary); display: flex; align-items: center; justify-content: center; }
+-.cat-card .cat-name { font-family: 'Lexend'; font-weight: 600; font-size: 15px; }
+-.cat-card .cat-count { color: var(--muted); font-size: 13px; }
+-
+-.trust-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; }
+-.trust-card { padding: 26px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
+-.trust-card .t-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #fff; margin-bottom: 16px; }
+-.trust-card h3 { font-size: 19px; margin-bottom: 8px; }
+-.trust-card p { color: var(--muted); font-size: 15px; margin: 0; }
+-
+-.cta-band { max-width: 1120px; margin: 24px auto 64px; }
+-.cta-inner { position: relative; overflow: hidden; text-align: center; padding: 56px 28px; border-radius: 24px; color: #fff; background: linear-gradient(135deg, #4C1D95, #7C3AED 55%, #16A34A); box-shadow: var(--shadow-lg); }
+-.cta-inner::after { content: ''; position: absolute; inset: 0; background: radial-gradient(500px circle at 20% 10%, rgba(255,255,255,.2), transparent 55%); }
+-.cta-inner h2 { font-size: clamp(28px, 4vw, 40px); color: #fff; position: relative; }
+-.cta-inner p { opacity: .92; font-size: 18px; margin: 14px 0 28px; position: relative; }
++.cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 12px; }
++.cat-card {
++  display: flex; flex-direction: column; gap: 10px; padding: 18px; border-radius: var(--radius);
++  border: 1px solid var(--border); background: var(--surface); cursor: pointer;
++  transition: border-color .18s, box-shadow .18s, transform .18s; text-align: left;
++  font-family: inherit; color: inherit;
++}
++.cat-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm); transform: translateY(-2px); }
++.cat-card .cat-icon {
++  width: 38px; height: 38px; border-radius: var(--radius-sm); background: var(--primary-soft);
++  color: var(--primary); display: flex; align-items: center; justify-content: center;
++}
++.cat-card .cat-name { font-weight: 600; font-size: 14.5px; color: var(--text); }
++.cat-card .cat-count { color: var(--muted); font-size: 12.5px; margin-top: 1px; }
++
++.trust-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(232px, 1fr)); gap: 18px; }
++.trust-card { padding: 24px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--border); }
++.trust-card .t-icon {
++  width: 40px; height: 40px; border-radius: var(--radius-sm); display: flex;
++  align-items: center; justify-content: center; margin-bottom: 15px;
++  background: var(--primary-soft); color: var(--primary);
++}
++.trust-card h3 { font-size: 17px; margin-bottom: 7px; }
++.trust-card p { color: var(--muted); font-size: 14px; margin: 0; line-height: 1.6; }
++
++.cta-band { max-width: 1160px; margin: 20px auto 68px; padding: 0 30px; }
++.cta-inner {
++  position: relative; overflow: hidden; text-align: center; padding: 60px 30px;
++  border-radius: var(--radius-lg); color: #F4F1EA;
++  background: linear-gradient(150deg, #16241E 0%, #1F4335 58%, #5C4227 100%);
++}
++.cta-inner::after {
++  content: ''; position: absolute; inset: 0;
++  background: radial-gradient(560px circle at 22% 8%, rgba(244, 241, 234, .12), transparent 58%);
++}
++.cta-inner h2 { font-size: clamp(28px, 3.8vw, 40px); color: #F4F1EA; position: relative; letter-spacing: -.025em; }
++.cta-inner p { opacity: .82; font-size: 16.5px; margin: 14px auto 28px; position: relative; max-width: 500px; }
+ .cta-inner .btn { position: relative; }
+-.cta-inner .btn.secondary { background: rgba(255,255,255,.14); color: #fff; border-color: rgba(255,255,255,.3); backdrop-filter: blur(4px); }
++.cta-inner .btn.accent { background: var(--accent); color: #FFFDF9; }
++.cta-inner .btn.secondary { background: rgba(244, 241, 234, .1); color: #F4F1EA; border-color: rgba(244, 241, 234, .26); }
++.cta-inner .btn.secondary:hover { background: rgba(244, 241, 234, .17); border-color: rgba(244, 241, 234, .4); }
+ 
+-.footer { border-top: 1px solid var(--border); padding: 32px 28px; text-align: center; color: var(--muted); font-size: 14px; }
+-.footer .brand { font-family: 'Lexend'; font-weight: 800; color: var(--text); }
++.footer { border-top: 1px solid var(--border); padding: 32px 30px; text-align: center; color: var(--muted); font-size: 13.5px; }
++.footer .brand { font-family: var(--font-display); font-weight: 600; color: var(--text); font-size: 15px; }
+ 
+-/* Reveal-on-scroll (respects reduced-motion via the block above) */
+-.reveal { opacity: 0; transform: translateY(16px); transition: opacity .6s ease, transform .6s ease; }
++/* Reveal-on-scroll */
++.reveal { opacity: 0; transform: translateY(14px); transition: opacity .55s ease, transform .55s ease; }
+ .reveal.in { opacity: 1; transform: none; }
+ @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; } }
+ 
+-/* ---------- Responsive ---------- */
++/* ============================================================================
++   KPI tiles / panels / charts
++   ============================================================================ */
++.stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(184px, 1fr)); gap: 12px; margin-bottom: 22px; }
++.stat-row.compact { margin: 14px 0 0; gap: 10px; }
++.stat-tile { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 15px 17px; }
++.stat-label { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
++.stat-value {
++  font-family: var(--font-display); font-weight: 600; font-size: 27px; margin-top: 5px;
++  color: var(--text); line-height: 1.1; font-variant-numeric: tabular-nums; letter-spacing: -.02em;
++}
++.stat-hint { font-size: 12px; color: var(--muted); margin-top: 3px; }
++/* Dashboard tiles that pair an icon with a number */
++.stat-tile.with-icon { display: flex; align-items: center; gap: 13px; }
++.stat-icon {
++  width: 38px; height: 38px; border-radius: var(--radius-sm); flex: none;
++  display: flex; align-items: center; justify-content: center;
++  background: var(--surface-2); border: 1px solid var(--border);
++}
++
++.panel {
++  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
++  padding: 20px 22px; margin-bottom: 22px; max-width: none;
++  min-width: 0;   /* grid/flex children must be allowed to shrink, or they overflow */
++}
++.panel-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
++.panel-head h2 { font-size: 17px; margin: 0; }
++.panel-head h3 { font-size: 15px; margin: 0; }
++.analytics-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 18px; align-items: start; }
++.analytics-grid > * { min-width: 0; }
++.stat-row > * { min-width: 0; }
++
++.bar-chart { display: flex; align-items: flex-end; gap: 12px; padding-top: 6px; }
++.bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; min-width: 0; }
++.bar-value { font-size: 11px; font-weight: 600; color: var(--muted); height: 16px; white-space: nowrap; font-variant-numeric: tabular-nums; }
++.bar-track { flex: 1; width: 100%; display: flex; align-items: flex-end; }
++.bar-fill {
++  width: 100%; border-radius: 4px 4px 2px 2px; background: var(--primary);
++  transition: height .45s cubic-bezier(.22,.8,.3,1); opacity: .88;
++}
++.bar-col:hover .bar-fill { opacity: 1; }
++.bar-label { font-size: 11.5px; color: var(--muted); margin-top: 7px; }
++.chart-empty { color: var(--muted); font-size: 13.5px; padding: 26px 0; text-align: center; }
++
++.donut-wrap { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
++.donut-total { font-family: var(--font-display); font-weight: 600; font-size: 19px; fill: var(--text); }
++.donut-caption { font-size: 10.5px; fill: var(--muted); }
++.chart-legend { list-style: none; margin: 0; padding: 0; flex: 1; min-width: 165px; }
++.chart-legend li { display: flex; align-items: center; gap: 9px; font-size: 13px; padding: 3px 0; }
++.legend-dot { width: 9px; height: 9px; border-radius: 2px; flex: none; }
++.legend-label { flex: 1; color: var(--text-2); }
++.legend-value { color: var(--muted); font-weight: 600; font-variant-numeric: tabular-nums; }
++
++.util-bar { background: var(--surface-2); border-radius: 999px; height: 6px; width: 104px; overflow: hidden; display: inline-block; }
++.util-fill { height: 100%; border-radius: 999px; transition: width .4s ease; }
++.util-cell { display: flex; align-items: center; gap: 10px; }
++.util-pct { font-size: 12px; color: var(--muted); font-weight: 600; font-variant-numeric: tabular-nums; }
++
++/* ============================================================================
++   Data tables
++   ============================================================================ */
++.table-wrap {
++  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
++  overflow-x: auto; margin-bottom: 22px;
++}
++.data-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
++.data-table th {
++  text-align: left; padding: 10px 16px; font-size: 10.5px; text-transform: uppercase;
++  letter-spacing: .08em; font-weight: 600; color: var(--muted);
++  border-bottom: 1px solid var(--border); white-space: nowrap; background: var(--surface-2);
++}
++.data-table td { padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
++.data-table tr:last-child td { border-bottom: none; }
++.data-table tbody tr:hover { background: var(--bg-tint); }
++.data-table .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
++.data-table select {
++  padding: 5px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong);
++  background: var(--surface); color: var(--text); font-family: inherit; font-size: 12.5px;
++}
++.cell-title { font-weight: 600; color: var(--text); }
++.small { font-size: 12px; }
++.ok-text { color: var(--green); font-weight: 600; }
++.warn-text { color: var(--amber); font-weight: 600; }
++.doc-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
++
++/* Sprint-4 badges */
++.badge.tier-VIP { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 26%, transparent); }
++.badge.tier-Regular { background: color-mix(in srgb, var(--blue) 11%, transparent); color: var(--blue); border-color: color-mix(in srgb, var(--blue) 24%, transparent); }
++.badge.tier-New { background: color-mix(in srgb, var(--gray) 12%, transparent); color: var(--gray); border-color: color-mix(in srgb, var(--gray) 26%, transparent); }
++.badge.Pending { background: color-mix(in srgb, var(--amber) 12%, transparent); color: var(--amber); border-color: color-mix(in srgb, var(--amber) 26%, transparent); }
++.badge.Approved { background: color-mix(in srgb, var(--blue) 11%, transparent); color: var(--blue); border-color: color-mix(in srgb, var(--blue) 24%, transparent); }
++.badge.Completed { background: color-mix(in srgb, var(--green) 11%, transparent); color: var(--green); border-color: color-mix(in srgb, var(--green) 24%, transparent); }
++.badge.Cancelled, .badge.Rejected { background: color-mix(in srgb, var(--gray) 12%, transparent); color: var(--gray); border-color: color-mix(in srgb, var(--gray) 26%, transparent); }
++.badge.job-Open { background: color-mix(in srgb, var(--amber) 12%, transparent); color: var(--amber); border-color: color-mix(in srgb, var(--amber) 26%, transparent); }
++.badge.job-In-Progress { background: color-mix(in srgb, var(--blue) 11%, transparent); color: var(--blue); border-color: color-mix(in srgb, var(--blue) 24%, transparent); }
++.badge.job-Completed { background: color-mix(in srgb, var(--green) 11%, transparent); color: var(--green); border-color: color-mix(in srgb, var(--green) 24%, transparent); }
++.badge.job-Cancelled { background: color-mix(in srgb, var(--gray) 12%, transparent); color: var(--gray); border-color: color-mix(in srgb, var(--gray) 26%, transparent); }
++
++/* ============================================================================
++   Modal
++   ============================================================================ */
++.modal-backdrop {
++  position: fixed; inset: 0; background: rgba(22, 21, 15, .48); backdrop-filter: blur(3px);
++  display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 90;
++  animation: fade-in .16s ease;
++}
++.modal {
++  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
++  box-shadow: var(--shadow-lg); padding: 24px; width: min(880px, 100%);
++  max-height: 88vh; overflow-y: auto; animation: modal-in .2s cubic-bezier(.22,.8,.3,1);
++}
++.modal.narrow { width: min(560px, 100%); }
++.modal h2 { margin: 0; font-size: 21px; }
++.modal h3 { font-size: 15px; margin-bottom: 10px; }
++@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
++@keyframes modal-in { from { opacity: 0; transform: translateY(10px) scale(.99); } to { opacity: 1; transform: none; } }
++@media (prefers-reduced-motion: reduce) { .modal, .modal-backdrop { animation: none; } }
++
++/* ============================================================================
++   Responsive
++   ============================================================================ */
++@media (max-width: 1080px) {
++  .analytics-grid { grid-template-columns: 1fr; }
++}
+ @media (max-width: 900px) {
+-  .container { padding: 24px 18px; }
+-  .grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
++  :root { --sidebar-w: 240px; }
++  .sidebar {
++    position: fixed; left: 0; top: 0; transform: translateX(-100%);
++    transition: transform .24s cubic-bezier(.22,.8,.3,1); box-shadow: var(--shadow-lg);
++  }
++  .sidebar.open { transform: none; }
++  .sidebar-scrim { display: block; position: fixed; inset: 0; background: rgba(22, 21, 15, .45); z-index: 55; }
++  .menu-btn { display: inline-flex; }
++  .topbar { padding: 0 18px; }
++  .container { padding: 22px 18px 56px; }
++  .grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+   .auth-split { grid-template-columns: 1fr; }
+   .auth-aside { display: none; }
++  .pubnav { padding: 14px 18px; gap: 16px; }
+ }
+ @media (max-width: 620px) {
+-  .nav { padding: 10px 16px; gap: 6px 16px; flex-wrap: wrap; }
+-  .nav .brand { font-size: 19px; }
+-  .nav .spacer { display: none; }
+-  .nav .who { font-size: 12px; margin-left: auto; }
+-  .container { padding: 20px 16px; }
++  body { font-size: 14.5px; }
++  .container { padding: 18px 16px 48px; }
+   .hero { padding: 56px 18px 44px; }
+-  .section { padding: 40px 18px; }
++  .section, .cta-band { padding-left: 18px; padding-right: 18px; }
++  .section { padding-top: 44px; padding-bottom: 44px; }
+   .page-head { flex-direction: column; align-items: stretch; gap: 14px; }
+-  .page-head h1 { font-size: 26px; }
++  .page-head h1 { font-size: 25px; }
++  .page-head .btn { align-self: flex-start; }
+   .row { flex-direction: column; gap: 0; }
+   .grid { grid-template-columns: 1fr; }
+-  .form { padding: 20px; }
++  .form { padding: 18px; }
+   .toolbar input, .toolbar select, .toolbar .search-field { flex: 1 1 100%; min-width: 0; }
+   .hero-search { flex-direction: column; }
+   .hero-search .btn { width: 100%; }
+   .hero-stats { gap: 28px; }
++  .modal { padding: 18px; border-radius: var(--radius); }
++  .pubnav .hide-sm { display: none; }
++  /* Tighten the bar chart so six months still fit a phone width. */
++  .bar-chart { gap: 5px; }
++  .bar-value { font-size: 9.5px; }
++  .bar-label { font-size: 10.5px; }
++  .panel { padding: 16px 14px; }
+ }
++
++/* ============================================================================
++   Sprint 5 | Owner: M4 - Radowanul Haque (Radowan)
++   Profile: account details, NID verification, permanent payment methods.
++   ============================================================================ */
++
++/* Definition list used for read-only account / NID details */
++.detail-grid {
++  display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
++  gap: 14px 22px; margin: 0;
++}
++.detail-grid dt {
++  font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase;
++  color: var(--muted); margin-bottom: 3px;
++}
++.detail-grid dd { margin: 0; font-size: 14.5px; color: var(--text); }
++.mono { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .02em; }
++
++/* Inline notice used for "identity not verified yet" */
++.notice {
++  display: flex; gap: 11px; align-items: flex-start; padding: 13px 15px;
++  border-radius: var(--radius-sm); border: 1px solid var(--border);
++  background: var(--surface-2); margin-bottom: 18px;
++}
++.notice svg { flex: none; margin-top: 2px; }
++.notice.warn {
++  background: color-mix(in srgb, var(--amber) 9%, transparent);
++  border-color: color-mix(in srgb, var(--amber) 28%, transparent);
++}
++.notice.warn svg { color: var(--amber); }
++
++/* The "this can never be changed" explainer under NID + payment methods */
++.locked {
++  display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; color: var(--muted);
++  background: var(--surface-2); border: 1px dashed var(--border-strong);
++  border-radius: var(--radius-sm); padding: 10px 12px; margin-top: 14px; line-height: 1.5;
++}
++.locked svg { flex: none; margin-top: 1px; }
++
++.fieldhint { font-size: 12px; color: var(--muted); margin-top: 5px; }
++.req { font-size: 10.5px; font-weight: 700; color: var(--red); text-transform: uppercase; letter-spacing: .06em; }
++
++/* NID card images */
++.nid-preview { margin-top: 9px; }
++.nid-preview img {
++  width: 100%; max-width: 210px; border-radius: var(--radius-sm);
++  border: 1px solid var(--border-strong); display: block;
++}
++.nid-shots { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 16px; }
++.nid-shots figure { margin: 0; }
++.nid-shots img {
++  width: 190px; height: 122px; object-fit: cover; border-radius: var(--radius-sm);
++  border: 1px solid var(--border-strong); display: block;
++}
++.nid-shots figcaption { font-size: 11.5px; color: var(--muted); margin-top: 5px; text-align: center; }
++.nid-gate { padding-top: 4px; }
++
++/* Payment methods — note there is no delete affordance anywhere */
++.pm-list { list-style: none; margin: 0; padding: 0; }
++.pm-list li {
++  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
++  padding: 12px 0; border-bottom: 1px solid var(--border);
++}
++.pm-list li:last-child { border-bottom: none; }
++.pm-list li.inactive { opacity: .55; }
++.pm-kind {
++  width: 62px; flex: none; font-size: 11.5px; font-weight: 700; text-align: center;
++  padding: 5px 0; border-radius: var(--radius-sm);
++  background: var(--primary-soft); color: var(--primary);
++  border: 1px solid color-mix(in srgb, var(--primary) 22%, transparent);
++}
++.pm-body { flex: 1; min-width: 150px; display: flex; flex-direction: column; }
++.pm-label { font-size: 14px; font-weight: 600; }
++.pm-ref { font-size: 12.5px; color: var(--muted); }
++.pm-tags { display: flex; gap: 6px; }
++.pm-actions { display: flex; gap: 4px; flex-wrap: wrap; }
++.pm-form { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
++
++@media (max-width: 620px) {
++  .pm-list li { align-items: flex-start; }
++  .pm-actions { width: 100%; }
++  .nid-shots img { width: 100%; height: auto; }
++}
++
++/* A field the form has just rejected — paired with aria-invalid, never colour alone */
++.field input.invalid, .field select.invalid, .field textarea.invalid {
++  border-color: var(--red);
++  box-shadow: 0 0 0 3px color-mix(in srgb, var(--red) 16%, transparent);
++}
++
++/* Positive counterpart to .notice.warn — used for "identity verified" */
++.notice.ok {
++  background: color-mix(in srgb, var(--green) 9%, transparent);
++  border-color: color-mix(in srgb, var(--green) 28%, transparent);
++}
++.notice.ok svg { color: var(--green); }
++
++/* NID card images are clickable in the renter review modal */
++.nid-shots a { display: block; }
++.nid-shots a:hover img { border-color: var(--primary); }
+--- a/client/src/App.jsx
++++ b/client/src/App.jsx
+@@ -1,8 +1,13 @@
+ // ============================================================
+ //  RentalFlow  |  Sprint 1  |  Owner: M4 - Radowanul Haque (Radowan)
+-//  GitHub: @___  |  Part: App routing + navigation bar
++//  GitHub: @___  |  Part: App routing + navigation shell
+ // ============================================================
+-import { Routes, Route, NavLink, Navigate, Link } from 'react-router-dom';
++// Two shells:
++//   PublicShell — slim header for marketing / signed-out pages.
++//   AppShell    — persistent sidebar + topbar for the signed-in workspace.
++// Sidebar links are grouped so the workspace stays readable as features grow.
++import { useEffect, useState } from 'react';
++import { Routes, Route, NavLink, Navigate, Link, useLocation } from 'react-router-dom';
+ import { useAuth } from './auth.jsx';
+ import { Icon } from './icons.jsx';
+ import Landing from './pages/Landing.jsx';
+@@ -13,60 +18,192 @@
+ import Bookings from './pages/Bookings.jsx';
+ import Scan from './pages/Scan.jsx';
+ import Checkout from './pages/Checkout.jsx';
++import Customers from './pages/Customers.jsx';
++import Analytics from './pages/Analytics.jsx';
++import Documents from './pages/Documents.jsx';
++import Maintenance from './pages/Maintenance.jsx';
++import Admin from './pages/Admin.jsx';
++import Profile from './pages/Profile.jsx';
++import NotificationBell from './components/NotificationBell.jsx';
+ 
+-function Nav() {
++const BrandMark = () => (
++  <>
++    <span className="logo-mark"><Icon name="package" size={17} /></span>
++    <span className="wordmark">Rental<span>Flow</span></span>
++  </>
++);
++
++// Sidebar structure. `admin: true` entries only render for admins.
++const NAV_GROUPS = [
++  {
++    label: 'Marketplace',
++    links: [
++      { to: '/browse', icon: 'search', label: 'Browse' },
++      { to: '/dashboard', icon: 'package', label: 'My Listings', adminLabel: 'All Listings' },
++    ],
++  },
++  {
++    label: 'Operations',
++    links: [
++      { to: '/bookings', icon: 'calendar', label: 'Bookings' },
++      { to: '/customers', icon: 'users', label: 'Customers' },
++      { to: '/maintenance', icon: 'tool', label: 'Maintenance' },
++    ],
++  },
++  {
++    label: 'Records',
++    links: [
++      { to: '/analytics', icon: 'chart', label: 'Analytics' },
++      { to: '/documents', icon: 'file', label: 'Documents' },
++      { to: '/profile', icon: 'user', label: 'My Profile' },
++      { to: '/admin', icon: 'settings', label: 'Admin', admin: true },
++    ],
++  },
++];
++
++// Page title shown in the topbar, so you always know where you are.
++const PAGE_TITLES = {
++  '/browse': 'Browse', '/dashboard': 'Listings', '/bookings': 'Bookings',
++  '/customers': 'Customers', '/maintenance': 'Maintenance', '/analytics': 'Analytics',
++  '/documents': 'Documents', '/admin': 'Admin', '/items/new': 'New listing',
++  '/profile': 'My Profile',
++};
++function titleFor(pathname) {
++  if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname];
++  if (pathname.endsWith('/edit')) return 'Edit listing';
++  if (pathname.endsWith('/checkout')) return 'Check out';
++  if (pathname.endsWith('/checkin')) return 'Check in';
++  return 'Workspace';
++}
++
++function initials(name = '') {
++  return name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?';
++}
++
++function AppShell({ children }) {
+   const { user, logout } = useAuth();
++  const { pathname } = useLocation();
++  const [open, setOpen] = useState(false);
++
++  // Close the mobile drawer whenever the route changes.
++  useEffect(() => { setOpen(false); }, [pathname]);
++
+   return (
+-    <nav className="nav">
+-      <Link to="/" className="brand">
+-        <span className="logo-mark"><Icon name="package" size={17} /></span>
+-        <span className="wordmark">Rental<span>Flow</span></span>
+-      </Link>
+-      <NavLink to="/browse">Browse</NavLink>
+-      {user && <NavLink to="/dashboard">{user.role === 'admin' ? 'Manage' : 'My Listings'}</NavLink>}
+-      {user && <NavLink to="/bookings">Bookings</NavLink>}
+-      <div className="spacer" />
+-      {user ? (
+-        <>
+-          <span className="who">{user.name} · <b>{user.role}</b></span>
+-          <button className="btn secondary small" onClick={logout}>
+-            <Icon name="logout" size={15} /> Logout
++    <div className="shell">
++      {open && <div className="sidebar-scrim" onClick={() => setOpen(false)} />}
++      <aside className={`sidebar${open ? ' open' : ''}`}>
++        <Link to="/" className="brand"><BrandMark /></Link>
++        <nav className="side-nav">
++          {NAV_GROUPS.map((group) => {
++            const links = group.links.filter((l) => !l.admin || user?.role === 'admin');
++            if (!links.length) return null;
++            return (
++              <div className="side-group" key={group.label}>
++                <div className="side-group-label">{group.label}</div>
++                {links.map((l) => (
++                  <NavLink key={l.to} to={l.to} className="side-link">
++                    <Icon name={l.icon} size={17} />
++                    {user?.role === 'admin' && l.adminLabel ? l.adminLabel : l.label}
++                  </NavLink>
++                ))}
++              </div>
++            );
++          })}
++        </nav>
++        <div className="side-foot">
++          <div className="side-user">
++            <span className="side-avatar">{initials(user?.name)}</span>
++            <div className="side-user-meta">
++              <div className="side-user-name">{user?.name}</div>
++              <div className="side-user-role">{user?.role}</div>
++            </div>
++          </div>
++          <button className="side-logout" onClick={logout}>
++            <Icon name="logout" size={15} /> Sign out
++          </button>
++        </div>
++      </aside>
++
++      <div className="shell-main">
++        <header className="topbar">
++          <button className="menu-btn" onClick={() => setOpen(true)} aria-label="Open navigation">
++            <Icon name="menu" size={18} />
+           </button>
+-        </>
+-      ) : (
+-        <>
+-          <NavLink to="/login">Log in</NavLink>
+-          <Link to="/login" className="btn small">Get started</Link>
+-        </>
+-      )}
+-    </nav>
++          <span className="crumb">RentalFlow / <b>{titleFor(pathname)}</b></span>
++          <div className="spacer" />
++          <Link to="/items/new" className="btn small"><Icon name="plus" size={14} /> New listing</Link>
++          <NotificationBell />
++        </header>
++        {children}
++      </div>
++    </div>
++  );
++}
++
++function PublicShell({ children }) {
++  const { user } = useAuth();
++  return (
++    <>
++      <header className="pubnav">
++        <Link to="/" className="brand"><BrandMark /></Link>
++        <NavLink to="/browse" className="hide-sm">Browse</NavLink>
++        <div className="spacer" />
++        {user ? (
++          <Link to="/dashboard" className="btn small">Open workspace</Link>
++        ) : (
++          <>
++            <NavLink to="/login" className="hide-sm">Log in</NavLink>
++            <Link to="/login" className="btn small">Get started</Link>
++          </>
++        )}
++      </header>
++      {children}
++    </>
+   );
+ }
+ 
++// Guard: only an admin may pass (Sprint 4 / F20 admin console).
++function RequireAdmin({ children }) {
++  const { user } = useAuth();
++  if (!user) return <Navigate to="/login" replace />;
++  if (user.role !== 'admin') return <Navigate to="/dashboard" replace />;
++  return <AppShell>{children}</AppShell>;
++}
++
+ // Guard: any logged-in user (member or admin) may pass.
+ function RequireAuth({ children }) {
+   const { user } = useAuth();
+   if (!user) return <Navigate to="/login" replace />;
+-  return children;
++  return <AppShell>{children}</AppShell>;
++}
++
++// Browse is public, so it gets whichever shell fits the visitor.
++function AnyShell({ children }) {
++  const { user } = useAuth();
++  const Shell = user ? AppShell : PublicShell;
++  return <Shell>{children}</Shell>;
+ }
+ 
+ export default function App() {
+   return (
+-    <>
+-      <Nav />
+-      <Routes>
+-        <Route path="/" element={<Landing />} />
+-        <Route path="/browse" element={<PublicBooking />} />
+-        <Route path="/login" element={<Login />} />
+-        <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
+-        <Route path="/bookings" element={<RequireAuth><Bookings /></RequireAuth>} />
+-        <Route path="/items/new" element={<RequireAuth><ItemForm /></RequireAuth>} />
+-        <Route path="/items/:id/edit" element={<RequireAuth><ItemForm /></RequireAuth>} />
+-        <Route path="/scan/:token" element={<Scan />} />
+-        <Route path="/bookings/:id/checkout" element={<RequireAuth><Checkout mode="checkout" /></RequireAuth>} />
+-        <Route path="/bookings/:id/checkin" element={<RequireAuth><Checkout mode="checkin" /></RequireAuth>} />
+-        <Route path="*" element={<Navigate to="/" replace />} />
+-      </Routes>
+-    </>
++    <Routes>
++      <Route path="/" element={<PublicShell><Landing /></PublicShell>} />
++      <Route path="/browse" element={<AnyShell><PublicBooking /></AnyShell>} />
++      <Route path="/login" element={<Login />} />
++      <Route path="/scan/:token" element={<PublicShell><Scan /></PublicShell>} />
++      <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
++      <Route path="/bookings" element={<RequireAuth><Bookings /></RequireAuth>} />
++      <Route path="/items/new" element={<RequireAuth><ItemForm /></RequireAuth>} />
++      <Route path="/items/:id/edit" element={<RequireAuth><ItemForm /></RequireAuth>} />
++      <Route path="/bookings/:id/checkout" element={<RequireAuth><Checkout mode="checkout" /></RequireAuth>} />
++      <Route path="/bookings/:id/checkin" element={<RequireAuth><Checkout mode="checkin" /></RequireAuth>} />
++      <Route path="/customers" element={<RequireAuth><Customers /></RequireAuth>} />
++      <Route path="/analytics" element={<RequireAuth><Analytics /></RequireAuth>} />
++      <Route path="/documents" element={<RequireAuth><Documents /></RequireAuth>} />
++      <Route path="/maintenance" element={<RequireAuth><Maintenance /></RequireAuth>} />
++      <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
++      <Route path="/admin" element={<RequireAdmin><Admin /></RequireAdmin>} />
++      <Route path="*" element={<Navigate to="/" replace />} />
++    </Routes>
+   );
+ }
+--- a/client/src/icons.jsx
++++ b/client/src/icons.jsx
+@@ -45,6 +45,22 @@
+       return <svg {...p}><path d="M21 12a9 9 0 1 1-2.6-6.4M21 4v4h-4" /></svg>;
+     case 'check':
+       return <svg {...p}><path d="m5 12 4 4L19 6" /></svg>;
++    case 'chart':
++      return <svg {...p}><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></svg>;
++    case 'file':
++      return <svg {...p}><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5" /><path d="M9 13h6M9 17h4" /></svg>;
++    case 'users':
++      return <svg {...p}><circle cx="9" cy="8" r="3.6" /><path d="M2.5 21c0-3.6 3-5.8 6.5-5.8s6.5 2.2 6.5 5.8" /><path d="M17 4.5a3.6 3.6 0 0 1 0 7" /><path d="M18.5 15.6c2 .8 3.2 2.6 3.2 5.4" /></svg>;
++    case 'menu':
++      return <svg {...p}><path d="M4 7h16M4 12h16M4 17h16" /></svg>;
++    case 'close':
++      return <svg {...p}><path d="M6 6l12 12M18 6L6 18" /></svg>;
++    case 'settings':
++      return <svg {...p}><circle cx="12" cy="12" r="3.2" /><path d="M12 2.5v3M12 18.5v3M21.5 12h-3M5.5 12h-3M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1M18.7 18.7l-2.1-2.1M7.4 7.4 5.3 5.3" /></svg>;
++    case 'filter':
++      return <svg {...p}><path d="M3 5h18l-7 8v5l-4 2v-7z" /></svg>;
++    case 'qr':
++      return <svg {...p}><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><path d="M14 14h3v3h-3zM20 14h1M14 20h1M18 18h3v3h-3z" /></svg>;
+     default:
+       return null;
+   }
+--- a/client/src/pages/Landing.jsx
++++ b/client/src/pages/Landing.jsx
+@@ -10,6 +10,7 @@
+ import { useAuth } from '../auth.jsx';
+ import { Icon, categoryIcon } from '../icons.jsx';
+ import { StatusBadge, TagList, CardPhoto } from '../components.jsx';
++import { money } from '../money.js';
+ 
+ // Reveal elements as they scroll into view. Re-scans whenever `deps` change so
+ // that async-rendered items (categories, featured listings) get picked up too.
+@@ -45,6 +46,12 @@
+ 
+   const totalItems = categories.reduce((s, c) => s + (c.item_count || 0), 0);
+ 
++  // Only surface categories that actually hold something — linking to an empty
++  // category just drops the visitor on a "0 results" dead end.
++  const liveCategories = categories
++    .filter((c) => (c.item_count || 0) > 0)
++    .sort((a, b) => b.item_count - a.item_count);
++
+   function search(e) {
+     e.preventDefault();
+     navigate(`/browse?search=${encodeURIComponent(term.trim())}`);
+@@ -76,7 +83,7 @@
+           </form>
+ 
+           <div className="chip-row">
+-            {categories.slice(0, 6).map((c) => (
++            {liveCategories.slice(0, 6).map((c) => (
+               <button key={c.id} className="chip" onClick={() => navigate(`/browse?category_id=${c.id}`)}>
+                 {c.name}
+               </button>
+@@ -98,14 +105,19 @@
+           <p>From full-frame cameras to power tools — find exactly what your project needs.</p>
+         </div>
+         <div className="cat-grid">
+-          {categories.slice(0, 12).map((c) => (
+-            <div key={c.id} className="cat-card reveal" onClick={() => navigate(`/browse?category_id=${c.id}`)}>
+-              <span className="cat-icon"><Icon name={categoryIcon(c.name)} size={22} /></span>
++          {liveCategories.slice(0, 12).map((c) => (
++            <button
++              type="button"
++              key={c.id}
++              className="cat-card reveal"
++              onClick={() => navigate(`/browse?category_id=${c.id}`)}
++            >
++              <span className="cat-icon"><Icon name={categoryIcon(c.name)} size={20} /></span>
+               <div>
+                 <div className="cat-name">{c.name}</div>
+                 <div className="cat-count">{c.item_count} item{c.item_count === 1 ? '' : 's'}</div>
+               </div>
+-            </div>
++            </button>
+           ))}
+         </div>
+       </section>
+@@ -118,8 +130,9 @@
+             <p>Fresh listings ready to rent from members near you.</p>
+           </div>
+           <div className="grid">
++            {/* Cards deep-link to that item's booking panel, not the generic list. */}
+             {featured.map((it) => (
+-              <Link to="/browse" key={it.id} className="card reveal" style={{ color: 'inherit' }}>
++              <Link to={`/browse?item=${it.id}`} key={it.id} className="card reveal" style={{ color: 'inherit' }}>
+                 <CardPhoto url={it.cover_url} count={it.image_count} />
+                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                   <h3>{it.name}</h3>
+@@ -128,7 +141,7 @@
+                 <div className="serial">Listed by <b>{it.owner_name}</b></div>
+                 <TagList tags={it.tags} />
+                 <div className="price" style={{ marginTop: 10 }}>
+-                  ${Number(it.rental_price).toFixed(2)} <span>/ day</span>
++                  {money(it.rental_price)} <span>/ day</span>
+                 </div>
+               </Link>
+             ))}
+@@ -147,13 +160,13 @@
+         </div>
+         <div className="trust-grid">
+           {[
+-            { icon: 'calendar', bg: 'var(--primary)', h: 'No double bookings', p: 'Real-time availability and conflict detection keep every item honest about when it is free.' },
+-            { icon: 'wallet', bg: 'var(--accent)', h: 'Deposits & fair fees', p: 'Refundable deposits, transparent late fees, and damage penalties are calculated automatically.' },
+-            { icon: 'shield', bg: '#4C1D95', h: 'Condition on record', p: 'Photo condition reports at checkout and check-in mean disputes are settled with evidence, not guesswork.' },
+-            { icon: 'bolt', bg: '#2563EB', h: 'QR fast checkout', p: 'Scan an item to check it out or back in — no paperwork, no manual entry mistakes.' },
++            { icon: 'calendar', h: 'No double bookings', p: 'Real-time availability and conflict detection keep every item honest about when it is free.' },
++            { icon: 'wallet', h: 'Deposits & fair fees', p: 'Refundable deposits, transparent late fees, and damage penalties are calculated automatically.' },
++            { icon: 'shield', h: 'Condition on record', p: 'Photo condition reports at checkout and check-in mean disputes are settled with evidence, not guesswork.' },
++            { icon: 'qr', h: 'QR fast checkout', p: 'Scan an item to check it out or back in — no paperwork, no manual entry mistakes.' },
+           ].map((t) => (
+             <div className="trust-card reveal" key={t.h}>
+-              <span className="t-icon" style={{ background: t.bg }}><Icon name={t.icon} size={24} /></span>
++              <span className="t-icon"><Icon name={t.icon} size={21} /></span>
+               <h3>{t.h}</h3>
+               <p>{t.p}</p>
+             </div>
+--- a/client/src/pages/Dashboard.jsx
++++ b/client/src/pages/Dashboard.jsx
+@@ -12,6 +12,7 @@
+ import { Icon } from '../icons.jsx';
+ import { StatusBadge, TagList, CardPhoto } from '../components.jsx';
+ import QrModal from '../components/QrModal.jsx';
++import { money, moneyRound } from '../money.js';
+ 
+ const STATUSES = ['Available', 'Rented', 'Damaged', 'Under Maintenance', 'Retired'];
+ 
+@@ -25,6 +26,7 @@
+   const [newCat, setNewCat] = useState('');
+   const [error, setError] = useState('');
+   const [qrItem, setQrItem] = useState(null);
++  const [showCats, setShowCats] = useState(false);
+ 
+   async function load() {
+     const params = new URLSearchParams();
+@@ -57,8 +59,8 @@
+   // Stat tiles (based on the currently loaded set)
+   const count = (s) => items.filter((i) => i.status === s).length;
+   const stats = [
+-    { label: 'Total listings', value: items.length, icon: 'package', color: 'var(--primary)' },
+-    { label: 'Available', value: count('Available'), icon: 'check', color: 'var(--accent)' },
++    { label: 'Total listings', value: items.length, icon: 'package', color: 'var(--text-2)' },
++    { label: 'Available', value: count('Available'), icon: 'check', color: 'var(--green)' },
+     { label: 'Rented out', value: count('Rented'), icon: 'refresh', color: 'var(--blue)' },
+     { label: 'Needs attention', value: count('Damaged') + count('Under Maintenance'), icon: 'tool', color: 'var(--amber)' },
+   ];
+@@ -76,39 +78,52 @@
+       {error && <div className="error"><Icon name="shield" size={16} /> {error}</div>}
+ 
+       {/* Stat tiles */}
+-      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', marginBottom: 24 }}>
++      <div className="stat-row">
+         {stats.map((s) => (
+-          <div className="card" key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+-            <span style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--primary-soft)', color: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+-              <Icon name={s.icon} size={22} />
++          <div className="stat-tile with-icon" key={s.label}>
++            <span className="stat-icon" style={{ color: s.color }}>
++              <Icon name={s.icon} size={19} />
+             </span>
+             <div>
+-              <div style={{ fontFamily: 'Lexend', fontSize: 26, fontWeight: 800 }}>{s.value}</div>
+-              <div className="muted" style={{ fontSize: 13 }}>{s.label}</div>
++              <div className="stat-value" style={{ marginTop: 0, fontSize: 24 }}>{s.value}</div>
++              <div className="stat-label" style={{ textTransform: 'none', letterSpacing: 0, fontSize: 12.5, fontWeight: 500 }}>{s.label}</div>
+             </div>
+           </div>
+         ))}
+       </div>
+ 
+-      {/* Category management */}
+-      <div className="card" style={{ marginBottom: 24 }}>
+-        <h3 style={{ marginTop: 0, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+-          <Icon name="tag" size={18} /> Categories
+-        </h3>
+-        <div style={{ marginBottom: 14 }}>
+-          {categories.map((c) => (
+-            <span className="tag" key={c.id}>{c.name} · {c.item_count}</span>
+-          ))}
++      {/* Category management — collapsed by default so it stops dominating the page */}
++      <div className="panel">
++        <div className="panel-head" style={{ marginBottom: showCats ? 16 : 0 }}>
++          <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
++            <Icon name="tag" size={16} /> Categories
++            <span className="muted" style={{ fontWeight: 400 }}>({categories.length})</span>
++          </h3>
++          <button className="btn ghost small" type="button" onClick={() => setShowCats((v) => !v)}>
++            {showCats ? 'Hide' : 'Manage'}
++          </button>
+         </div>
+-        <form onSubmit={addCategory} style={{ display: 'flex', gap: 8 }}>
+-          <input
+-            placeholder="New category name"
+-            value={newCat}
+-            onChange={(e) => setNewCat(e.target.value)}
+-            style={{ padding: '9px 13px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontFamily: 'inherit', flex: '0 1 260px' }}
+-          />
+-          <button className="btn small"><Icon name="plus" size={15} /> Add</button>
+-        </form>
++        {showCats && (
++          <>
++            <div style={{ marginBottom: 14 }}>
++              {[...categories]
++                .sort((a, b) => b.item_count - a.item_count || a.name.localeCompare(b.name))
++                .map((c) => (
++                  <span className="tag" key={c.id}>{c.name} · {c.item_count}</span>
++                ))}
++            </div>
++            <form onSubmit={addCategory} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
++              <div className="field" style={{ margin: 0, flex: '0 1 260px' }}>
++                <input
++                  placeholder="New category name"
++                  value={newCat}
++                  onChange={(e) => setNewCat(e.target.value)}
++                />
++              </div>
++              <button className="btn small"><Icon name="plus" size={14} /> Add</button>
++            </form>
++          </>
++        )}
+       </div>
+ 
+       {/* Item toolbar */}
+@@ -125,8 +140,22 @@
+ 
+       {items.length === 0 ? (
+         <div className="center-empty">
+-          <Icon name="package" size={30} /><br />
+-          No listings yet. Click “List an Item” to add your first one.
++          <Icon name="package" size={30} />
++          <div className="empty-title">
++            {search || statusFilter ? 'No listings match those filters' : 'No listings yet'}
++          </div>
++          {search || statusFilter
++            ? 'Try a different search term or status.'
++            : 'List your first piece of equipment and it will show up here.'}
++          <div>
++            {search || statusFilter ? (
++              <button className="btn secondary" type="button" onClick={() => { setSearch(''); setStatusFilter(''); }}>
++                Clear filters
++              </button>
++            ) : (
++              <Link to="/items/new" className="btn"><Icon name="plus" size={16} /> List an Item</Link>
++            )}
++          </div>
+         </div>
+       ) : (
+         <div className="grid">
+@@ -144,7 +173,7 @@
+               <div className="desc">{it.description || 'No description'}</div>
+               <TagList tags={it.tags} />
+               <div className="price" style={{ marginTop: 10 }}>
+-                ${Number(it.rental_price).toFixed(2)} <span>/ day · replace ${Number(it.replacement_cost).toFixed(0)}</span>
++                {money(it.rental_price)} <span>/ day · replace {moneyRound(it.replacement_cost)}</span>
+               </div>
+ 
+               <div className="card-actions">
+@@ -152,7 +181,6 @@
+                   value={it.status}
+                   onChange={(e) => changeStatus(it.id, e.target.value)}
+                   aria-label="Change status"
+-                  style={{ padding: '6px 9px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontSize: 12, fontFamily: 'inherit' }}
+                 >
+                   {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                 </select>
+--- a/client/src/pages/Maintenance.jsx
++++ b/client/src/pages/Maintenance.jsx
+@@ -7,7 +7,7 @@
+ import { Icon } from '../icons.jsx';
+ import { StatTile } from '../components/Charts.jsx';
+ 
+-const money = (n) => `$${Number(n || 0).toFixed(2)}`;
++import { money } from '../money.js';
+ const JOB_TYPES = ['Repair', 'Service', 'Inspection', 'Cleaning', 'Replacement'];
+ const PRIORITIES = ['Low', 'Normal', 'High'];
+ const STATUSES = ['Open', 'In Progress', 'Completed', 'Cancelled'];
+--- a/client/src/pages/Profile.jsx
++++ b/client/src/pages/Profile.jsx
+@@ -0,0 +1,194 @@
++// ============================================================
++//  RentalFlow  |  Sprint 5  |  Owner: M4 - Radowanul Haque (Radowan)
++//  Part: Account profile — details, NID verification, payment methods, activity
++// ============================================================
++// One page for every role. A member sees their listings and rentals; an admin
++// or staff account sees the same account and identity blocks, so the platform
++// team is held to the same verification standard as its members.
++import { useEffect, useState } from 'react';
++import { Link } from 'react-router-dom';
++import { api } from '../api.js';
++import { useAuth } from '../auth.jsx';
++import { Icon } from '../icons.jsx';
++import { money } from '../money.js';
++import NidForm from '../components/NidForm.jsx';
++import PaymentMethods from '../components/PaymentMethods.jsx';
++
++const dateOf = (iso) => (iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
++
++export default function Profile() {
++  const { user } = useAuth();
++  const [data, setData] = useState(null);
++  const [error, setError] = useState('');
++  const [editing, setEditing] = useState(false);
++  const [form, setForm] = useState({ name: '', phone: '' });
++  const [saving, setSaving] = useState(false);
++
++  async function load() {
++    try {
++      const d = await api.get('/profile');
++      setData(d);
++      setForm({ name: d.account.name || '', phone: d.account.phone || '' });
++    } catch (err) {
++      setError(err.message);
++    }
++  }
++  useEffect(() => { load(); }, []);
++
++  async function saveDetails(e) {
++    e.preventDefault();
++    setSaving(true);
++    try {
++      await api.patch('/profile', { name: form.name, phone: form.phone });
++      setEditing(false);
++      load();
++    } catch (err) { setError(err.message); }
++    finally { setSaving(false); }
++  }
++
++  if (error && !data) return <div className="container"><div className="error"><Icon name="shield" size={16} /> {error}</div></div>;
++  if (!data) return <div className="container"><div className="center-empty">Loading…</div></div>;
++
++  const { account, nid, paymentMethods, activity } = data;
++  const isMember = account.role === 'member';
++
++  return (
++    <div className="container">
++      <div className="page-head">
++        <div>
++          <h1>My Profile</h1>
++          <div className="sub">Your account details, verified identity, payment methods and activity.</div>
++        </div>
++      </div>
++
++      {error && <div className="error"><Icon name="shield" size={16} /> {error}</div>}
++
++      {/* ---------- Identity banner ---------- */}
++      {!nid.onFile && (
++        <div className="notice warn">
++          <Icon name="shield" size={18} />
++          <div>
++            <strong>Your identity is not verified yet.</strong>
++            <div className="muted" style={{ fontSize: 13.5 }}>
++              RentalFlow needs a National ID on file before you can request a booking, so that
++              damage and penalty claims can be settled. It is a one-time step.
++            </div>
++          </div>
++        </div>
++      )}
++
++      {/* ---------- Account ---------- */}
++      <section className="panel">
++        <div className="panel-head">
++          <h2>Account details</h2>
++          {!editing && (
++            <button className="btn secondary small" onClick={() => setEditing(true)}>Edit</button>
++          )}
++        </div>
++
++        {editing ? (
++          <form onSubmit={saveDetails}>
++            <div className="row">
++              <div className="field">
++                <label>Full name</label>
++                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
++              </div>
++              <div className="field">
++                <label>Phone</label>
++                <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="01XXXXXXXXX" />
++              </div>
++            </div>
++            <div className="card-actions">
++              <button className="btn" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
++              <button className="btn secondary" type="button" onClick={() => setEditing(false)}>Cancel</button>
++            </div>
++          </form>
++        ) : (
++          <dl className="detail-grid">
++            <div><dt>Name</dt><dd>{account.name}</dd></div>
++            <div><dt>Email</dt><dd>{account.email}</dd></div>
++            <div><dt>Phone</dt><dd>{account.phone || <span className="muted">Not added</span>}</dd></div>
++            <div><dt>Role</dt><dd style={{ textTransform: 'capitalize' }}>{account.role}</dd></div>
++            <div><dt>Status</dt><dd>
++              <span className={`badge ${account.status === 'active' ? 'Available' : 'Retired'}`}>{account.status}</span>
++            </dd></div>
++            <div><dt>Member since</dt><dd>{dateOf(account.memberSince)}</dd></div>
++          </dl>
++        )}
++      </section>
++
++      {/* ---------- NID ---------- */}
++      <section className="panel">
++        <div className="panel-head">
++          <h2>National ID verification</h2>
++          {nid.onFile && <span className="badge Completed">Verified</span>}
++        </div>
++        {nid.onFile ? (
++          <>
++            <dl className="detail-grid">
++              <div><dt>Name on NID</dt><dd>{nid.name}</dd></div>
++              <div><dt>NID number</dt><dd className="mono">{nid.number}</dd></div>
++              <div><dt>Submitted</dt><dd>{dateOf(nid.submittedAt)}</dd></div>
++            </dl>
++            <div className="nid-shots">
++              {nid.frontUrl && <figure><img src={nid.frontUrl} alt="NID front" onError={(e) => { e.currentTarget.closest("figure").hidden = true; }} /><figcaption>Front</figcaption></figure>}
++              {nid.backUrl && <figure><img src={nid.backUrl} alt="NID back" onError={(e) => { e.currentTarget.closest("figure").hidden = true; }} /><figcaption>Back</figcaption></figure>}
++            </div>
++            <div className="locked">
++              <Icon name="shield" size={15} />
++              Your National ID is recorded once and cannot be changed or removed.
++              Contact an admin if something is wrong.
++            </div>
++          </>
++        ) : (
++          <NidForm onDone={load} />
++        )}
++      </section>
++
++      {/* ---------- Payment methods ---------- */}
++      <section className="panel">
++        <div className="panel-head">
++          <h2>Payment methods</h2>
++          <span className="muted">{paymentMethods.length} on file</span>
++        </div>
++        <PaymentMethods methods={paymentMethods} onChange={load} />
++      </section>
++
++      {/* ---------- Activity ---------- */}
++      <section className="panel">
++        <div className="panel-head"><h2>Activity</h2></div>
++        <div className="stat-row" style={{ marginBottom: 0 }}>
++          <div className="stat-tile">
++            <div className="stat-label">Listings</div>
++            <div className="stat-value">{activity.listings.total}</div>
++            <div className="stat-hint">{activity.listings.available} available · {activity.listings.rented} rented out</div>
++          </div>
++          <div className="stat-tile">
++            <div className="stat-label">Rentals taken</div>
++            <div className="stat-value">{activity.bookingsMade.total}</div>
++            <div className="stat-hint">{activity.bookingsMade.completed} completed · {activity.bookingsMade.active} active</div>
++          </div>
++          <div className="stat-tile">
++            <div className="stat-label">Requests received</div>
++            <div className="stat-value">{activity.bookingsReceived.total}</div>
++            <div className="stat-hint">{activity.bookingsReceived.pending} waiting for your decision</div>
++          </div>
++          <div className="stat-tile">
++            <div className="stat-label">Fees &amp; penalties paid</div>
++            <div className="stat-value">{money(activity.bookingsMade.fees)}</div>
++            <div className="stat-hint">late fees and damage charges</div>
++          </div>
++        </div>
++        <div className="card-actions" style={{ marginTop: 16 }}>
++          {isMember && <Link to="/dashboard" className="btn secondary small">My listings</Link>}
++          <Link to="/bookings" className="btn secondary small">My bookings</Link>
++          {activity.bookingsReceived.pending > 0 && (
++            <Link to="/bookings" className="btn small">
++              Review {activity.bookingsReceived.pending} pending request{activity.bookingsReceived.pending === 1 ? '' : 's'}
++            </Link>
++          )}
++        </div>
++      </section>
++    </div>
++  );
++}
+--- a/client/src/components/NidForm.jsx
++++ b/client/src/components/NidForm.jsx
+@@ -0,0 +1,157 @@
++// ============================================================
++//  RentalFlow  |  Sprint 5  |  Owner: M4 - Radowanul Haque (Radowan)
++//  Part: One-time National ID capture (damage control)
++// ============================================================
++// Used in two places, which is exactly why it is a component:
++//   - the Profile page, when the account has no NID yet
++//   - the booking modal, as a step in front of the booking form
++// Submitting is allowed once. After that the server refuses any change, so this
++// form is never shown again for that account.
++import { useState } from 'react';
++import { api } from '../api.js';
++import { Icon } from '../icons.jsx';
++
++export default function NidForm({ onDone, compact = false }) {
++  const [form, setForm] = useState({ nid_number: '', nid_name: '' });
++  const [front, setFront] = useState('');
++  const [back, setBack] = useState('');
++  const [uploading, setUploading] = useState('');
++  const [error, setError] = useState('');
++  const [busy, setBusy] = useState(false);
++  const [problemField, setProblemField] = useState('');
++
++  // A NID is digits only, so letters are dropped as they are typed rather than
++  // silently ignored later — otherwise "f1244..." looks accepted but counts as
++  // one digit short, and the reason for the rejection is invisible.
++  const digits = form.nid_number;
++  const validLength = [10, 13, 17].includes(digits.length);
++
++  // What is still missing, in the order the fields appear. The submit button is
++  // never disabled: a greyed-out button with no explanation is indistinguishable
++  // from a broken one, so we always accept the click and say what is wrong.
++  function firstProblem() {
++    if (!form.nid_name.trim()) return { field: 'name', message: 'Enter the full name exactly as printed on the NID.' };
++    if (!digits) return { field: 'number', message: 'Enter your NID number.' };
++    if (!validLength) {
++      return {
++        field: 'number',
++        message: `Your NID number is ${digits.length} digit${digits.length === 1 ? '' : 's'}. A Bangladeshi NID must be 10, 13 or 17 digits.`,
++      };
++    }
++    if (!front) return { field: 'front', message: 'Upload a photo of the front of your NID.' };
++    return null;
++  }
++
++  async function pick(side, e) {
++    const files = e.target.files;
++    if (!files || !files.length) return;
++    setUploading(side);
++    setError('');
++    try {
++      const { urls } = await api.uploadImages([files[0]]);
++      (side === 'front' ? setFront : setBack)(urls[0]);
++    } catch (err) {
++      setError(err.message);
++    } finally {
++      setUploading('');
++    }
++  }
++
++  async function submit(e) {
++    e.preventDefault();
++    setError('');
++
++    const problem = firstProblem();
++    if (problem) {
++      setProblemField(problem.field);
++      setError(problem.message);
++      return;
++    }
++    setProblemField('');
++
++    setBusy(true);
++    try {
++      await api.post('/profile/nid', {
++        nid_number: digits,
++        nid_name: form.nid_name.trim(),
++        nid_front_url: front,
++        nid_back_url: back || null,
++      });
++      onDone?.();
++    } catch (err) {
++      setError(err.message);
++    } finally {
++      setBusy(false);
++    }
++  }
++
++  return (
++    <form onSubmit={submit}>
++      {!compact && (
++        <p className="muted" style={{ marginTop: 0 }}>
++          RentalFlow holds a verified identity for every renter so that damage and penalty
++          claims can be settled fairly. You only ever do this once.
++        </p>
++      )}
++
++      <div className="row">
++        <div className="field">
++          <label>Full name as printed on the NID</label>
++          <input
++            value={form.nid_name}
++            onChange={(e) => { setForm({ ...form, nid_name: e.target.value }); setProblemField(''); setError(''); }}
++            aria-invalid={problemField === 'name'}
++            className={problemField === 'name' ? 'invalid' : undefined}
++            placeholder="e.g. Rahim Uddin"
++          />
++        </div>
++        <div className="field">
++          <label>NID number</label>
++          <input
++            value={form.nid_number}
++            onChange={(e) => { setForm({ ...form, nid_number: e.target.value.replace(/\D/g, '') }); setProblemField(''); setError(''); }}
++            aria-invalid={problemField === 'number'}
++            className={problemField === 'number' ? 'invalid' : undefined}
++            placeholder="10, 13 or 17 digits"
++            inputMode="numeric"
++          />
++          <div className="fieldhint">
++            {digits.length === 0
++              ? 'Bangladeshi NID: 10, 13 or 17 digits.'
++              : validLength
++                ? <span className="ok-text">{digits.length} digits — looks right.</span>
++                : <span className="warn-text">{digits.length} digits — must be 10, 13 or 17.</span>}
++          </div>
++        </div>
++      </div>
++
++      <div className="row">
++        <div className="field">
++          <label>Photo of the NID front <span className="req">required</span></label>
++          <input type="file" accept="image/*" onChange={(e) => pick('front', e)} />
++          {uploading === 'front' && <div className="fieldhint">Uploading…</div>}
++          {front && <div className="nid-preview"><img src={front} alt="NID front" /></div>}
++        </div>
++        <div className="field">
++          <label>Photo of the NID back <span className="muted">optional</span></label>
++          <input type="file" accept="image/*" onChange={(e) => pick('back', e)} />
++          {uploading === 'back' && <div className="fieldhint">Uploading…</div>}
++          {back && <div className="nid-preview"><img src={back} alt="NID back" /></div>}
++        </div>
++      </div>
++
++      {error && <div className="error"><Icon name="shield" size={16} /> {error}</div>}
++
++      <div className="locked" style={{ marginBottom: 14 }}>
++        <Icon name="shield" size={15} />
++        Once submitted, your NID is saved to your account permanently and cannot be edited or removed.
++      </div>
++
++      <div className="card-actions">
++        <button className="btn" type="submit" disabled={busy}>
++          {busy ? 'Verifying…' : 'Verify my identity'}
++        </button>
++      </div>
++    </form>
++  );
++}
+--- a/client/src/components/PaymentMethods.jsx
++++ b/client/src/components/PaymentMethods.jsx
+@@ -0,0 +1,140 @@
++// ============================================================
++//  RentalFlow  |  Sprint 5  |  Owner: M4 - Radowanul Haque (Radowan)
++//  Part: Payment methods — add-only list (a method is permanent)
++// ============================================================
++// There is deliberately no "Remove" control anywhere in this component. A
++// payment method can only be added, made default, or deactivated. The server
++// refuses a DELETE and the database blocks it with a trigger, so the UI simply
++// never offers something the system would reject.
++import { useState } from 'react';
++import { api } from '../api.js';
++import { Icon } from '../icons.jsx';
++
++const KINDS = ['bKash', 'Nagad', 'Rocket', 'Card', 'Bank'];
++const MFS = ['bKash', 'Nagad', 'Rocket'];
++
++const placeholderFor = (kind) => {
++  if (MFS.includes(kind)) return '01XXXXXXXXX';
++  if (kind === 'Card') return '4111 1111 1111 1111';
++  return 'Account number';
++};
++
++export default function PaymentMethods({ methods = [], onChange }) {
++  const [adding, setAdding] = useState(false);
++  const [form, setForm] = useState({ kind: 'bKash', account_ref: '', label: '' });
++  const [error, setError] = useState('');
++  const [busy, setBusy] = useState(false);
++
++  async function add(e) {
++    e.preventDefault();
++    setError('');
++    setBusy(true);
++    try {
++      await api.post('/profile/payment-methods', form);
++      setForm({ kind: 'bKash', account_ref: '', label: '' });
++      setAdding(false);
++      onChange?.();
++    } catch (err) { setError(err.message); }
++    finally { setBusy(false); }
++  }
++
++  async function patch(id, body) {
++    setError('');
++    try {
++      await api.patch(`/profile/payment-methods/${id}`, body);
++      onChange?.();
++    } catch (err) { setError(err.message); }
++  }
++
++  return (
++    <>
++      {error && <div className="error"><Icon name="shield" size={16} /> {error}</div>}
++
++      {methods.length === 0 ? (
++        <div className="center-empty" style={{ padding: '28px 20px' }}>
++          <Icon name="wallet" size={26} />
++          <div className="empty-title">No payment method yet</div>
++          Add bKash, Nagad, Rocket, a card or a bank account to settle deposits and fees.
++        </div>
++      ) : (
++        <ul className="pm-list">
++          {methods.map((m) => (
++            <li key={m.id} className={m.is_active ? '' : 'inactive'}>
++              <span className="pm-kind">{m.kind}</span>
++              <span className="pm-body">
++                <span className="pm-label">{m.label}</span>
++                <span className="pm-ref mono">{m.account_ref}</span>
++              </span>
++              <span className="pm-tags">
++                {m.is_default && <span className="badge Completed">Default</span>}
++                {!m.is_active && <span className="badge Retired">Inactive</span>}
++              </span>
++              <span className="pm-actions">
++                {m.is_active && !m.is_default && (
++                  <button className="btn ghost small" onClick={() => patch(m.id, { is_default: true })}>
++                    Make default
++                  </button>
++                )}
++                {m.is_active ? (
++                  <button className="btn ghost small" onClick={() => patch(m.id, { is_active: false })}>
++                    Deactivate
++                  </button>
++                ) : (
++                  <button className="btn ghost small" onClick={() => patch(m.id, { is_active: true })}>
++                    Reactivate
++                  </button>
++                )}
++              </span>
++            </li>
++          ))}
++        </ul>
++      )}
++
++      <div className="locked" style={{ margin: '14px 0' }}>
++        <Icon name="shield" size={15} />
++        A payment method is permanent. It can be deactivated so it is no longer used,
++        but it is never deleted — past payments must stay traceable.
++      </div>
++
++      {adding ? (
++        <form onSubmit={add} className="pm-form">
++          <div className="row">
++            <div className="field">
++              <label>Type</label>
++              <select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value, account_ref: '' })}>
++                {KINDS.map((k) => <option key={k} value={k}>{k}</option>)}
++              </select>
++            </div>
++            <div className="field">
++              <label>{MFS.includes(form.kind) ? 'Wallet number' : form.kind === 'Card' ? 'Card number' : 'Account number'}</label>
++              <input
++                value={form.account_ref}
++                onChange={(e) => setForm({ ...form, account_ref: e.target.value })}
++                placeholder={placeholderFor(form.kind)}
++                inputMode="numeric"
++                required
++              />
++              <div className="fieldhint">Stored masked — we never keep the full number.</div>
++            </div>
++          </div>
++          <div className="field">
++            <label>Label <span className="muted">optional</span></label>
++            <input
++              value={form.label}
++              onChange={(e) => setForm({ ...form, label: e.target.value })}
++              placeholder="e.g. Personal bKash"
++            />
++          </div>
++          <div className="card-actions">
++            <button className="btn" type="submit" disabled={busy}>{busy ? 'Adding…' : 'Add permanently'}</button>
++            <button className="btn secondary" type="button" onClick={() => { setAdding(false); setError(''); }}>Cancel</button>
++          </div>
++        </form>
++      ) : (
++        <button className="btn secondary small" onClick={() => setAdding(true)}>
++          <Icon name="plus" size={14} /> Add payment method
++        </button>
++      )}
++    </>
++  );
++}
+--- a/client/src/components/RenterModal.jsx
++++ b/client/src/components/RenterModal.jsx
+@@ -0,0 +1,237 @@
++// ============================================================
++//  RentalFlow  |  Sprint 5  |  Owner: M4 - Radowanul Haque (Radowan)
++//  Part: Renter identity check, shown before approving/rejecting a booking
++// ============================================================
++// Opened from the Bookings page. Shows who is behind a request — their verified
++// National ID, their account, and their rental track record — so the owner (or
++// an admin) can make an informed decision instead of approving a name and an
++// email address. The look-up itself is recorded in the audit log by the server.
++import { useEffect, useState } from 'react';
++import { api } from '../api.js';
++import { Icon } from '../icons.jsx';
++import { money } from '../money.js';
++
++const dateOf = (iso) => (iso
++  ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
++  : '—');
++
++export default function RenterModal({ bookingId, onClose, onDecide }) {
++  const [data, setData] = useState(null);
++  const [error, setError] = useState('');
++  const [deciding, setDeciding] = useState('');
++
++  useEffect(() => {
++    api.get(`/bookings/${bookingId}/renter`)
++      .then(setData)
++      .catch((err) => setError(err.message));
++  }, [bookingId]);
++
++  async function decide(status) {
++    setDeciding(status);
++    try {
++      await onDecide(status);
++      onClose();
++    } catch (err) {
++      setError(err.message);
++      setDeciding('');
++    }
++  }
++
++  return (
++    <div className="modal-backdrop" onClick={onClose}>
++      <div className="modal" onClick={(e) => e.stopPropagation()}>
++        <div className="panel-head">
++          <div>
++            <h2>Who is renting this?</h2>
++            <div className="muted">
++              Check the identity and history before you approve.
++            </div>
++          </div>
++          <button className="btn ghost small" type="button" onClick={onClose} aria-label="Close">
++            <Icon name="close" size={16} />
++          </button>
++        </div>
++
++        {error && <div className="error"><Icon name="shield" size={16} /> {error}</div>}
++        {!data && !error && <div className="center-empty">Loading…</div>}
++
++        {data && (
++          <>
++            {/* ---- Verification verdict, first and largest ---- */}
++            {data.nid.onFile ? (
++              <div className="notice ok">
++                <Icon name="check" size={18} />
++                <div>
++                  <strong>Identity verified</strong>
++                  <div className="muted" style={{ fontSize: 13.5 }}>
++                    A National ID has been on file since {dateOf(data.nid.submittedAt)}.
++                  </div>
++                </div>
++              </div>
++            ) : (
++              <div className="notice warn">
++                <Icon name="shield" size={18} />
++                <div>
++                  <strong>No National ID on file</strong>
++                  <div className="muted" style={{ fontSize: 13.5 }}>
++                    This request predates identity verification, or was made by a guest.
++                    You would have no verified identity to pursue a damage claim against.
++                  </div>
++                </div>
++              </div>
++            )}
++
++            {/* ---- The booking under decision ---- */}
++            <h3 style={{ marginTop: 18 }}>This request</h3>
++            <dl className="detail-grid">
++              <div><dt>Item</dt><dd>{data.booking.item_name}</dd></div>
++              <div><dt>Dates</dt><dd>{data.booking.start_date} → {data.booking.end_date}</dd></div>
++              <div><dt>Deposit held</dt><dd>{money(data.booking.deposit_amount)}</dd></div>
++              <div><dt>Item value at risk</dt><dd>{money(data.booking.replacement_cost)}</dd></div>
++            </dl>
++            {data.booking.notes && (
++              <p className="muted" style={{ marginTop: 10 }}><b>Their note:</b> {data.booking.notes}</p>
++            )}
++
++            {/* ---- Contact + account ---- */}
++            <h3 style={{ marginTop: 20 }}>Contact &amp; account</h3>
++            <dl className="detail-grid">
++              <div><dt>Booked as</dt><dd>{data.contact.name}</dd></div>
++              <div><dt>Email</dt><dd>{data.contact.email}</dd></div>
++              <div><dt>Phone</dt><dd>{data.contact.phone || <span className="muted">Not provided</span>}</dd></div>
++              <div><dt>Account</dt><dd>
++                {data.account.exists
++                  ? <>{data.account.name} · <span className={`badge ${data.account.status === 'active' ? 'Available' : 'Retired'}`}>{data.account.status}</span></>
++                  : <span className="warn-text">No account with this email</span>}
++              </dd></div>
++              {data.account.exists && (
++                <div><dt>Member since</dt><dd>{dateOf(data.account.memberSince)}</dd></div>
++              )}
++            </dl>
++
++            {/* ---- The NID itself ---- */}
++            {data.nid.onFile && (
++              <>
++                <h3 style={{ marginTop: 20 }}>National ID</h3>
++                <dl className="detail-grid">
++                  <div><dt>Name on NID</dt><dd>{data.nid.name}</dd></div>
++                  <div><dt>NID number</dt><dd className="mono">{data.nid.number}</dd></div>
++                </dl>
++                {/* A different name on the card than on the booking is worth noticing. */}
++                {data.nid.name && data.contact.name
++                  && data.nid.name.trim().toLowerCase() !== data.contact.name.trim().toLowerCase() && (
++                  <div className="notice warn" style={{ marginTop: 12 }}>
++                    <Icon name="shield" size={18} />
++                    <div>
++                      <strong>Name mismatch</strong>
++                      <div className="muted" style={{ fontSize: 13.5 }}>
++                        They booked as “{data.contact.name}” but the NID reads “{data.nid.name}”.
++                      </div>
++                    </div>
++                  </div>
++                )}
++                <div className="nid-shots">
++                  {data.nid.frontUrl && (
++                    <figure>
++                      <a href={data.nid.frontUrl} target="_blank" rel="noreferrer">
++                        <img src={data.nid.frontUrl} alt="NID front" />
++                      </a>
++                      <figcaption>Front · click to enlarge</figcaption>
++                    </figure>
++                  )}
++                  {data.nid.backUrl && (
++                    <figure>
++                      <a href={data.nid.backUrl} target="_blank" rel="noreferrer">
++                        <img src={data.nid.backUrl} alt="NID back" />
++                      </a>
++                      <figcaption>Back · click to enlarge</figcaption>
++                    </figure>
++                  )}
++                </div>
++              </>
++            )}
++
++            {/* ---- Track record ---- */}
++            {data.profile && (
++              <>
++                <h3 style={{ marginTop: 22 }}>Track record</h3>
++                <div className="stat-row compact" style={{ marginBottom: 14 }}>
++                  <div className="stat-tile">
++                    <div className="stat-label">Rentals</div>
++                    <div className="stat-value">{data.profile.bookingCount}</div>
++                  </div>
++                  {/* Reliability is only meaningful once something has actually
++                      been returned. A brand-new renter scores 100 by default, so
++                      showing "Excellent" here would overstate what we know. */}
++                  <div className="stat-tile">
++                    <div className="stat-label">Reliability</div>
++                    {data.history.some((h) => h.status === 'Completed') ? (
++                      <>
++                        <div className="stat-value">{data.profile.reliability}%</div>
++                        <div className="stat-hint">{data.profile.reliabilityLabel}</div>
++                      </>
++                    ) : (
++                      <>
++                        <div className="stat-value">—</div>
++                        <div className="stat-hint">no completed rentals yet</div>
++                      </>
++                    )}
++                  </div>
++                  <div className="stat-tile">
++                    <div className="stat-label">Tier</div>
++                    <div className="stat-value">{data.profile.tier}</div>
++                  </div>
++                  <div className="stat-tile">
++                    <div className="stat-label">Lifetime spend</div>
++                    <div className="stat-value">{money(data.profile.totalSpend)}</div>
++                  </div>
++                </div>
++                <div className="table-wrap">
++                  <table className="data-table">
++                    <thead>
++                      <tr><th>Item</th><th>Dates</th><th>Status</th><th className="num">Fees charged</th></tr>
++                    </thead>
++                    <tbody>
++                      {data.history.slice(0, 8).map((h) => {
++                        const fees = Number(h.late_fee_amount || 0) + Number(h.penalty_amount || 0);
++                        return (
++                          <tr key={h.id}>
++                            <td>{h.item_name}</td>
++                            <td className="muted">{h.start_date} → {h.end_date}</td>
++                            <td><span className={`badge ${h.status}`}>{h.status}</span></td>
++                            <td className="num">
++                              {fees > 0 ? <span className="warn-text">{money(fees)}</span> : <span className="muted">—</span>}
++                            </td>
++                          </tr>
++                        );
++                      })}
++                    </tbody>
++                  </table>
++                </div>
++              </>
++            )}
++
++            {/* ---- Decide, right here ---- */}
++            {data.booking.status === 'Pending' && (
++              <div className="card-actions" style={{ marginTop: 20 }}>
++                <button className="btn" disabled={!!deciding} onClick={() => decide('Approved')}>
++                  {deciding === 'Approved' ? 'Approving…' : 'Approve booking'}
++                </button>
++                <button className="btn danger" disabled={!!deciding} onClick={() => decide('Rejected')}>
++                  {deciding === 'Rejected' ? 'Rejecting…' : 'Reject'}
++                </button>
++                <button className="btn secondary" type="button" onClick={onClose}>Decide later</button>
++              </div>
++            )}
++
++            <div className="locked" style={{ marginTop: 16 }}>
++              <Icon name="shield" size={15} />
++              This identity was shown to you so you can settle a damage claim if one arises.
++              Your access has been recorded in the audit log.
++            </div>
++          </>
++        )}
++      </div>
++    </div>
++  );
++}
+--- a/server/src/schema_profile.sql
++++ b/server/src/schema_profile.sql
+@@ -0,0 +1,118 @@
++-- ============================================================
++--  RentalFlow  |  Sprint 5  |  Owner: M4 - Radowanul Haque (Radowan)
++--  Part: NID verification for damage control + user profiles
++--        and permanent payment methods
++-- ============================================================
++-- Raw SQL, no ORM. Runs after schema_sprint4.sql via `npm run db:init`.
++
++-- ------------------------------------------------------------------
++-- NID (National ID) on the user account.
++--
++-- Why: damage control. When an item comes back broken the platform needs a
++-- verified real-world identity behind the booking, otherwise a penalty is
++-- unenforceable. The NID is collected once, on the member's first booking
++-- request, and then lives on the account forever.
++--
++-- Write-once is enforced in three places, deliberately:
++--   1. the API refuses to overwrite a value that is already set,
++--   2. the trigger below blocks the UPDATE at the database level,
++--   3. the UI hides the form once a NID is on file.
++-- Defence in depth: a bug in the route still cannot rewrite someone's identity.
++-- ------------------------------------------------------------------
++ALTER TABLE users ADD COLUMN IF NOT EXISTS nid_number     VARCHAR(30);
++ALTER TABLE users ADD COLUMN IF NOT EXISTS nid_front_url  TEXT;
++ALTER TABLE users ADD COLUMN IF NOT EXISTS nid_back_url   TEXT;
++ALTER TABLE users ADD COLUMN IF NOT EXISTS nid_name       VARCHAR(120);
++ALTER TABLE users ADD COLUMN IF NOT EXISTS nid_submitted_at TIMESTAMP;
++ALTER TABLE users ADD COLUMN IF NOT EXISTS phone          VARCHAR(30);
++
++-- A Bangladeshi NID is 10, 13 or 17 digits. Stored digits-only.
++ALTER TABLE users DROP CONSTRAINT IF EXISTS users_nid_number_check;
++ALTER TABLE users ADD CONSTRAINT users_nid_number_check
++  CHECK (nid_number IS NULL OR nid_number ~ '^[0-9]{10}$|^[0-9]{13}$|^[0-9]{17}$');
++
++-- The same national ID may not back two different accounts. A partial index is
++-- used so the many rows with no NID yet do not all collide on NULL.
++DROP INDEX IF EXISTS users_nid_number_key;
++CREATE UNIQUE INDEX users_nid_number_key
++  ON users (nid_number) WHERE nid_number IS NOT NULL;
++
++-- Block any attempt to change or clear a NID that is already recorded.
++CREATE OR REPLACE FUNCTION users_nid_write_once() RETURNS TRIGGER AS $$
++BEGIN
++  IF OLD.nid_number IS NOT NULL AND NEW.nid_number IS DISTINCT FROM OLD.nid_number THEN
++    RAISE EXCEPTION 'NID is recorded once and cannot be changed (user %)', OLD.id
++      USING ERRCODE = 'check_violation';
++  END IF;
++  RETURN NEW;
++END;
++$$ LANGUAGE plpgsql;
++
++DROP TRIGGER IF EXISTS users_nid_write_once_trg ON users;
++CREATE TRIGGER users_nid_write_once_trg
++  BEFORE UPDATE ON users
++  FOR EACH ROW EXECUTE FUNCTION users_nid_write_once();
++
++-- ------------------------------------------------------------------
++-- Payment methods — append-only, permanent.
++--
++-- Requirement: "once a payment method is added it cannot be removed forever."
++-- We honour that literally. There is no DELETE endpoint, and the trigger below
++-- refuses the DELETE even if someone runs it by hand in psql. A method can only
++-- be deactivated (is_active = FALSE) so the row, and the payment history that
++-- references it, survive.
++-- ------------------------------------------------------------------
++CREATE TABLE IF NOT EXISTS payment_methods (
++  id          SERIAL PRIMARY KEY,
++  user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
++  kind        VARCHAR(20) NOT NULL
++              CHECK (kind IN ('bKash', 'Nagad', 'Rocket', 'Card', 'Bank')),
++  label       VARCHAR(80),
++  -- Stored already masked by the API — RentalFlow never keeps a full card or
++  -- wallet number, only enough to recognise which method this is.
++  account_ref VARCHAR(120) NOT NULL,
++  is_default  BOOLEAN NOT NULL DEFAULT FALSE,
++  is_active   BOOLEAN NOT NULL DEFAULT TRUE,
++  created_at  TIMESTAMP NOT NULL DEFAULT NOW()
++);
++
++CREATE INDEX IF NOT EXISTS payment_methods_user_idx ON payment_methods (user_id);
++
++-- At most one default per user.
++DROP INDEX IF EXISTS payment_methods_one_default;
++CREATE UNIQUE INDEX payment_methods_one_default
++  ON payment_methods (user_id) WHERE is_default;
++
++-- The permanence guarantee, enforced by the database itself.
++CREATE OR REPLACE FUNCTION payment_methods_no_delete() RETURNS TRIGGER AS $$
++BEGIN
++  RAISE EXCEPTION 'Payment methods are permanent and cannot be deleted (id %)', OLD.id
++    USING ERRCODE = 'restrict_violation',
++          HINT = 'Deactivate it instead: UPDATE payment_methods SET is_active = FALSE.';
++END;
++$$ LANGUAGE plpgsql;
++
++DROP TRIGGER IF EXISTS payment_methods_no_delete_trg ON payment_methods;
++CREATE TRIGGER payment_methods_no_delete_trg
++  BEFORE DELETE ON payment_methods
++  FOR EACH ROW EXECUTE FUNCTION payment_methods_no_delete();
++
++-- Only is_default and is_active may ever change. The money details are frozen
++-- so a method cannot be "removed" by quietly blanking what it points at.
++CREATE OR REPLACE FUNCTION payment_methods_immutable_details() RETURNS TRIGGER AS $$
++BEGIN
++  IF NEW.user_id     IS DISTINCT FROM OLD.user_id
++  OR NEW.kind        IS DISTINCT FROM OLD.kind
++  OR NEW.account_ref IS DISTINCT FROM OLD.account_ref
++  OR NEW.created_at  IS DISTINCT FROM OLD.created_at THEN
++    RAISE EXCEPTION 'A payment method''s details are permanent; only is_default/is_active may change'
++      USING ERRCODE = 'check_violation';
++  END IF;
++  RETURN NEW;
++END;
++$$ LANGUAGE plpgsql;
++
++DROP TRIGGER IF EXISTS payment_methods_immutable_trg ON payment_methods;
++CREATE TRIGGER payment_methods_immutable_trg
++  BEFORE UPDATE ON payment_methods
++  FOR EACH ROW EXECUTE FUNCTION payment_methods_immutable_details();
+--- a/server/src/profileUtils.js
++++ b/server/src/profileUtils.js
+@@ -0,0 +1,93 @@
++// ============================================================
++//  RentalFlow  |  Sprint 5  |  Owner: M4 - Radowanul Haque (Radowan)
++//  Part: NID validation + payment-method rules (pure, unit tested)
++// ============================================================
++// Pure functions only — no database, no HTTP — so every rule here can be unit
++// tested in isolation, the same way bookingUtils.js is.
++
++// ---------------------------------------------------------------- NID
++
++// A Bangladeshi National ID is 10, 13 or 17 digits. Older cards are 13 or 17;
++// the smart card issued since 2016 is 10.
++const NID_LENGTHS = [10, 13, 17];
++
++// Strip spaces, dashes and any other separator people type in.
++export function normalizeNid(value) {
++  return String(value || '').replace(/\D/g, '');
++}
++
++export function isValidNid(value) {
++  const digits = normalizeNid(value);
++  return NID_LENGTHS.includes(digits.length);
++}
++
++// Never show a full national ID back to the browser. Keep the last 4 digits so
++// the owner can recognise their own card, and mask the rest.
++export function maskNid(value) {
++  const digits = normalizeNid(value);
++  if (!digits) return null;
++  if (digits.length <= 4) return '•'.repeat(digits.length);
++  return `${'•'.repeat(digits.length - 4)}${digits.slice(-4)}`;
++}
++
++// Write-once rule. A NID may be submitted only when the account has none yet.
++// Returns { ok } or { ok: false, reason } so the route can pick a status code.
++export function canSubmitNid(user = {}, submission = {}) {
++  if (user.nid_number) return { ok: false, reason: 'already-on-file' };
++  if (!isValidNid(submission.nid_number)) return { ok: false, reason: 'invalid-number' };
++  if (!String(submission.nid_name || '').trim()) return { ok: false, reason: 'missing-name' };
++  if (!submission.nid_front_url) return { ok: false, reason: 'missing-front-image' };
++  return { ok: true };
++}
++
++// Damage control gate: a booking may only be requested by a verified identity.
++export function hasVerifiedNid(user = {}) {
++  return Boolean(user.nid_number);
++}
++
++// ---------------------------------------------------------------- payments
++
++export const PAYMENT_KINDS = ['bKash', 'Nagad', 'Rocket', 'Card', 'Bank'];
++
++// Mobile financial services in Bangladesh use an 11-digit mobile number.
++const MFS_KINDS = ['bKash', 'Nagad', 'Rocket'];
++
++export function isValidPaymentMethod({ kind, account_ref } = {}) {
++  if (!PAYMENT_KINDS.includes(kind)) return { ok: false, reason: 'invalid-kind' };
++  const ref = String(account_ref || '').replace(/[\s-]/g, '');
++  if (!ref) return { ok: false, reason: 'missing-account' };
++  if (MFS_KINDS.includes(kind) && !/^01[0-9]{9}$/.test(ref)) {
++    return { ok: false, reason: 'invalid-mobile' };
++  }
++  if (kind === 'Card' && !/^[0-9]{13,19}$/.test(ref)) return { ok: false, reason: 'invalid-card' };
++  if (kind === 'Bank' && ref.length < 6) return { ok: false, reason: 'invalid-account' };
++  return { ok: true };
++}
++
++// We store the account reference already masked — RentalFlow never keeps a full
++// card or wallet number, only enough for the owner to tell their methods apart.
++export function maskAccountRef(kind, accountRef) {
++  const ref = String(accountRef || '').replace(/[\s-]/g, '');
++  if (!ref) return '';
++  if (kind === 'Card') return `**** **** **** ${ref.slice(-4)}`;
++  if (MFS_KINDS.includes(kind)) return `${ref.slice(0, 3)}****${ref.slice(-3)}`;
++  return `****${ref.slice(-4)}`;
++}
++
++// A human label when the member does not type one, e.g. "bKash ·018****321".
++export function defaultLabel(kind, maskedRef) {
++  return `${kind} · ${maskedRef}`;
++}
++
++// Payment methods are permanent. This is the single place that answers
++// "may this be removed?", and the answer is always no — the route, the UI and
++// the database trigger all agree with it.
++export function canRemovePaymentMethod() {
++  return false;
++}
++
++// The first method a member adds becomes their default automatically; after
++// that they choose. Deactivated methods can never be the default.
++export function shouldBecomeDefault(existingMethods = []) {
++  return existingMethods.filter((m) => m.is_active).length === 0;
++}
+--- a/server/src/profileUtils.test.js
++++ b/server/src/profileUtils.test.js
+@@ -0,0 +1,83 @@
++// ============================================================
++//  RentalFlow  |  Sprint 5  |  Owner: M4 - Radowanul Haque (Radowan)
++//  Part: Unit tests for NID + payment-method rules
++// ============================================================
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import {
++  normalizeNid, isValidNid, maskNid, canSubmitNid, hasVerifiedNid,
++  isValidPaymentMethod, maskAccountRef, defaultLabel,
++  canRemovePaymentMethod, shouldBecomeDefault,
++} from './profileUtils.js';
++
++test('a NID is accepted at 10, 13 or 17 digits and nothing else', () => {
++  assert.equal(isValidNid('1234567890'), true);
++  assert.equal(isValidNid('1234567890123'), true);
++  assert.equal(isValidNid('12345678901234567'), true);
++  assert.equal(isValidNid('12345'), false);
++  assert.equal(isValidNid(''), false);
++});
++
++test('separators people type are stripped before validating', () => {
++  assert.equal(normalizeNid('1234 5678 90'), '1234567890');
++  assert.equal(isValidNid('1234-5678-90'), true);
++});
++
++test('a NID is masked down to its last four digits', () => {
++  assert.equal(maskNid('1234567890'), '••••••7890');
++  assert.equal(maskNid(''), null);
++});
++
++test('a NID can be submitted once and then never again', () => {
++  const fresh = {};
++  const submission = { nid_number: '1234567890', nid_name: 'Rahim Uddin', nid_front_url: '/uploads/a.jpg' };
++  assert.deepEqual(canSubmitNid(fresh, submission), { ok: true });
++
++  const already = { nid_number: '9999999999' };
++  assert.deepEqual(canSubmitNid(already, submission), { ok: false, reason: 'already-on-file' });
++});
++
++test('a NID submission needs a valid number, a name and the front image', () => {
++  const base = { nid_number: '1234567890', nid_name: 'Rahim', nid_front_url: '/uploads/a.jpg' };
++  assert.equal(canSubmitNid({}, { ...base, nid_number: '123' }).reason, 'invalid-number');
++  assert.equal(canSubmitNid({}, { ...base, nid_name: '  ' }).reason, 'missing-name');
++  assert.equal(canSubmitNid({}, { ...base, nid_front_url: null }).reason, 'missing-front-image');
++});
++
++test('the booking gate only opens for an account with a NID on file', () => {
++  assert.equal(hasVerifiedNid({ nid_number: '1234567890' }), true);
++  assert.equal(hasVerifiedNid({}), false);
++});
++
++test('mobile wallets must be a Bangladeshi 11-digit number', () => {
++  assert.equal(isValidPaymentMethod({ kind: 'bKash', account_ref: '01712345678' }).ok, true);
++  assert.equal(isValidPaymentMethod({ kind: 'Nagad', account_ref: '0171234567' }).reason, 'invalid-mobile');
++  assert.equal(isValidPaymentMethod({ kind: 'Rocket', account_ref: '91712345678' }).reason, 'invalid-mobile');
++});
++
++test('cards and bank accounts have their own shape rules', () => {
++  assert.equal(isValidPaymentMethod({ kind: 'Card', account_ref: '4111111111111111' }).ok, true);
++  assert.equal(isValidPaymentMethod({ kind: 'Card', account_ref: '4111' }).reason, 'invalid-card');
++  assert.equal(isValidPaymentMethod({ kind: 'Bank', account_ref: '00112233' }).ok, true);
++  assert.equal(isValidPaymentMethod({ kind: 'Crypto', account_ref: 'x' }).reason, 'invalid-kind');
++});
++
++test('an account reference is stored masked, never in full', () => {
++  assert.equal(maskAccountRef('Card', '4111111111111111'), '**** **** **** 1111');
++  assert.equal(maskAccountRef('bKash', '01712345678'), '017****678');
++  assert.equal(maskAccountRef('Bank', '00112233'), '****2233');
++});
++
++test('a payment method gets a readable default label', () => {
++  assert.equal(defaultLabel('bKash', '017****678'), 'bKash · 017****678');
++});
++
++test('a payment method can never be removed', () => {
++  assert.equal(canRemovePaymentMethod(), false);
++});
++
++test('the first active method becomes the default automatically', () => {
++  assert.equal(shouldBecomeDefault([]), true);
++  assert.equal(shouldBecomeDefault([{ is_active: false }]), true);
++  assert.equal(shouldBecomeDefault([{ is_active: true }]), false);
++});
+--- a/server/src/routes/profile.js
++++ b/server/src/routes/profile.js
+@@ -0,0 +1,270 @@
++// ============================================================
++//  RentalFlow  |  Sprint 5  |  Owner: M4 - Radowanul Haque (Radowan)
++//  Part: User profile — account details, NID (write-once), payment methods
++// ============================================================
++// Every route here is about the CALLER's own account. There is no :userId in
++// any path — the identity always comes from the verified JWT — so one member
++// can never read or write another member's NID or payment details.
++//
++// Note the routes that deliberately do NOT exist:
++//   DELETE /profile/nid                  — a NID is recorded once, forever
++//   DELETE /profile/payment-methods/:id  — payment methods are permanent
++import { Router } from 'express';
++import { query } from '../db.js';
++import { authRequired } from '../middleware/auth.js';
++import {
++  normalizeNid, maskNid, canSubmitNid,
++  isValidPaymentMethod, maskAccountRef, defaultLabel, shouldBecomeDefault,
++} from '../profileUtils.js';
++
++const router = Router();
++router.use(authRequired);
++
++// Columns that are safe to send to the browser. The raw nid_number is NEVER in
++// this list — it is masked by the handler before it leaves the server.
++const ACCOUNT_COLUMNS = `id, name, email, role, status, phone,
++  nid_number, nid_name, nid_front_url, nid_back_url, nid_submitted_at, created_at`;
++
++async function loadUser(id) {
++  const { rows } = await query(`SELECT ${ACCOUNT_COLUMNS} FROM users WHERE id = $1`, [id]);
++  return rows[0] || null;
++}
++
++async function loadPaymentMethods(userId) {
++  const { rows } = await query(
++    `SELECT id, kind, label, account_ref, is_default, is_active, created_at
++       FROM payment_methods WHERE user_id = $1
++      ORDER BY is_default DESC, created_at`,
++    [userId]
++  );
++  return rows;
++}
++
++// Everything the profile page shows, in one round trip.
++// GET /api/profile
++router.get('/', async (req, res) => {
++  const user = await loadUser(req.user.id);
++  if (!user) return res.status(404).json({ error: 'Account not found' });
++
++  // Activity: what this account has done on the platform. A member sees their
++  // own listings and the bookings they made; owners also see bookings received.
++  const [listings, madeBookings, receivedBookings] = await Promise.all([
++    query(
++      `SELECT COUNT(*)::int AS total,
++              COUNT(*) FILTER (WHERE status = 'Available')::int AS available,
++              COUNT(*) FILTER (WHERE status = 'Rented')::int    AS rented
++         FROM items WHERE owner_id = $1`,
++      [user.id]
++    ),
++    query(
++      `SELECT COUNT(*)::int AS total,
++              COUNT(*) FILTER (WHERE b.status = 'Completed')::int AS completed,
++              COUNT(*) FILTER (WHERE b.status IN ('Pending','Approved'))::int AS active,
++              COALESCE(SUM(b.late_fee_amount + b.penalty_amount), 0)::numeric AS fees
++         FROM bookings b WHERE LOWER(b.customer_email) = LOWER($1)`,
++      [user.email]
++    ),
++    query(
++      `SELECT COUNT(*)::int AS total,
++              COUNT(*) FILTER (WHERE b.status = 'Pending')::int AS pending
++         FROM bookings b JOIN items i ON i.id = b.item_id
++        WHERE i.owner_id = $1`,
++      [user.id]
++    ),
++  ]);
++
++  res.json({
++    account: {
++      id: user.id,
++      name: user.name,
++      email: user.email,
++      role: user.role,
++      status: user.status,
++      phone: user.phone,
++      memberSince: user.created_at,
++    },
++    // The identity block. `number` is masked; the full value never leaves the DB.
++    nid: user.nid_number
++      ? {
++        onFile: true,
++        number: maskNid(user.nid_number),
++        name: user.nid_name,
++        frontUrl: user.nid_front_url,
++        backUrl: user.nid_back_url,
++        submittedAt: user.nid_submitted_at,
++      }
++      : { onFile: false },
++    paymentMethods: await loadPaymentMethods(user.id),
++    activity: {
++      listings: listings.rows[0],
++      bookingsMade: {
++        ...madeBookings.rows[0],
++        fees: Number(madeBookings.rows[0].fees),
++      },
++      bookingsReceived: receivedBookings.rows[0],
++    },
++  });
++});
++
++// PATCH /api/profile — the few details a member may edit freely.
++router.patch('/', async (req, res) => {
++  const { name, phone } = req.body;
++  const { rows } = await query(
++    `UPDATE users SET name = COALESCE($2, name), phone = COALESCE($3, phone)
++      WHERE id = $1 RETURNING ${ACCOUNT_COLUMNS}`,
++    [req.user.id, name || null, phone || null]
++  );
++  res.json({ id: rows[0].id, name: rows[0].name, phone: rows[0].phone });
++});
++
++// POST /api/profile/nid — submit the National ID. Allowed exactly once.
++//
++// This is the damage-control requirement: before a member can request a booking
++// we need a verified real identity behind it, so a penalty for a broken item is
++// actually enforceable. Once stored the value can never be edited — by the API,
++// by the UI, or by a direct UPDATE (a database trigger blocks that too).
++router.post('/nid', async (req, res) => {
++  const user = await loadUser(req.user.id);
++  if (!user) return res.status(404).json({ error: 'Account not found' });
++
++  const submission = {
++    nid_number: normalizeNid(req.body.nid_number),
++    nid_name: req.body.nid_name,
++    nid_front_url: req.body.nid_front_url,
++    nid_back_url: req.body.nid_back_url || null,
++  };
++
++  const check = canSubmitNid(user, submission);
++  if (!check.ok) {
++    const messages = {
++      'already-on-file': 'A National ID is already recorded on this account and cannot be changed.',
++      'invalid-number': 'A Bangladeshi NID must be 10, 13 or 17 digits.',
++      'missing-name': 'Enter the full name exactly as printed on the NID.',
++      'missing-front-image': 'Upload a photo of the front of the NID.',
++    };
++    return res.status(check.reason === 'already-on-file' ? 409 : 400)
++      .json({ error: messages[check.reason], reason: check.reason });
++  }
++
++  try {
++    const { rows } = await query(
++      `UPDATE users
++          SET nid_number = $2, nid_name = $3, nid_front_url = $4,
++              nid_back_url = $5, nid_submitted_at = NOW()
++        WHERE id = $1 AND nid_number IS NULL
++        RETURNING id, nid_number, nid_name, nid_front_url, nid_back_url, nid_submitted_at`,
++      [user.id, submission.nid_number, String(submission.nid_name).trim(),
++        submission.nid_front_url, submission.nid_back_url]
++    );
++    // The WHERE guard lost a race with a second concurrent submit.
++    if (!rows[0]) {
++      return res.status(409).json({
++        error: 'A National ID is already recorded on this account and cannot be changed.',
++        reason: 'already-on-file',
++      });
++    }
++    const saved = rows[0];
++    res.status(201).json({
++      onFile: true,
++      number: maskNid(saved.nid_number),
++      name: saved.nid_name,
++      frontUrl: saved.nid_front_url,
++      backUrl: saved.nid_back_url,
++      submittedAt: saved.nid_submitted_at,
++    });
++  } catch (err) {
++    // The partial unique index: this national ID already backs another account.
++    if (err.code === '23505') {
++      return res.status(409).json({
++        error: 'This National ID is already registered to another account.',
++        reason: 'nid-taken',
++      });
++    }
++    throw err;
++  }
++});
++
++// POST /api/profile/payment-methods — add one. Append-only, and permanent.
++router.post('/payment-methods', async (req, res) => {
++  const { kind, account_ref, label } = req.body;
++
++  const check = isValidPaymentMethod({ kind, account_ref });
++  if (!check.ok) {
++    const messages = {
++      'invalid-kind': 'Choose bKash, Nagad, Rocket, Card or Bank.',
++      'missing-account': 'Enter the account or wallet number.',
++      'invalid-mobile': 'A mobile wallet number must be 11 digits, starting 01.',
++      'invalid-card': 'A card number must be 13–19 digits.',
++      'invalid-account': 'That bank account number looks too short.',
++    };
++    return res.status(400).json({ error: messages[check.reason], reason: check.reason });
++  }
++
++  // Mask before storing: the full number never reaches our database.
++  const masked = maskAccountRef(kind, account_ref);
++  const existing = await loadPaymentMethods(req.user.id);
++  const makeDefault = shouldBecomeDefault(existing);
++
++  const { rows } = await query(
++    `INSERT INTO payment_methods (user_id, kind, label, account_ref, is_default)
++     VALUES ($1,$2,$3,$4,$5)
++     RETURNING id, kind, label, account_ref, is_default, is_active, created_at`,
++    [req.user.id, kind, (label || '').trim() || defaultLabel(kind, masked), masked, makeDefault]
++  );
++  res.status(201).json(rows[0]);
++});
++
++// PATCH /api/profile/payment-methods/:id — the only changes ever allowed:
++// make it the default, or deactivate it. Deleting is not offered anywhere.
++router.patch('/payment-methods/:id', async (req, res) => {
++  const { id } = req.params;
++  const { is_default, is_active } = req.body;
++
++  const { rows: own } = await query(
++    'SELECT id, is_active FROM payment_methods WHERE id = $1 AND user_id = $2',
++    [id, req.user.id]
++  );
++  if (!own[0]) return res.status(404).json({ error: 'Payment method not found' });
++
++  if (is_default === true) {
++    if (own[0].is_active === false) {
++      return res.status(400).json({ error: 'A deactivated method cannot be the default.' });
++    }
++    // One default per user is a unique index, so clear the old one first.
++    await query('UPDATE payment_methods SET is_default = FALSE WHERE user_id = $1 AND is_default', [req.user.id]);
++    await query('UPDATE payment_methods SET is_default = TRUE WHERE id = $1', [id]);
++  }
++
++  if (is_active === false) {
++    // Deactivating the default leaves the account without one; that is fine,
++    // the row and its history stay exactly where they are.
++    await query('UPDATE payment_methods SET is_active = FALSE, is_default = FALSE WHERE id = $1', [id]);
++  } else if (is_active === true) {
++    await query('UPDATE payment_methods SET is_active = TRUE WHERE id = $1', [id]);
++  }
++
++  const { rows } = await query(
++    `SELECT id, kind, label, account_ref, is_default, is_active, created_at
++       FROM payment_methods WHERE id = $1`,
++    [id]
++  );
++  res.json(rows[0]);
++});
++
++// Spelled out rather than left to the 404 handler, so the rule is visible in
++// the API itself and anyone reading the code sees why it is missing.
++router.delete('/payment-methods/:id', (_req, res) => {
++  res.status(405).json({
++    error: 'Payment methods are permanent and cannot be removed. Deactivate it instead.',
++    reason: 'permanent',
++  });
++});
++
++router.delete('/nid', (_req, res) => {
++  res.status(405).json({
++    error: 'A National ID is recorded once and cannot be removed.',
++    reason: 'permanent',
++  });
++});
++
++export default router;
+--- a/server/src/seedProfile.js
++++ b/server/src/seedProfile.js
+@@ -0,0 +1,75 @@
++// ============================================================
++//  RentalFlow  |  Sprint 5  |  Owner: M4 - Radowanul Haque (Radowan)
++//  Part: Demo data for NID verification + payment methods
++// ============================================================
++// Usage: npm run db:seed5   (run after db:init / db:seed / db:seed4)
++//
++// Karim is seeded as ALREADY verified, so the demo can show the "identity on
++// file, cannot be changed" state. Rahim is left UNVERIFIED on purpose, so the
++// one-time NID step can be demonstrated live during a booking request.
++import { pool, query } from './db.js';
++import { maskAccountRef, defaultLabel } from './profileUtils.js';
++
++async function main() {
++  const { rows: users } = await query('SELECT id, email FROM users');
++  const idOf = (email) => users.find((u) => u.email === email)?.id ?? null;
++
++  const karim = idOf('karim@rentalflow.test');
++  const admin = idOf('admin@rentalflow.test');
++
++  // --- NID on file (damage control) ---
++  // The write-once trigger rejects any change, so only fill an empty one.
++  const verified = [
++    [karim, '1990123456789', 'Karim Hasan', '01811223344'],
++    [admin, '19855012345678901', 'Platform Admin', '01911223344'],
++  ];
++  for (const [id, nid, nidName, phone] of verified) {
++    if (!id) continue;
++    await query(
++      `UPDATE users
++          SET nid_number = $2, nid_name = $3, phone = $4,
++              nid_front_url = '/uploads/demo-nid-front.svg',
++              nid_back_url  = '/uploads/demo-nid-back.svg',
++              nid_submitted_at = NOW() - INTERVAL '20 days'
++        WHERE id = $1 AND nid_number IS NULL`,
++      [id, nid, nidName, phone]
++    );
++  }
++
++  // --- Payment methods (permanent, append-only) ---
++  const methods = [
++    [karim, 'bKash', '01811223344', true],
++    [karim, 'Card', '4111111111111111', false],
++    [admin, 'Nagad', '01911223344', true],
++  ];
++  let added = 0;
++  for (const [userId, kind, raw, isDefault] of methods) {
++    if (!userId) continue;
++    const masked = maskAccountRef(kind, raw);
++    // These rows can never be deleted, so never insert a duplicate.
++    const { rows } = await query(
++      'SELECT id FROM payment_methods WHERE user_id = $1 AND kind = $2 AND account_ref = $3',
++      [userId, kind, masked]
++    );
++    if (rows.length) continue;
++    await query(
++      `INSERT INTO payment_methods (user_id, kind, label, account_ref, is_default)
++       VALUES ($1,$2,$3,$4,$5)`,
++      [userId, kind, defaultLabel(kind, masked), masked, isDefault]
++    );
++    added += 1;
++  }
++
++  const { rows: check } = await query(
++    `SELECT COUNT(*) FILTER (WHERE nid_number IS NOT NULL)::int AS verified FROM users`
++  );
++  console.log(`✅ Profile demo data ready — ${check[0].verified} verified accounts, ${added} payment methods added.`);
++  console.log('   Verified   : karim@rentalflow.test, admin@rentalflow.test');
++  console.log('   UNVERIFIED : rahim@rentalflow.test  ← use this one to demo the NID step');
++  await pool.end();
++}
++
++main().catch((err) => {
++  console.error('❌ Failed to seed profile data:', err.message);
++  process.exit(1);
++});
