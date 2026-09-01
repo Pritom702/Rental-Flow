@@ -12,9 +12,20 @@ dist/
 build/
 .vite/
 
-# Uploaded product images (keep the folder, ignore the files)
+# Uploaded files (keep the folder, ignore the contents).
+# The app writes to server/src/uploads — product photos AND National ID card
+# images land here, so these must never be committed. The demo-nid specimens are
+# the exception: they are clearly-marked fakes that seedProfile.js references.
 server/uploads/*
 !server/uploads/.gitkeep
+server/src/uploads/*
+!server/src/uploads/.gitkeep
+!server/src/uploads/demo-nid-*.svg
+
+# Data exports shared between teammates. A dump contains bcrypt password
+# hashes, National ID numbers and photographs of ID cards - never commit one.
+rentalflow-export/
+rentalflow-export.zip
 
 # Logs
 *.log
