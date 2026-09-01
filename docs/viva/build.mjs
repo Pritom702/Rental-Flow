@@ -74,6 +74,28 @@ const langOf = (rel) => {
   return { js: 'javascript', jsx: 'javascript', sql: 'sql', css: 'css', json: 'json' }[e] || 'plaintext';
 };
 
+
+// Count the real unit tests by scanning the test files, so this figure can never
+// drift out of date the way a hardcoded number does.
+function countTests() {
+  let n = 0;
+  for (const group of readingOrder) {
+    for (const rel of group.files) {
+      if (!rel.endsWith('.test.js')) continue;
+      const src = readFile(rel);
+      if (src) n += (src.match(/^test\(/gm) || []).length;
+    }
+  }
+  return n;
+}
+const TEST_COUNT = countTests();
+
+// Features per member, derived from the ownership data rather than assumed equal.
+const perMember = members.map((m) => m.features.length);
+const FEATURE_SPREAD = perMember.every((c) => c === perMember[0])
+  ? `${perMember[0]} each`
+  : `${Math.min(...perMember)}–${Math.max(...perMember)} each`;
+
 // ---------------------------------------------------------------- code browser
 let fileCount = 0, lineCount = 0;
 function renderCodeGroups() {
@@ -357,11 +379,11 @@ body[data-lang="both"] .lang-bn::before{content:'বাংলা';display:block;
     <p class="dim">${esc(meta.course)} · ${esc(meta.university)}</p>
     <div class="stats">
       <div class="stat"><b>4</b><span>team members</span></div>
-      <div class="stat"><b>20</b><span>features (5 each)</span></div>
+      <div class="stat"><b>${features.length}</b><span>features (${FEATURE_SPREAD})</span></div>
       <div class="stat"><b>4</b><span>sprints</span></div>
       <div class="stat"><b>${fileCount}</b><span>source files</span></div>
       <div class="stat"><b>${lineCount.toLocaleString('en-US')}</b><span>lines of code</span></div>
-      <div class="stat"><b>35</b><span>unit tests passing</span></div>
+      <div class="stat"><b>${TEST_COUNT}</b><span>unit tests passing</span></div>
     </div>
     <p><strong>Stack:</strong> ${esc(meta.stack)}</p>
     <div class="callout">
