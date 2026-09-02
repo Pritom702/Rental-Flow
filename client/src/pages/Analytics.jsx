@@ -7,7 +7,7 @@ import { api } from '../api.js';
 import { Icon } from '../icons.jsx';
 import { BarChart, DonutChart, UtilizationBar, StatTile } from '../components/Charts.jsx';
 
-const money = (n) => `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+import { money } from '../money.js';
 const RANGES = [
   { days: 7, label: '7 days' },
   { days: 30, label: '30 days' },

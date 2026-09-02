@@ -11,7 +11,7 @@ import { Icon } from '../icons.jsx';
 import { StatTile } from '../components/Charts.jsx';
 import { exportAgreementPdf, exportReturnSummaryPdf, exportCustomerStatementPdf } from '../pdf.js';
 
-const money = (n) => `$${Number(n || 0).toFixed(2)}`;
+import { money } from '../money.js';
 const FILTERS = [
   { key: 'all', label: 'All documents' },
   { key: 'agreement', label: 'Agreements' },

@@ -20,7 +20,9 @@ export function statementNumber(email, date = new Date()) {
 }
 
 export function formatMoney(amount) {
-  return `$${Number(amount || 0).toFixed(2)}`;
+  // RentalFlow is a Bangladeshi marketplace, so amounts are Taka. These strings
+  // are printed into PDFs whose font has no '৳' glyph, so use the ISO code.
+  return `BDT ${Number(amount || 0).toFixed(2)}`;
 }
 
 // Roll a customer's rental history into the totals printed at the foot of a
