@@ -18,8 +18,8 @@ test('statement numbers are per customer and per month', () => {
 });
 
 test('money is always printed with two decimals', () => {
-  assert.equal(formatMoney(12.5), '$12.50');
-  assert.equal(formatMoney(null), '$0.00');
+  assert.equal(formatMoney(12.5), 'BDT 12.50');
+  assert.equal(formatMoney(null), 'BDT 0.00');
 });
 
 test('statement totals split rental, late fees and penalties', () => {

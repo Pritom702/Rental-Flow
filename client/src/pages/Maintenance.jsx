@@ -7,7 +7,7 @@ import { api } from '../api.js';
 import { Icon } from '../icons.jsx';
 import { StatTile } from '../components/Charts.jsx';
 
-const money = (n) => `$${Number(n || 0).toFixed(2)}`;
+import { money } from '../money.js';
 const JOB_TYPES = ['Repair', 'Service', 'Inspection', 'Cleaning', 'Replacement'];
 const PRIORITIES = ['Low', 'Normal', 'High'];
 const STATUSES = ['Open', 'In Progress', 'Completed', 'Cancelled'];
