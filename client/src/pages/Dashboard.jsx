@@ -12,6 +12,7 @@ import { useAuth } from '../auth.jsx';
 import { Icon } from '../icons.jsx';
 import { StatusBadge, TagList, CardPhoto } from '../components.jsx';
 import QrModal from '../components/QrModal.jsx';
+import { money, moneyRound } from '../money.js';
 
 const STATUSES = ['Available', 'Rented', 'Damaged', 'Under Maintenance', 'Retired'];
 
@@ -25,6 +26,7 @@ export default function Dashboard() {
   const [newCat, setNewCat] = useState('');
   const [error, setError] = useState('');
   const [qrItem, setQrItem] = useState(null);
+  const [showCats, setShowCats] = useState(false);
 
   async function load() {
     const params = new URLSearchParams();
@@ -57,8 +59,8 @@ export default function Dashboard() {
   // Stat tiles (based on the currently loaded set)
   const count = (s) => items.filter((i) => i.status === s).length;
   const stats = [
-    { label: 'Total listings', value: items.length, icon: 'package', color: 'var(--primary)' },
-    { label: 'Available', value: count('Available'), icon: 'check', color: 'var(--accent)' },
+    { label: 'Total listings', value: items.length, icon: 'package', color: 'var(--text-2)' },
+    { label: 'Available', value: count('Available'), icon: 'check', color: 'var(--green)' },
     { label: 'Rented out', value: count('Rented'), icon: 'refresh', color: 'var(--blue)' },
     { label: 'Needs attention', value: count('Damaged') + count('Under Maintenance'), icon: 'tool', color: 'var(--amber)' },
   ];
@@ -76,39 +78,52 @@ export default function Dashboard() {
       {error && <div className="error"><Icon name="shield" size={16} /> {error}</div>}
 
       {/* Stat tiles */}
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', marginBottom: 24 }}>
+      <div className="stat-row">
         {stats.map((s) => (
-          <div className="card" key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <span style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--primary-soft)', color: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <Icon name={s.icon} size={22} />
+          <div className="stat-tile with-icon" key={s.label}>
+            <span className="stat-icon" style={{ color: s.color }}>
+              <Icon name={s.icon} size={19} />
             </span>
             <div>
-              <div style={{ fontFamily: 'Lexend', fontSize: 26, fontWeight: 800 }}>{s.value}</div>
-              <div className="muted" style={{ fontSize: 13 }}>{s.label}</div>
+              <div className="stat-value" style={{ marginTop: 0, fontSize: 24 }}>{s.value}</div>
+              <div className="stat-label" style={{ textTransform: 'none', letterSpacing: 0, fontSize: 12.5, fontWeight: 500 }}>{s.label}</div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Category management */}
-      <div className="card" style={{ marginBottom: 24 }}>
-        <h3 style={{ marginTop: 0, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Icon name="tag" size={18} /> Categories
-        </h3>
-        <div style={{ marginBottom: 14 }}>
-          {categories.map((c) => (
-            <span className="tag" key={c.id}>{c.name} · {c.item_count}</span>
-          ))}
+      {/* Category management — collapsed by default so it stops dominating the page */}
+      <div className="panel">
+        <div className="panel-head" style={{ marginBottom: showCats ? 16 : 0 }}>
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Icon name="tag" size={16} /> Categories
+            <span className="muted" style={{ fontWeight: 400 }}>({categories.length})</span>
+          </h3>
+          <button className="btn ghost small" type="button" onClick={() => setShowCats((v) => !v)}>
+            {showCats ? 'Hide' : 'Manage'}
+          </button>
         </div>
-        <form onSubmit={addCategory} style={{ display: 'flex', gap: 8 }}>
-          <input
-            placeholder="New category name"
-            value={newCat}
-            onChange={(e) => setNewCat(e.target.value)}
-            style={{ padding: '9px 13px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontFamily: 'inherit', flex: '0 1 260px' }}
-          />
-          <button className="btn small"><Icon name="plus" size={15} /> Add</button>
-        </form>
+        {showCats && (
+          <>
+            <div style={{ marginBottom: 14 }}>
+              {[...categories]
+                .sort((a, b) => b.item_count - a.item_count || a.name.localeCompare(b.name))
+                .map((c) => (
+                  <span className="tag" key={c.id}>{c.name} · {c.item_count}</span>
+                ))}
+            </div>
+            <form onSubmit={addCategory} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <div className="field" style={{ margin: 0, flex: '0 1 260px' }}>
+                <input
+                  placeholder="New category name"
+                  value={newCat}
+                  onChange={(e) => setNewCat(e.target.value)}
+                />
+              </div>
+              <button className="btn small"><Icon name="plus" size={14} /> Add</button>
+            </form>
+          </>
+        )}
       </div>
 
       {/* Item toolbar */}
@@ -125,8 +140,22 @@ export default function Dashboard() {
 
       {items.length === 0 ? (
         <div className="center-empty">
-          <Icon name="package" size={30} /><br />
-          No listings yet. Click “List an Item” to add your first one.
+          <Icon name="package" size={30} />
+          <div className="empty-title">
+            {search || statusFilter ? 'No listings match those filters' : 'No listings yet'}
+          </div>
+          {search || statusFilter
+            ? 'Try a different search term or status.'
+            : 'List your first piece of equipment and it will show up here.'}
+          <div>
+            {search || statusFilter ? (
+              <button className="btn secondary" type="button" onClick={() => { setSearch(''); setStatusFilter(''); }}>
+                Clear filters
+              </button>
+            ) : (
+              <Link to="/items/new" className="btn"><Icon name="plus" size={16} /> List an Item</Link>
+            )}
+          </div>
         </div>
       ) : (
         <div className="grid">
@@ -144,7 +173,7 @@ export default function Dashboard() {
               <div className="desc">{it.description || 'No description'}</div>
               <TagList tags={it.tags} />
               <div className="price" style={{ marginTop: 10 }}>
-                ${Number(it.rental_price).toFixed(2)} <span>/ day · replace ${Number(it.replacement_cost).toFixed(0)}</span>
+                {money(it.rental_price)} <span>/ day · replace {moneyRound(it.replacement_cost)}</span>
               </div>
 
               <div className="card-actions">
@@ -152,7 +181,6 @@ export default function Dashboard() {
                   value={it.status}
                   onChange={(e) => changeStatus(it.id, e.target.value)}
                   aria-label="Change status"
-                  style={{ padding: '6px 9px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontSize: 12, fontFamily: 'inherit' }}
                 >
                   {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>

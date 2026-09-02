@@ -9,6 +9,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
 import { Icon } from '../icons.jsx';
 import { exportReturnSummaryPdf } from '../pdf.js';
+import { money } from '../money.js';
 
 const CONDITIONS = ['New', 'Good', 'Fair', 'Poor', 'Damaged'];
 
@@ -69,7 +70,6 @@ export default function Checkout({ mode }) {
   // After a successful check-in: show the settlement.
   if (result) {
     const b = result.bill;
-    const money = (n) => `$${Number(n || 0).toFixed(2)}`;
     return (
       <div className="container" style={{ maxWidth: 560 }}>
         <div className="card">
@@ -127,11 +127,11 @@ export default function Checkout({ mode }) {
         {isCheckin && (
           <div className="row">
             <div className="field">
-              <label>Repair cost ($)</label>
+              <label>Repair cost (৳)</label>
               <input type="number" min="0" step="0.01" value={form.repair_cost} onChange={(e) => setForm({ ...form, repair_cost: e.target.value })} />
             </div>
             <div className="field">
-              <label>Missing accessory charge ($)</label>
+              <label>Missing accessory charge (৳)</label>
               <input type="number" min="0" step="0.01" value={form.missing_charge} onChange={(e) => setForm({ ...form, missing_charge: e.target.value })} />
             </div>
           </div>

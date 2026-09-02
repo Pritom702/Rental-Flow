@@ -3,6 +3,8 @@ import { query, pool } from '../db.js';
 import { authRequired } from '../middleware/auth.js';
 import { calculateDeposit, calculateLateFee, overdueDays, calculatePenalty, buildBill } from '../bookingUtils.js';
 import { buildNotification, eventForStatus, recipientSide, canDecide } from '../notificationUtils.js';
+import { hasVerifiedNid } from '../profileUtils.js';
+import { buildProfile } from '../customerUtils.js';
 
 const router = Router();
 const VALID_STATUSES = ['Pending', 'Approved', 'Cancelled', 'Completed', 'Rejected'];
@@ -113,6 +115,104 @@ router.get('/:id', authRequired, async (req, res) => {
   res.json({ ...booking, overdue_days: overdueDays(booking.end_date) });
 });
 
+// GET /api/bookings/:id/renter — who is asking for this item, and are they real?
+//
+// The person about to hand over their own equipment needs to see the verified
+// identity behind the request BEFORE they approve or reject it. Access is the
+// same rule as making the decision itself (`canDecide`): the item's owner, an
+// admin, or staff — nobody else. A member cannot look up the NID of someone who
+// booked a different member's item.
+//
+// Reading an identity is sensitive, so unlike other GETs it is written to the
+// audit log: the platform can always show who looked at whose NID, and when.
+router.get('/:id/renter', authRequired, async (req, res) => {
+  const booking = await getBookingById(req.params.id);
+  if (!booking) return res.status(404).json({ error: 'Booking not found' });
+
+  if (!canDecide(req.user, booking)) {
+    return res.status(403).json({ error: 'Only the item owner, staff or an admin can view the renter’s identity.' });
+  }
+
+  // The renter is matched to an account by the email they booked with.
+  const { rows: users } = await query(
+    `SELECT id, name, email, phone, status, created_at,
+            nid_number, nid_name, nid_front_url, nid_back_url, nid_submitted_at
+       FROM users WHERE LOWER(email) = LOWER($1)`,
+    [booking.customer_email || '']
+  );
+  const account = users[0] || null;
+
+  // Their track record with the platform, so the decision has context beyond
+  // the ID card: how many rentals, how reliably returned, what they were charged.
+  const { rows: historyRows } = await query(
+    `SELECT b.id, b.status, b.start_date, b.end_date, b.late_fee_amount, b.penalty_amount,
+            i.name AS item_name,
+            ((b.end_date - b.start_date) * i.rental_price) + b.late_fee_amount + b.penalty_amount AS revenue
+       FROM bookings b JOIN items i ON i.id = b.item_id
+      WHERE LOWER(b.customer_email) = LOWER($1)
+      ORDER BY b.start_date DESC`,
+    [booking.customer_email || '']
+  );
+  const history = historyRows.map((b) => ({
+    ...b,
+    revenue: Number(Number(b.revenue || 0).toFixed(2)),
+    customer_name: booking.customer_name,
+    customer_email: booking.customer_email,
+  }));
+
+  // Record the look-up. Never let an audit failure block the response — the
+  // owner still has a decision to make.
+  try {
+    await query(
+      `INSERT INTO audit_logs (user_id, user_email, action, entity, entity_id, path, status_code, summary)
+       VALUES ($1,$2,'GET','bookings',$3,$4,200,$5)`,
+      [req.user.id, req.user.email, String(booking.id), `/api/bookings/${booking.id}/renter`,
+        `Viewed renter identity for booking #${booking.id} (${booking.customer_email})`]
+    );
+  } catch (err) {
+    console.error('Could not audit identity view:', err.message);
+  }
+
+  res.json({
+    booking: {
+      id: booking.id,
+      status: booking.status,
+      item_name: booking.item_name,
+      start_date: booking.start_date,
+      end_date: booking.end_date,
+      deposit_amount: booking.deposit_amount,
+      replacement_cost: booking.replacement_cost,
+      notes: booking.notes,
+    },
+    // What was typed into the booking form.
+    contact: {
+      name: booking.customer_name,
+      email: booking.customer_email,
+      phone: account?.phone || null,
+    },
+    // Whether that email belongs to a real, verified account.
+    account: account
+      ? { exists: true, name: account.name, status: account.status, memberSince: account.created_at }
+      : { exists: false },
+    // The identity itself. Shown in full to the people entitled to act on this
+    // booking, because they may have to pursue a real-world damage claim — and
+    // they can read the number off the card image anyway, so masking the text
+    // while showing the photo would be security theatre.
+    nid: account?.nid_number
+      ? {
+        onFile: true,
+        number: account.nid_number,
+        name: account.nid_name,
+        frontUrl: account.nid_front_url,
+        backUrl: account.nid_back_url,
+        submittedAt: account.nid_submitted_at,
+      }
+      : { onFile: false },
+    profile: history.length ? buildProfile(history) : null,
+    history,
+  });
+});
+
 router.post('/', authRequired, async (req, res) => {
   const { item_id, customer_name, customer_email, start_date, end_date, notes } = req.body;
   if (!item_id || !customer_name || !customer_email || !start_date || !end_date) {
@@ -120,6 +220,19 @@ router.post('/', authRequired, async (req, res) => {
   }
 
   try {
+    // Damage control (F21): a booking must be backed by a verified identity, so
+    // that a penalty for a damaged item is actually enforceable. The NID is
+    // collected once and then lives on the account, so this gate only ever
+    // stops a member's very first booking. `reason` lets the browser open the
+    // NID step instead of showing a dead-end error.
+    const { rows: idRows } = await query('SELECT nid_number FROM users WHERE id = $1', [req.user.id]);
+    if (!hasVerifiedNid(idRows[0] || {})) {
+      return res.status(403).json({
+        error: 'Verify your National ID before requesting a booking. This is a one-time step.',
+        reason: 'nid-required',
+      });
+    }
+
     const normalizedStart = parseDate(start_date);
     const normalizedEnd = parseDate(end_date);
     if (!normalizedStart || !normalizedEnd) throw new Error('Invalid date');

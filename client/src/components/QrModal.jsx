@@ -9,11 +9,6 @@ import QRCode from 'qrcode';
 import { api } from '../api.js';
 import { Icon } from '../icons.jsx';
 
-const overlay = {
-  position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)',
-  display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 16,
-};
-
 export default function QrModal({ item, onClose }) {
   const [dataUrl, setDataUrl] = useState('');
   const [scanUrl, setScanUrl] = useState('');
@@ -37,8 +32,8 @@ export default function QrModal({ item, onClose }) {
   }, [item.id]);
 
   return (
-    <div style={overlay} onClick={onClose}>
-      <div className="card" style={{ maxWidth: 340, textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal narrow" style={{ maxWidth: 360, textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
         <h3>QR — {item.name}</h3>
         <div className="muted" style={{ fontSize: 13, marginBottom: 12 }}>
           Scan with a phone camera to check this item out or in.
