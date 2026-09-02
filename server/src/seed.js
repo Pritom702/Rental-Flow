@@ -53,13 +53,15 @@ async function main() {
 
   // --- Items (listed by different members) ---
   // [owner, name, desc, serial, price, replacement, category, status]
+  // Amounts are Bangladeshi Taka — day rates and replacement values priced for
+  // the Dhaka rental market rather than converted from another currency.
   const items = [
-    [rahim, 'Canon EOS R6', 'Full-frame mirrorless camera body', 'CAM-0001', 45.0, 2500.0, 'Cameras', 'Available'],
-    [rahim, 'Canon RF 24-70mm', 'Standard zoom lens', 'LEN-0001', 20.0, 1800.0, 'Lenses', 'Available'],
-    [rahim, 'Manfrotto Tripod', 'Aluminium video tripod', 'TRP-0001', 8.0, 250.0, 'Tripods & Supports', 'Under Maintenance'],
-    [karim, 'Sony A7 III', 'Full-frame mirrorless camera', 'CAM-0002', 40.0, 2000.0, 'Cameras', 'Rented'],
-    [karim, 'DeWalt Drill', 'Cordless hammer drill', 'PWR-0001', 12.0, 180.0, 'Power Tools', 'Available'],
-    [karim, 'Bounce Castle', 'Large inflatable event castle', 'EVT-0001', 120.0, 3000.0, 'Event & Party', 'Damaged'],
+    [rahim, 'Canon EOS R6', 'Full-frame mirrorless camera body', 'CAM-0001', 5500.0, 320000.0, 'Cameras', 'Available'],
+    [rahim, 'Canon RF 24-70mm', 'Standard zoom lens', 'LEN-0001', 2500.0, 225000.0, 'Lenses', 'Available'],
+    [rahim, 'Manfrotto Tripod', 'Aluminium video tripod', 'TRP-0001', 900.0, 30000.0, 'Tripods & Supports', 'Under Maintenance'],
+    [karim, 'Sony A7 III', 'Full-frame mirrorless camera', 'CAM-0002', 4800.0, 250000.0, 'Cameras', 'Rented'],
+    [karim, 'DeWalt Drill', 'Cordless hammer drill', 'PWR-0001', 1400.0, 22000.0, 'Power Tools', 'Available'],
+    [karim, 'Bounce Castle', 'Large inflatable event castle', 'EVT-0001', 14000.0, 350000.0, 'Event & Party', 'Damaged'],
   ];
 
   for (const [owner, name, desc, serial, price, repl, cat, status] of items) {

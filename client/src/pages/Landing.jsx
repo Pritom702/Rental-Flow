@@ -10,6 +10,7 @@ import { api } from '../api.js';
 import { useAuth } from '../auth.jsx';
 import { Icon, categoryIcon } from '../icons.jsx';
 import { StatusBadge, TagList, CardPhoto } from '../components.jsx';
+import { money } from '../money.js';
 
 // Reveal elements as they scroll into view. Re-scans whenever `deps` change so
 // that async-rendered items (categories, featured listings) get picked up too.
@@ -45,6 +46,12 @@ export default function Landing() {
 
   const totalItems = categories.reduce((s, c) => s + (c.item_count || 0), 0);
 
+  // Only surface categories that actually hold something — linking to an empty
+  // category just drops the visitor on a "0 results" dead end.
+  const liveCategories = categories
+    .filter((c) => (c.item_count || 0) > 0)
+    .sort((a, b) => b.item_count - a.item_count);
+
   function search(e) {
     e.preventDefault();
     navigate(`/browse?search=${encodeURIComponent(term.trim())}`);
@@ -76,7 +83,7 @@ export default function Landing() {
           </form>
 
           <div className="chip-row">
-            {categories.slice(0, 6).map((c) => (
+            {liveCategories.slice(0, 6).map((c) => (
               <button key={c.id} className="chip" onClick={() => navigate(`/browse?category_id=${c.id}`)}>
                 {c.name}
               </button>
@@ -98,14 +105,19 @@ export default function Landing() {
           <p>From full-frame cameras to power tools — find exactly what your project needs.</p>
         </div>
         <div className="cat-grid">
-          {categories.slice(0, 12).map((c) => (
-            <div key={c.id} className="cat-card reveal" onClick={() => navigate(`/browse?category_id=${c.id}`)}>
-              <span className="cat-icon"><Icon name={categoryIcon(c.name)} size={22} /></span>
+          {liveCategories.slice(0, 12).map((c) => (
+            <button
+              type="button"
+              key={c.id}
+              className="cat-card reveal"
+              onClick={() => navigate(`/browse?category_id=${c.id}`)}
+            >
+              <span className="cat-icon"><Icon name={categoryIcon(c.name)} size={20} /></span>
               <div>
                 <div className="cat-name">{c.name}</div>
                 <div className="cat-count">{c.item_count} item{c.item_count === 1 ? '' : 's'}</div>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       </section>
@@ -118,8 +130,9 @@ export default function Landing() {
             <p>Fresh listings ready to rent from members near you.</p>
           </div>
           <div className="grid">
+            {/* Cards deep-link to that item's booking panel, not the generic list. */}
             {featured.map((it) => (
-              <Link to="/browse" key={it.id} className="card reveal" style={{ color: 'inherit' }}>
+              <Link to={`/browse?item=${it.id}`} key={it.id} className="card reveal" style={{ color: 'inherit' }}>
                 <CardPhoto url={it.cover_url} count={it.image_count} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                   <h3>{it.name}</h3>
@@ -128,7 +141,7 @@ export default function Landing() {
                 <div className="serial">Listed by <b>{it.owner_name}</b></div>
                 <TagList tags={it.tags} />
                 <div className="price" style={{ marginTop: 10 }}>
-                  ${Number(it.rental_price).toFixed(2)} <span>/ day</span>
+                  {money(it.rental_price)} <span>/ day</span>
                 </div>
               </Link>
             ))}
@@ -147,13 +160,13 @@ export default function Landing() {
         </div>
         <div className="trust-grid">
           {[
-            { icon: 'calendar', bg: 'var(--primary)', h: 'No double bookings', p: 'Real-time availability and conflict detection keep every item honest about when it is free.' },
-            { icon: 'wallet', bg: 'var(--accent)', h: 'Deposits & fair fees', p: 'Refundable deposits, transparent late fees, and damage penalties are calculated automatically.' },
-            { icon: 'shield', bg: '#4C1D95', h: 'Condition on record', p: 'Photo condition reports at checkout and check-in mean disputes are settled with evidence, not guesswork.' },
-            { icon: 'bolt', bg: '#2563EB', h: 'QR fast checkout', p: 'Scan an item to check it out or back in — no paperwork, no manual entry mistakes.' },
+            { icon: 'calendar', h: 'No double bookings', p: 'Real-time availability and conflict detection keep every item honest about when it is free.' },
+            { icon: 'wallet', h: 'Deposits & fair fees', p: 'Refundable deposits, transparent late fees, and damage penalties are calculated automatically.' },
+            { icon: 'shield', h: 'Condition on record', p: 'Photo condition reports at checkout and check-in mean disputes are settled with evidence, not guesswork.' },
+            { icon: 'qr', h: 'QR fast checkout', p: 'Scan an item to check it out or back in — no paperwork, no manual entry mistakes.' },
           ].map((t) => (
             <div className="trust-card reveal" key={t.h}>
-              <span className="t-icon" style={{ background: t.bg }}><Icon name={t.icon} size={24} /></span>
+              <span className="t-icon"><Icon name={t.icon} size={21} /></span>
               <h3>{t.h}</h3>
               <p>{t.p}</p>
             </div>

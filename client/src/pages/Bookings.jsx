@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { api } from '../api.js';
 import { Icon } from '../icons.jsx';
 import { exportAgreementPdf, exportReturnSummaryPdf } from '../pdf.js';
+import { money } from '../money.js';
+import RenterModal from '../components/RenterModal.jsx';
 
 const STATUS_OPTIONS = ['Pending', 'Approved', 'Cancelled', 'Completed', 'Rejected'];
 
@@ -13,6 +15,8 @@ export default function Bookings() {
   const [statusFilter, setStatusFilter] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  // Which booking's renter identity is open for review, if any.
+  const [renterFor, setRenterFor] = useState(null);
 
   async function load() {
     const params = new URLSearchParams();
@@ -119,14 +123,14 @@ export default function Bookings() {
                 )}
               </div>
               <div className="price" style={{ fontSize: 16 }}>
-                Deposit: ${Number(booking.deposit_amount || 0).toFixed(2)}
+                Deposit: {money(booking.deposit_amount)}
               </div>
               <div className="price" style={{ fontSize: 16 }}>
-                Late fee: ${Number(booking.late_fee_amount || 0).toFixed(2)}
+                Late fee: {money(booking.late_fee_amount)}
               </div>
               {Number(booking.penalty_amount) > 0 && (
                 <div className="price" style={{ fontSize: 16 }}>
-                  Penalty: ${Number(booking.penalty_amount).toFixed(2)}
+                  Penalty: {money(booking.penalty_amount)}
                 </div>
               )}
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '8px 0', fontSize: 12 }}>
@@ -135,6 +139,15 @@ export default function Bookings() {
                 {booking.checked_in_at && <span className="tag">✔ checked in</span>}
               </div>
               <div className="card-actions">
+                {/* Identity first: on a request still awaiting a decision this is
+                    the primary action, so it is not just another grey button. */}
+                <button
+                  className={`btn ${booking.status === 'Pending' ? '' : 'secondary'} small`}
+                  onClick={() => setRenterFor(booking.id)}
+                >
+                  <Icon name="user" size={14} />
+                  {booking.status === 'Pending' ? 'Review renter' : 'Renter details'}
+                </button>
                 <select value={booking.status} onChange={(e) => updateStatus(booking.id, e.target.value)}>
                   {STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}
                 </select>
@@ -155,6 +168,18 @@ export default function Bookings() {
             </div>
           ))}
         </div>
+      )}
+
+      {renterFor && (
+        <RenterModal
+          bookingId={renterFor}
+          onClose={() => setRenterFor(null)}
+          onDecide={async (status) => {
+            await api.patch(`/bookings/${renterFor}/status`, { status });
+            setSuccess(`Booking marked as ${status}`);
+            load();
+          }}
+        />
       )}
     </div>
   );

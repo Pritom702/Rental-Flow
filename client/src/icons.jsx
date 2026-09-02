@@ -45,6 +45,22 @@ export function Icon({ name, size = 20, className = '' }) {
       return <svg {...p}><path d="M21 12a9 9 0 1 1-2.6-6.4M21 4v4h-4" /></svg>;
     case 'check':
       return <svg {...p}><path d="m5 12 4 4L19 6" /></svg>;
+    case 'chart':
+      return <svg {...p}><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></svg>;
+    case 'file':
+      return <svg {...p}><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5" /><path d="M9 13h6M9 17h4" /></svg>;
+    case 'users':
+      return <svg {...p}><circle cx="9" cy="8" r="3.6" /><path d="M2.5 21c0-3.6 3-5.8 6.5-5.8s6.5 2.2 6.5 5.8" /><path d="M17 4.5a3.6 3.6 0 0 1 0 7" /><path d="M18.5 15.6c2 .8 3.2 2.6 3.2 5.4" /></svg>;
+    case 'menu':
+      return <svg {...p}><path d="M4 7h16M4 12h16M4 17h16" /></svg>;
+    case 'close':
+      return <svg {...p}><path d="M6 6l12 12M18 6L6 18" /></svg>;
+    case 'settings':
+      return <svg {...p}><circle cx="12" cy="12" r="3.2" /><path d="M12 2.5v3M12 18.5v3M21.5 12h-3M5.5 12h-3M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1M18.7 18.7l-2.1-2.1M7.4 7.4 5.3 5.3" /></svg>;
+    case 'filter':
+      return <svg {...p}><path d="M3 5h18l-7 8v5l-4 2v-7z" /></svg>;
+    case 'qr':
+      return <svg {...p}><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><path d="M14 14h3v3h-3zM20 14h1M14 20h1M18 18h3v3h-3z" /></svg>;
     default:
       return null;
   }
