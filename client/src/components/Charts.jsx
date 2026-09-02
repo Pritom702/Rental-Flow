@@ -6,9 +6,11 @@
 // extra dependency and the drawing code stays ours. They read their colours from
 // the CSS variables already defined in styles.css.
 
-const PALETTE = ['var(--primary)', 'var(--accent)', 'var(--blue)', 'var(--amber)', 'var(--red)', 'var(--gray)'];
+import { moneyShort as money } from '../money.js';
 
-const money = (n) => `$${Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+// Categorical series colours. These are chart-only tokens: reusing the status
+// palette here would make a plain category look like a warning.
+const PALETTE = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)', 'var(--chart-6)'];
 
 // Vertical bar chart. `data` = [{ label, value }].
 export function BarChart({ data = [], height = 200, format = money }) {
@@ -82,7 +84,7 @@ export function DonutChart({ data = [], size = 168, thickness = 22, format = mon
 // Horizontal progress bar used for per-item utilization percentages.
 export function UtilizationBar({ value = 0 }) {
   const pct = Math.max(0, Math.min(100, Number(value) || 0));
-  const tone = pct >= 66 ? 'var(--accent)' : pct >= 33 ? 'var(--amber)' : 'var(--gray)';
+  const tone = pct >= 66 ? 'var(--chart-1)' : pct >= 33 ? 'var(--chart-2)' : 'var(--chart-6)';
   return (
     <div className="util-bar" title={`${pct}% utilized`}>
       <div className="util-fill" style={{ width: `${pct}%`, background: tone }} />

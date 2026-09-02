@@ -9,13 +9,18 @@
     "dev": "node --watch src/index.js",
     "test": "node --test",
     "db:init": "node src/initDb.js",
-    "db:seed": "node src/seed.js"
+    "db:seed": "node src/seed.js",
+    "db:seed4": "node src/seedSprint4.js",
+    "db:seed5": "node src/seedProfile.js",
+    "db:export": "node src/exportData.js",
+    "db:import": "node src/importData.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "express-async-errors": "^3.1.1",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.2.0",
     "pg": "^8.12.0"

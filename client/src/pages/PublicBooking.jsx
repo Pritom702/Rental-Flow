@@ -6,11 +6,13 @@
 // see price + availability + owner. Reads initial search/category from the URL
 // (the landing page links here with query params).
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
 import { Icon } from '../icons.jsx';
 import { StatusBadge, TagList, CardPhoto } from '../components.jsx';
 import { useAuth } from '../auth.jsx';
+import { money } from '../money.js';
+import NidForm from '../components/NidForm.jsx';
 
 function toISODate(date) {
   return date.toISOString().slice(0, 10);
@@ -31,6 +33,12 @@ export default function PublicBooking() {
   const [bookingSuccess, setBookingSuccess] = useState('');
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [availabilityMessage, setAvailabilityMessage] = useState('');
+  // null = not checked yet, true = the one-time NID step must come first.
+  const [needsNid, setNeedsNid] = useState(false);
+
+  // An item id in the URL (?item=12) deep-links straight to that item's booking
+  // panel — this is how the landing page's "Available now" cards arrive here.
+  const deepLinkItem = params.get('item');
 
   async function load() {
     setLoading(true);
@@ -45,6 +53,20 @@ export default function PublicBooking() {
 
   useEffect(() => { api.get('/categories').then(setCategories).catch(() => {}); }, []);
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [search, categoryId]);
+
+  // Open the deep-linked item once, as soon as it can be resolved.
+  useEffect(() => {
+    if (!deepLinkItem) return;
+    api.get(`/items/${deepLinkItem}`)
+      .then((it) => setSelectedItem(it))
+      .catch(() => {});
+  }, [deepLinkItem]);
+
+  function clearFilters() {
+    setSearch('');
+    setCategoryId('');
+  }
+  const hasFilters = Boolean(search || categoryId);
 
   useEffect(() => {
     if (!selectedItem) {
@@ -74,6 +96,17 @@ export default function PublicBooking() {
     setAvailabilityMessage(overlaps ? 'These dates overlap with an existing booking.' : 'These dates are available for booking.');
   }, [selectedItem, bookingAvailability, bookingForm.start_date, bookingForm.end_date]);
 
+  // Damage control: the booking API refuses a request from an account with no
+  // verified NID. We ask the profile up front so the modal can show the
+  // one-time identity step instead of letting the member fill in dates and
+  // only then be rejected.
+  useEffect(() => {
+    if (!user) { setNeedsNid(false); return; }
+    api.get('/profile')
+      .then((p) => setNeedsNid(!p.nid.onFile))
+      .catch(() => setNeedsNid(false));
+  }, [user]);
+
   async function submitBooking(e) {
     e.preventDefault();
     setBookingError('');
@@ -91,6 +124,7 @@ export default function PublicBooking() {
       setSelectedItem(null);
       setBookingForm({ customer_name: '', customer_email: '', start_date: '', end_date: '', notes: '' });
     } catch (err) {
+      if (err.message && /National ID/i.test(err.message)) setNeedsNid(true);
       setBookingError(err.message);
     }
   }
@@ -129,6 +163,14 @@ export default function PublicBooking() {
         </div>
       </div>
 
+      {/* Confirmation lives on the page, not in the modal — the modal closes on success. */}
+      {bookingSuccess && (
+        <div className="success">
+          <Icon name="check" size={16} /> {bookingSuccess}
+          <Link to="/bookings" className="btn secondary small" style={{ marginLeft: 'auto' }}>View bookings</Link>
+        </div>
+      )}
+
       <div className="toolbar">
         <div className="search-field" style={{ minWidth: 240, flex: '1 1 240px' }}>
           <Icon name="search" size={18} />
@@ -145,13 +187,31 @@ export default function PublicBooking() {
             <option key={c.id} value={c.id}>{c.name} ({c.item_count})</option>
           ))}
         </select>
+        {hasFilters && (
+          <button className="btn ghost small" type="button" onClick={clearFilters}>
+            <Icon name="close" size={14} /> Clear filters
+          </button>
+        )}
         <span className="muted">{items.length} result{items.length === 1 ? '' : 's'}</span>
       </div>
 
       {loading ? (
         <div className="center-empty">Loading…</div>
       ) : items.length === 0 ? (
-        <div className="center-empty">No items match your search.</div>
+        <div className="center-empty">
+          <Icon name="search" size={30} />
+          <div className="empty-title">Nothing matches those filters</div>
+          {hasFilters
+            ? 'Try a different search term, or widen the category.'
+            : 'No items have been listed yet.'}
+          {hasFilters && (
+            <div>
+              <button className="btn secondary" type="button" onClick={clearFilters}>
+                Clear filters
+              </button>
+            </div>
+          )}
+        </div>
       ) : (
         <div className="grid">
           {items.map((it) => (
@@ -165,7 +225,7 @@ export default function PublicBooking() {
               <div className="desc">{it.description || 'No description'}</div>
               <TagList tags={it.tags} />
               <div className="price" style={{ marginTop: 12 }}>
-                ${Number(it.rental_price).toFixed(2)} <span>/ day</span>
+                {money(it.rental_price)} <span>/ day</span>
               </div>
               <div className="card-actions">
                 <button
@@ -183,18 +243,49 @@ export default function PublicBooking() {
         </div>
       )}
 
+      {/* The booking form is a modal: previously it rendered below the item grid,
+          so clicking "Request Booking" appeared to do nothing on a short page. */}
       {selectedItem && (
-        <div className="card" style={{ marginTop: 24, maxWidth: 760 }}>
-          <h3>Book {selectedItem.name}</h3>
-          <div className="muted" style={{ marginBottom: 12 }}>
-            The calendar below shows dates already blocked by existing bookings. Deposits and late fees are calculated automatically.
-          </div>
+        <div className="modal-backdrop" onClick={() => setSelectedItem(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="panel-head">
+              <div>
+                <h2>Book {selectedItem.name}</h2>
+                <div className="muted">
+                  {needsNid
+                    ? 'One step before your first booking — then you go straight to the dates.'
+                    : 'Blocked dates are shown below. Deposits and late fees are calculated automatically.'}
+                </div>
+              </div>
+              <button className="btn ghost small" type="button" onClick={() => setSelectedItem(null)} aria-label="Close">
+                <Icon name="close" size={16} />
+              </button>
+            </div>
+
+          {/* Damage control gate. A member meets this once, ever: as soon as the
+              NID is on file the account is verified and the booking form opens
+              directly from then on. */}
+          {needsNid ? (
+            <div className="nid-gate">
+              <div className="notice warn">
+                <Icon name="shield" size={18} />
+                <div>
+                  <strong>One-time identity check</strong>
+                  <div className="muted" style={{ fontSize: 13.5 }}>
+                    Before your first booking we need your National ID on file, so damage
+                    and penalty claims can be settled. You will never be asked again.
+                  </div>
+                </div>
+              </div>
+              <NidForm compact onDone={() => { setNeedsNid(false); setBookingError(''); }} />
+            </div>
+          ) : (
+          <>
           <div className="booking-summary">
-            <div>Deposit estimate: <b>${depositEstimate.toFixed(2)}</b></div>
-            <div>Late fee estimate: <b>${lateFeeEstimate.toFixed(2)}</b> per overdue day</div>
+            <div>Deposit estimate: <b>{money(depositEstimate)}</b></div>
+            <div>Late fee estimate: <b>{money(lateFeeEstimate)}</b> per overdue day</div>
           </div>
           {bookingError && <div className="error"><Icon name="shield" size={16} /> {bookingError}</div>}
-          {bookingSuccess && <div className="success" style={{ color: 'var(--accent)', marginBottom: 12 }}><Icon name="check" size={16} /> {bookingSuccess}</div>}
           <div className="calendar-toolbar">
             <button className="btn secondary small" type="button" onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))}>← Prev</button>
             <strong>{calendarMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</strong>
@@ -209,6 +300,10 @@ export default function PublicBooking() {
                 {cell ? cell.day : ''}
               </div>
             ))}
+          </div>
+          <div className="calendar-key">
+            <span><i style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} />Free</span>
+            <span><i style={{ background: 'color-mix(in srgb, var(--red) 25%, transparent)' }} />Already booked</span>
           </div>
           <div className="muted" style={{ marginTop: 12 }}>{availabilityMessage}</div>
           <form className="form" onSubmit={submitBooking} style={{ padding: 0, border: 'none', boxShadow: 'none', maxWidth: 'none', marginTop: 16 }}>
@@ -241,6 +336,9 @@ export default function PublicBooking() {
               <button className="btn secondary" type="button" onClick={() => setSelectedItem(null)}>Cancel</button>
             </div>
           </form>
+          </>
+          )}
+          </div>
         </div>
       )}
     </div>

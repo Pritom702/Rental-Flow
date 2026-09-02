@@ -125,11 +125,11 @@ export default function ItemForm() {
         </div>
         <div className="row">
           <div className="field">
-            <label>Rental price / day ($)</label>
+            <label>Rental price / day (৳)</label>
             <input type="number" step="0.01" value={form.rental_price} onChange={set('rental_price')} />
           </div>
           <div className="field">
-            <label>Replacement cost ($)</label>
+            <label>Replacement cost (৳)</label>
             <input type="number" step="0.01" value={form.replacement_cost} onChange={set('replacement_cost')} />
           </div>
         </div>
