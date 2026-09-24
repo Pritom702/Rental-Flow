@@ -53,6 +53,8 @@ connection string.
 |---|---|
 | `DATABASE_URL` | the connection string from step 2 |
 | `JWT_SECRET` | any long random string |
+| `GMAIL_USER` | *(optional)* Gmail address that sends verification codes |
+| `GMAIL_APP_PASSWORD` | *(optional)* its App Password. Without these two the site runs in **test mode** and shows each code on screen |
 
 `server/src/db.js` enables TLS automatically for any non-localhost host, so the
 same code connects to both the Docker database and the hosted one.
@@ -71,17 +73,34 @@ DATABASE_URL="<your hosted connection string>" node src/seedSprint4.js
 Then redeploy and check `https://<your-app>.vercel.app/api/health` — it should
 answer `{"ok":true,"db":"connected"}`.
 
-## Known limitation: image uploads
+### Upgrading a hosted database that already has data
 
-`server/src/routes/uploads.js` uses multer to write files to disk. A serverless
-function has an **ephemeral, read-only filesystem** (only `/tmp` is writable,
-and it is wiped between invocations), so **product photo uploads will not
-persist on Vercel**. Everything else — auth, listings, bookings, QR codes,
-check-in/out, analytics, documents, maintenance, admin — works normally.
+`initDb.js` **drops every table first** — never run it against a database with
+real users in it. To add new tables and columns without losing anything:
 
-Fixing this properly means moving to object storage (Vercel Blob, Cloudinary or
-S3) and saving the returned URL instead of a local path. For the demo, either
-run the app locally where uploads do work, or seed the images beforehand.
+```bash
+cd server
+DATABASE_URL="<your hosted connection string>" npm run db:migrate
+```
+
+It only runs the additive schema files, and copies any product photos found in
+`server/src/uploads/` into the database so they appear on the hosted site too.
+
+## Image uploads
+
+A serverless function has no permanent disk, so uploaded photos are stored **in
+PostgreSQL** (`public_images` for listing photos, `private_files` for NID photos
+and selfies) rather than in `server/src/uploads/`. Listing photos keep their
+`/uploads/<name>` URLs; the API serves them from the database. NID photos are
+only ever reachable through short-lived signed links.
+
+## Identity verification on Vercel
+
+The face and card checks run inside the API function (WebAssembly — no native
+modules). `vercel.json` gives that function 60 seconds and 2 GB, and lists the
+model files it needs under `includeFiles`, because they are loaded from disk at
+runtime and would otherwise be left out of the bundle. The first verification
+after the function has been idle takes a few seconds longer while the models load.
 
 ---
 

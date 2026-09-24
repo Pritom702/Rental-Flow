@@ -13,16 +13,24 @@
     "db:seed4": "node src/seedSprint4.js",
     "db:seed5": "node src/seedProfile.js",
     "db:export": "node src/exportData.js",
-    "db:import": "node src/importData.js"
+    "db:import": "node src/importData.js",
+    "db:migrate": "node src/migrate.js"
   },
   "dependencies": {
+    "@tensorflow/tfjs": "^4.22.0",
+    "@tensorflow/tfjs-backend-wasm": "^4.22.0",
+    "@tesseract.js-data/eng": "^1.0.0",
+    "@vladmandic/face-api": "^1.7.15",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "express-async-errors": "^3.1.1",
+    "jpeg-js": "^0.4.4",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.2.0",
-    "pg": "^8.12.0"
+    "nodemailer": "^10.0.10",
+    "pg": "^8.12.0",
+    "tesseract.js": "^7.0.0"
   }
 }

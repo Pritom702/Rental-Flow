@@ -36,8 +36,11 @@ export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: isLocalDb ? false : { rejectUnauthorized: false },
   // A serverless function is frozen between requests, so keep the pool small
-  // and let idle connections drop rather than exhausting the database.
-  max: process.env.VERCEL ? 1 : 10,
+  // and let idle connections drop rather than exhausting the database. Not 1:
+  // one instance serves several requests at once, and a route that runs a
+  // transaction and then a follow-up query needs two. (Neon's pooled URL sits
+  // behind PgBouncer, so a few connections per instance is cheap.)
+  max: Number(process.env.PG_POOL_MAX) || (process.env.VERCEL ? 5 : 10),
   idleTimeoutMillis: 10000,
   connectionTimeoutMillis: 10000,
 });

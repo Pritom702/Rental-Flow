@@ -10,16 +10,24 @@
     "dev:server": "npm --prefix server run dev",
     "test": "npm --prefix server test",
     "db:init": "npm --prefix server run db:init",
-    "db:seed": "npm --prefix server run db:seed"
+    "db:seed": "npm --prefix server run db:seed",
+    "db:migrate": "npm --prefix server run db:migrate"
   },
   "dependencies": {
+    "@tensorflow/tfjs": "^4.22.0",
+    "@tensorflow/tfjs-backend-wasm": "^4.22.0",
+    "@tesseract.js-data/eng": "^1.0.0",
+    "@vladmandic/face-api": "^1.7.15",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "express-async-errors": "^3.1.1",
+    "jpeg-js": "^0.4.4",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.2.0",
-    "pg": "^8.12.0"
+    "nodemailer": "^10.0.10",
+    "pg": "^8.12.0",
+    "tesseract.js": "^7.0.0"
   }
 }

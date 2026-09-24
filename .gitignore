@@ -47,3 +47,26 @@ __pycache__/
 _github_upload/
 pagestofix/
 Errors/
+
+# Personal study aids — local only, never pushed to GitHub
+RentalFlow-Viva-Guide.html
+RentalFlow-Viva-Practice.html
+docs/viva/
+
+.vercel
+.env.local
+
+# Local-only material (not part of the app): planning notes, class-diagram
+# drafts, demo scripts and recordings, teammate handoff packages, course files.
+docs/
+Rental-Flow/
+voice/
+voiceover/
+sprint3-handoff/
+sprint4-handoff/
+RentalFlow-*.pdf
+RentalFlow-*-Script.*
+Instruction.png
+SPRINT_PLAN.md
+CLASS_DIAGRAM.md
+SPRINT*_CLASS_DIAGRAM.*

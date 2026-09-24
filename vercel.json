@@ -4,9 +4,34 @@
   "outputDirectory": "client/dist",
   "installCommand": "npm install",
   "framework": null,
+  "regions": [
+    "sin1"
+  ],
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api" },
-    { "source": "/uploads/(.*)", "destination": "/api" },
-    { "source": "/((?!api/|uploads/).*)", "destination": "/index.html" }
+    {
+      "source": "/api/(.*)",
+      "destination": "/api"
+    },
+    {
+      "source": "/uploads/(.*)",
+      "destination": "/api"
+    },
+    {
+      "source": "/((?!api/|uploads/).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 60,
+      "memory": 2048,
+      "includeFiles": "node_modules/{@vladmandic/face-api/model,@tensorflow/tfjs-backend-wasm/dist,@tesseract.js-data/eng/4.0.0_best_int,tesseract.js/src,tesseract.js-core}/**"
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/protection/cron",
+      "schedule": "0 3 * * *"
+    }
   ]
 }

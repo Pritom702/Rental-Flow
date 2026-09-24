@@ -1,0 +1,15 @@
+# Upload only what the app needs. Everything else in this folder (demo videos,
+# data exports with real NID data, handoff zips, node_modules) stays local.
+/*
+!api
+!client
+!server
+!package.json
+!vercel.json
+client/node_modules
+client/dist
+client/*.log
+server/node_modules
+server/.env
+server/*.log
+server/src/uploads
