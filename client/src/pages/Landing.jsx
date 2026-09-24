@@ -1,196 +1,389 @@
 // ============================================================
 //  RentalFlow  |  Sprint 1  |  Owner: M4 - Radowanul Haque (Radowan)
 //  GitHub: @___  |  Part: Marketing landing page
+//  Redesign ("Atelier"): M2 - Tawheed Bin Hamid (Pritom), @pritom702
 // ============================================================
-// Marketing landing page (Marketplace / Directory pattern):
-// hero search → categories → featured listings → trust → CTA → footer.
-import { useEffect, useRef, useState } from 'react';
+// Landing page: a hero (headline + search) beside a 3D carousel of real
+// listings that glides from product to product and can be dragged or
+// flicked → an endless strip of listings → categories → how it works → CTA.
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
 import { useAuth } from '../auth.jsx';
 import { Icon, categoryIcon } from '../icons.jsx';
-import { StatusBadge, TagList, CardPhoto } from '../components.jsx';
 import { money } from '../money.js';
 
-// Reveal elements as they scroll into view. Re-scans whenever `deps` change so
-// that async-rendered items (categories, featured listings) get picked up too.
+// Reveal elements as they scroll into view.
 function useReveal(ref, deps) {
   useEffect(() => {
     const els = ref.current?.querySelectorAll('.reveal:not(.in)') || [];
-    if (!els.length) return;
+    if (!els.length) return undefined;
     const io = new IntersectionObserver((entries) => {
       entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
     }, { threshold: 0.12 });
     els.forEach((el) => io.observe(el));
-    // Safety net: guarantee visibility even if the observer never fires
-    // (headless render, no-scroll, unsupported browser, etc.).
-    const t = setTimeout(() => els.forEach((el) => el.classList.add('in')), 500);
+    const t = setTimeout(() => els.forEach((el) => el.classList.add('in')), 1200);
     return () => { io.disconnect(); clearTimeout(t); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
+}
+
+// Count a number up from zero the first time it appears.
+function CountUp({ to, suffix = '' }) {
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    if (!to) return undefined;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setN(to); return undefined; }
+    let frame;
+    const start = performance.now();
+    const tick = (now) => {
+      const p = Math.min(1, (now - start) / 1400);
+      setN(Math.round(to * (1 - (1 - p) ** 3)));
+      if (p < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [to]);
+  return <>{n}{suffix}</>;
+}
+
+// Split a line into words so each can rise in on its own beat.
+function Words({ text, from = 0 }) {
+  return text.split(' ').map((w, i) => (
+    <span className="word" key={`${w}-${i}`} style={{ '--w': from + i }}>{w}&nbsp;</span>
+  ));
+}
+
+// The carousel. Listings stand around a 3D cylinder that turns on a spring:
+// it glides to a product (with a little overshoot), rests, then moves on.
+// Drag or flick to turn it; tap a side tile to bring it forward; on a computer
+// the ring leans towards the mouse. Each frame changes one transform on the
+// ring plus each tile's opacity, the physics runs in fixed 60 Hz steps (same
+// speed on any screen), and nothing runs while it is off screen.
+const REST_MS = 2600;                                      // how long it rests on each product
+function useCarousel(count, onFront) {
+  const stage = useRef(null);
+  const ring = useRef(null);
+  const tiles = useRef([]);
+  const ctl = useRef({ go: () => {}, wake: () => {} });
+
+  useEffect(() => {
+    const el = stage.current;
+    if (!el || !count) return undefined;
+    const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const step = 360 / count;
+    let angle = 0; let target = 0; let vel = 0;
+    let drag = null; let front = -1; let frame = 0; let visible = true; let radius = 0;
+    let restFrom = performance.now();
+    let rest = REST_MS;
+    let last = performance.now();
+    const tilt = { x: 0, y: 0, tx: 0, ty: 0 };
+
+    const layout = () => {
+      const w = el.clientWidth * 0.4;                              // tile width, see .orbit-ring
+      radius = (w / 2 / Math.tan(Math.PI / count)) * 1.12 + 12;
+      tiles.current.forEach((t, i) => { if (t) t.style.transform = `rotateY(${i * step}deg) translateZ(${radius.toFixed(0)}px)`; });
+    };
+
+    ctl.current.go = (i) => {
+      const cur = ((Math.round(-target / step) % count) + count) % count;
+      let d = (((i - cur) % count) + count) % count;
+      if (d > count / 2) d -= count;
+      target -= d * step;
+      rest = REST_MS * 1.5;
+    };
+
+    const render = () => {
+      ring.current.style.transform = `translateZ(${(-radius).toFixed(0)}px) rotateX(${tilt.x.toFixed(2)}deg) rotateY(${(angle + tilt.y).toFixed(2)}deg)`;
+      tiles.current.forEach((t, i) => {
+        if (!t) return;
+        const facing = Math.cos(((i * step + angle) * Math.PI) / 180);  // 1 = facing us
+        t.style.opacity = Math.max(0, facing * 1.25 - 0.1).toFixed(3);
+      });
+      const f = ((Math.round(-angle / step) % count) + count) % count;
+      if (f !== front) {
+        front = f;
+        tiles.current.forEach((t, i) => t?.classList.toggle('front', i === f));
+        onFront(f);
+      }
+    };
+
+    const tick = (now) => {
+      frame = 0;
+      const steps = Math.min(6, Math.max(1, Math.round((now - last) / 16.67)));
+      last = now;
+      let settled = false;
+      if (!drag) {
+        if (still) { angle = target; vel = 0; } else {
+          for (let i = 0; i < steps; i += 1) {
+            vel = (vel + (target - angle) * 0.03) * 0.82;            // an under-damped spring: ~10% overshoot
+            angle += vel;
+          }
+        }
+        settled = Math.abs(target - angle) < 0.01 && Math.abs(vel) < 0.01;
+        if (settled) { angle = target; vel = 0; } else restFrom = now;
+        if (!still && settled && now - restFrom > rest) { target -= step; rest = REST_MS; }
+      }
+      const ease = 1 - 0.92 ** steps;
+      tilt.x += (tilt.tx - tilt.x) * ease;
+      tilt.y += (tilt.ty - tilt.y) * ease;
+      if (Math.abs(tilt.tx - tilt.x) < 0.01) tilt.x = tilt.tx;
+      if (Math.abs(tilt.ty - tilt.y) < 0.01) tilt.y = tilt.ty;
+      render();
+      if (visible && !document.hidden && !(still && settled)) frame = requestAnimationFrame(tick);
+    };
+    const wake = () => {
+      if (frame || !visible || document.hidden) return;
+      last = performance.now();
+      frame = requestAnimationFrame(tick);
+    };
+    ctl.current.wake = wake;
+
+    const down = (e) => {
+      if (e.button !== 0) return;
+      drag = { x: e.clientX, start: angle, moved: false, last: e.clientX, t: performance.now(), v: 0 };
+    };
+    const move = (e) => {
+      if (!drag) {
+        if (still || e.pointerType !== 'mouse') return;
+        const r = el.getBoundingClientRect();
+        const inside = e.clientX > r.left && e.clientX < r.right && e.clientY > r.top && e.clientY < r.bottom;
+        tilt.tx = inside ? -((e.clientY - r.top) / r.height - 0.5) * 12 : 0;
+        tilt.ty = inside ? ((e.clientX - r.left) / r.width - 0.5) * 16 : 0;
+        wake();
+        return;
+      }
+      const dx = e.clientX - drag.x;
+      if (Math.abs(dx) > 6 && !drag.moved) { drag.moved = true; el.classList.add('dragging'); }
+      if (!drag.moved) return;
+      const now = performance.now();
+      const k = 150 / el.clientWidth;                                 // degrees per pixel
+      angle = drag.start + dx * k;
+      drag.v = ((e.clientX - drag.last) * k * 16) / Math.max(8, now - drag.t);
+      drag.last = e.clientX; drag.t = now;
+      target = angle; vel = 0;
+      wake();
+    };
+    const up = () => {
+      if (!drag) return;
+      const { moved, v } = drag;
+      drag = null;
+      el.classList.remove('dragging');
+      if (moved) {
+        target = Math.round((angle + v * 12) / step) * step;          // a flick carries on, then lands on a tile
+        rest = REST_MS * 1.5;
+        el.dataset.dragged = '1';                                     // the click that ends a drag is not a click
+        setTimeout(() => { delete el.dataset.dragged; }, 0);
+      }
+      wake();
+    };
+    const resize = () => { layout(); wake(); };
+
+    layout();
+    const io = new IntersectionObserver(([en]) => { visible = en.isIntersecting; wake(); });
+    io.observe(el);
+    el.addEventListener('pointerdown', down);
+    window.addEventListener('pointermove', move, { passive: true });
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+    document.addEventListener('visibilitychange', wake);
+    window.addEventListener('resize', resize);
+    wake();
+    return () => {
+      cancelAnimationFrame(frame);
+      io.disconnect();
+      el.removeEventListener('pointerdown', down);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      document.removeEventListener('visibilitychange', wake);
+      window.removeEventListener('resize', resize);
+    };
+  }, [count, onFront]);
+
+  const go = useCallback((i) => { ctl.current.go(i); ctl.current.wake(); }, []);
+  return { stage, ring, tiles, go };
 }
 
 export default function Landing() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [categories, setCategories] = useState([]);
-  const [featured, setFeatured] = useState([]);
+  const [items, setItems] = useState([]);
   const [term, setTerm] = useState('');
+  const [active, setActive] = useState(0);
   const root = useRef(null);
-  useReveal(root, [categories, featured]);
 
   useEffect(() => {
     api.get('/categories').then(setCategories).catch(() => {});
-    api.get('/items?status=Available').then((d) => setFeatured(d.slice(0, 6))).catch(() => {});
+    api.get('/items?status=Available').then(setItems).catch(() => {});
   }, []);
 
+  const withPhotos = useMemo(() => items.filter((i) => i.cover_url), [items]);
+  // Cut-out product shots (transparent WebP/PNG) float best, so they lead.
+  // Cut-out product shots (transparent WebP/PNG) float best, so they lead.
+  const showcase = useMemo(() => [...withPhotos]
+    .sort((a, b) => Number(/\.(webp|png)$/i.test(b.cover_url)) - Number(/\.(webp|png)$/i.test(a.cover_url)))
+    .slice(0, 8), [withPhotos]);
+  const liveCategories = categories.filter((c) => (c.item_count || 0) > 0).sort((a, b) => b.item_count - a.item_count);
   const totalItems = categories.reduce((s, c) => s + (c.item_count || 0), 0);
 
-  // Only surface categories that actually hold something — linking to an empty
-  // category just drops the visitor on a "0 results" dead end.
-  const liveCategories = categories
-    .filter((c) => (c.item_count || 0) > 0)
-    .sort((a, b) => b.item_count - a.item_count);
+  useReveal(root, [categories, items]);
+
+  const orbit = useCarousel(showcase.length, setActive);
 
   function search(e) {
     e.preventDefault();
     navigate(`/browse?search=${encodeURIComponent(term.trim())}`);
   }
 
+  const current = showcase[active];
+  const stripItems = withPhotos.length ? [...withPhotos, ...withPhotos] : [];   // doubled for a seamless loop
+
   return (
     <div ref={root}>
       {/* ---------- Hero ---------- */}
-      <section className="hero">
-        <div className="hero-inner">
-          <span className="eyebrow"><Icon name="sparkles" size={15} /> Peer-to-peer rentals · <b>list once, earn again</b></span>
-          <h1 className="hero-title">Rent the gear you need.<br /><span className="grad">Earn from the gear you own.</span></h1>
-          <p className="hero-sub">
-            RentalFlow is the marketplace where members list cameras, tools, and event equipment —
-            and rent from each other with clear availability, deposits, and condition tracking.
+      <section className="atelier-hero">
+        <div>
+          <span className="hero-eyebrow">Rent from people near you</span>
+          <h1 className="hero-h1">
+            <Words text="Borrow the" />
+            <em className="swoosh"><Words text="extraordinary." from={2} />
+              <svg viewBox="0 0 300 20" preserveAspectRatio="none" aria-hidden="true"><path d="M4 14C60 5 170 2 296 9" /></svg>
+            </em>
+            <br />
+            <Words text="Earn from the rest." from={3} />
+          </h1>
+          <p className="hero-lede">
+            Cameras, consoles, drones, phones and home appliances — rented by the day from verified
+            neighbours across Bangladesh, paid in Taka.
           </p>
-
-          <form className="hero-search" onSubmit={search}>
-            <div className="search-field">
-              <Icon name="search" size={20} />
-              <input
-                value={term}
-                onChange={(e) => setTerm(e.target.value)}
-                placeholder="Search cameras, drills, speakers…"
-                aria-label="Search rentals"
-              />
-            </div>
-            <button className="btn lg" type="submit">Search</button>
+          <form className="search-pill" onSubmit={search} role="search">
+            <Icon name="search" size={19} />
+            <input value={term} onChange={(e) => setTerm(e.target.value)}
+              placeholder="What would you like to rent?" aria-label="Search rentals" />
+            <button className="btn accent" type="submit"><span>Search</span> <Icon name="arrow-right" size={16} /></button>
           </form>
-
-          <div className="chip-row">
-            {liveCategories.slice(0, 6).map((c) => (
-              <button key={c.id} className="chip" onClick={() => navigate(`/browse?category_id=${c.id}`)}>
-                {c.name}
-              </button>
-            ))}
-          </div>
-
           <div className="hero-stats">
-            <div className="stat"><b>{totalItems}+</b><span>items listed</span></div>
-            <div className="stat"><b>{categories.length}</b><span>categories</span></div>
-            <div className="stat"><b>24/7</b><span>self-service</span></div>
+            <div><b><CountUp to={totalItems} suffix="+" /></b><span>items to rent</span></div>
+            <div><b><CountUp to={categories.length} /></b><span>categories</span></div>
+            <div><b><CountUp to={2} suffix=" min" /></b><span>one-time ID check</span></div>
           </div>
         </div>
-      </section>
 
-      {/* ---------- Categories ---------- */}
-      <section className="section">
-        <div className="section-head reveal">
-          <h2>Browse by category</h2>
-          <p>From full-frame cameras to power tools — find exactly what your project needs.</p>
-        </div>
-        <div className="cat-grid">
-          {liveCategories.slice(0, 12).map((c) => (
-            <button
-              type="button"
-              key={c.id}
-              className="cat-card reveal"
-              onClick={() => navigate(`/browse?category_id=${c.id}`)}
-            >
-              <span className="cat-icon"><Icon name={categoryIcon(c.name)} size={20} /></span>
-              <div>
-                <div className="cat-name">{c.name}</div>
-                <div className="cat-count">{c.item_count} item{c.item_count === 1 ? '' : 's'}</div>
+        {showcase.length > 0 && (
+          <div className="orbit" ref={orbit.stage}>
+            <div className="orbit-glow" aria-hidden="true" />
+            <div className="orbit-floor" aria-hidden="true" />
+            <div className="orbit-ring" ref={orbit.ring}>
+              {showcase.map((it, i) => (
+                <Link key={it.id} to={`/product/${it.id}`} className="orbit-tile" draggable={false}
+                  ref={(el) => { orbit.tiles.current[i] = el; }}
+                  aria-hidden={i !== active} tabIndex={i === active ? 0 : -1}
+                  onClick={(e) => {
+                    // a drag is not a click, and a side tile comes forward first
+                    if (orbit.stage.current?.dataset.dragged || i !== active) {
+                      e.preventDefault();
+                      if (i !== active) orbit.go(i);
+                    }
+                  }}>
+                  <img src={it.cover_url} alt={it.name} draggable={false} decoding="async" />
+                </Link>
+              ))}
+            </div>
+            <span className="sticker sticker-a" aria-hidden="true"><Icon name="shield" size={15} /> Verified neighbours</span>
+            <span className="sticker sticker-b" aria-hidden="true">Pay in ৳ Taka</span>
+            {current && (
+              <div className="orbit-caption">
+                <button type="button" onClick={() => orbit.go((active - 1 + showcase.length) % showcase.length)} aria-label="Previous listing">‹</button>
+                <Link to={`/product/${current.id}`} className="orbit-caption-body" key={current.id}>
+                  <b>{current.name.length > 24 ? `${current.name.slice(0, 23)}…` : current.name}</b>
+                  <span>{money(current.rental_price)}<small> / day</small></span>
+                </Link>
+                <button type="button" onClick={() => orbit.go((active + 1) % showcase.length)} aria-label="Next listing">›</button>
               </div>
-            </button>
-          ))}
-        </div>
+            )}
+          </div>
+        )}
       </section>
 
-      {/* ---------- Featured listings ---------- */}
-      {featured.length > 0 && (
-        <section className="section" style={{ paddingTop: 0 }}>
-          <div className="section-head reveal">
-            <h2>Available now</h2>
-            <p>Fresh listings ready to rent from members near you.</p>
-          </div>
-          <div className="grid">
-            {/* Cards deep-link to that item's booking panel, not the generic list. */}
-            {featured.map((it) => (
-              <Link to={`/browse?item=${it.id}`} key={it.id} className="card reveal" style={{ color: 'inherit' }}>
-                <CardPhoto url={it.cover_url} count={it.image_count} />
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                  <h3>{it.name}</h3>
-                  <StatusBadge status={it.status} />
-                </div>
-                <div className="serial">Listed by <b>{it.owner_name}</b></div>
-                <TagList tags={it.tags} />
-                <div className="price" style={{ marginTop: 10 }}>
-                  {money(it.rental_price)} <span>/ day</span>
-                </div>
+      {/* ---------- Endless strip ---------- */}
+      {stripItems.length > 0 && (
+        <div className="strip" aria-label="Listings">
+          <div className="strip-track">
+            {stripItems.map((it, i) => (
+              <Link key={`${it.id}-${i}`} to={`/product/${it.id}`} className="strip-card"
+                aria-hidden={i >= withPhotos.length} tabIndex={i >= withPhotos.length ? -1 : 0}>
+                <div className="strip-photo"><img src={it.cover_url} alt={it.name} loading="lazy" /></div>
+                <div className="strip-body"><b>{it.name}</b><span>{money(it.rental_price)}</span></div>
               </Link>
             ))}
           </div>
-          <div style={{ textAlign: 'center', marginTop: 32 }}>
-            <Link to="/browse" className="btn secondary lg">View all listings <Icon name="arrow-right" size={18} /></Link>
+        </div>
+      )}
+
+      {/* ---------- Categories ---------- */}
+      {liveCategories.length > 0 && (
+        <section className="l-section">
+          <div className="l-head">
+            <div>
+              <span className="hero-eyebrow reveal">Categories</span>
+              <h2 className="reveal">Something for <em>every</em> plan.</h2>
+            </div>
+            <p className="lead reveal">From a weekend shoot to a festive feast — everything here is listed by real people.</p>
+          </div>
+          <div className="cat-grid">
+            {liveCategories.map((c) => (
+              <button key={c.id} type="button" className="cat-card" onClick={() => navigate(`/browse?category_id=${c.id}`)}>
+                <span className="cat-icon"><Icon name={categoryIcon(c.name)} size={20} /></span>
+                <div>
+                  <div className="cat-name">{c.name}</div>
+                  <div className="cat-count">{c.item_count} item{c.item_count === 1 ? '' : 's'}</div>
+                </div>
+              </button>
+            ))}
           </div>
         </section>
       )}
 
-      {/* ---------- Trust / Safety ---------- */}
-      <section className="section">
-        <div className="section-head reveal">
-          <h2>Built for trust</h2>
-          <p>Every rental is tracked end-to-end so both sides stay protected.</p>
+      {/* ---------- How it works ---------- */}
+      <section className="l-section" style={{ paddingTop: 0 }}>
+        <div className="l-head">
+          <div>
+            <span className="hero-eyebrow reveal">How it works</span>
+            <h2 className="reveal">Three steps, <em>no fuss.</em></h2>
+          </div>
+          <p className="lead reveal">Every renter is verified once, so lending your things is safe.</p>
         </div>
-        <div className="trust-grid">
+        <div className="steps">
           {[
-            { icon: 'calendar', h: 'No double bookings', p: 'Real-time availability and conflict detection keep every item honest about when it is free.' },
-            { icon: 'wallet', h: 'Deposits & fair fees', p: 'Refundable deposits, transparent late fees, and damage penalties are calculated automatically.' },
-            { icon: 'shield', h: 'Condition on record', p: 'Photo condition reports at checkout and check-in mean disputes are settled with evidence, not guesswork.' },
-            { icon: 'qr', h: 'QR fast checkout', p: 'Scan an item to check it out or back in — no paperwork, no manual entry mistakes.' },
-          ].map((t) => (
-            <div className="trust-card reveal" key={t.h}>
-              <span className="t-icon"><Icon name={t.icon} size={21} /></span>
-              <h3>{t.h}</h3>
-              <p>{t.p}</p>
+            ['Find it', 'Search or browse, check the calendar, and chat with the lister before you book.'],
+            ['Verify once', 'Your first rental asks for a quick NID photo and selfie. After that, one tap to book.'],
+            ['Pick up & enjoy', 'Scan the QR at pickup, return it on time, and your deposit comes straight back.'],
+          ].map(([h, p], i) => (
+            <div className="step reveal" key={h}>
+              <b>0{i + 1}</b>
+              <h3>{h}</h3>
+              <p>{p}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* ---------- CTA ---------- */}
-      <section className="cta-band">
-        <div className="cta-inner reveal">
-          <h2>Got gear sitting idle?</h2>
-          <p>Turn it into income. List an item in minutes and let the marketplace do the rest.</p>
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link to={user ? '/items/new' : '/login'} className="btn accent lg">
-              <Icon name="plus" size={18} /> List your item
-            </Link>
-            <Link to="/browse" className="btn secondary lg">Browse rentals</Link>
-          </div>
+      <section className="cta-band-x reveal">
+        <div>
+          <h2>Your shelf is a <em>shop.</em></h2>
+          <p>List a camera, a console or a stand mixer in under a minute — and earn every time it’s rented.</p>
+        </div>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <Link to={user ? '/items/new' : '/login'} className="btn lg"><Icon name="plus" size={18} /> List something</Link>
+          <Link to="/browse" className="btn secondary lg">Browse rentals <Icon name="arrow-right" size={18} /></Link>
         </div>
       </section>
 
       <footer className="footer">
-        <span className="brand">Rental<span style={{ color: 'var(--primary)' }}>Flow</span></span> · Inventory &amp; booking for equipment renters<br />
-        <span style={{ fontSize: 13 }}>A CSE470 project · built with React &amp; raw SQL</span>
+        <span className="brand wordmark">Rental<span>Flow</span></span> · Rent anything from people near you
       </footer>
     </div>
   );

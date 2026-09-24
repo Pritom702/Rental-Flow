@@ -6,11 +6,16 @@
 import { Icon } from './icons.jsx';
 
 // Cover photo shown at the top of an item card. `count` shows how many photos exist.
-export function CardPhoto({ url, count }) {
+// The product is shown WHOLE (never cropped), fitted inside a lit "stage".
+// `children` layer on top of the stage (the product card's description reveal).
+export function CardPhoto({ url, count, children }) {
   return (
     <div className="card-photo">
-      {url ? <img src={url} alt="" /> : <div className="no-photo"><Icon name="camera" size={18} /> No photo</div>}
+      {url
+        ? <img className="stage-img" src={url} alt="" loading="lazy" decoding="async" />
+        : <div className="no-photo"><Icon name="camera" size={18} /> No photo</div>}
       {count > 1 && <span className="count-badge">{count} photos</span>}
+      {children}
     </div>
   );
 }

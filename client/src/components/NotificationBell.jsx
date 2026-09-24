@@ -110,7 +110,11 @@ export default function NotificationBell() {
       setUnread((c) => Math.max(0, c - 1));
       try { await api.patch(`/notifications/${n.id}/read`, {}); } catch { /* stays unread, retried on next poll */ }
     }
-    navigate('/bookings');
+    // Identity-verification notices open the review queue (admins) or the
+    // member's own verification screen; everything else is about a booking.
+    if (n.type === 'verification_review') navigate('/admin/verifications');
+    else if (n.type?.startsWith('verification_')) navigate('/verify');
+    else navigate('/bookings');
   }
 
   async function markAll() {
