@@ -62,7 +62,7 @@ export default function RewardLayer() {
       if (r.streakUp) toast({ kind: 'streak', icon: '🔥', title: `${r.streak}-day streak!`, body: 'Come back tomorrow to keep it going.' });
       (r.badges || []).forEach((b, i) => setTimeout(() => {
         play('success');
-        toast({ kind: 'badge', icon: b.icon, title: 'Badge unlocked', body: b.name });
+        toast({ kind: 'rt-badge', icon: b.icon, title: 'Badge unlocked', body: b.name });
       }, 350 + i * 900));
       if (r.levelUp) {
         setTimeout(() => {
