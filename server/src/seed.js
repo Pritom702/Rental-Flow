@@ -36,7 +36,7 @@ async function main() {
     'Drones', 'Power Tools', 'Hand Tools', 'Gardening Equipment', 'Event & Party',
     'Camping & Outdoor', 'Sports & Fitness', 'Musical Instruments',
     'Projectors & Screens', 'Computers & Laptops', 'Gaming & Consoles',
-    'Kitchen Appliances', 'Furniture',
+    'Kitchen Appliances', 'Furniture', 'Phones', 'Home Appliances',
   ];
   for (const c of cats) {
     await query('INSERT INTO categories (name) VALUES ($1) ON CONFLICT (name) DO NOTHING', [c]);

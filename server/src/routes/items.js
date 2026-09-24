@@ -149,6 +149,7 @@ router.post('/', authRequired, async (req, res) => {
   }
 
   const client = await pool.connect();
+  let itemId;
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
@@ -160,25 +161,29 @@ router.post('/', authRequired, async (req, res) => {
        rental_price || 0, replacement_cost || 0,
        status || null, category_id || null, randomUUID()]
     );
-    const itemId = rows[0].id;
+    itemId = rows[0].id;
 
     await attachTags(client, itemId, tags);
     await attachAccessories(client, itemId, accessories);
     await attachImages(client, itemId, images);
 
     await client.query('COMMIT');
-    res.status(201).json(await getItemFull(itemId));
   } catch (err) {
     await client.query('ROLLBACK');
+    client.release();
     if (err.code === '23505') return res.status(409).json({ error: 'Serial number already exists' });
     // Owner no longer exists (e.g. token issued before a DB reset) -> force re-login.
     if (err.constraint === 'items_owner_id_fkey') {
       return res.status(401).json({ error: 'Your session is no longer valid. Please log in again.' });
     }
-    res.status(500).json({ error: err.message });
-  } finally {
-    client.release();
+    return res.status(500).json({ error: err.message });
   }
+  // Give the connection back BEFORE reading the saved item: getItemFull() needs
+  // a connection of its own, and on a small pool (Vercel) holding this one
+  // while asking for another waited until timeout and answered 500 — after the
+  // item had already been saved, so every retry created a duplicate listing.
+  client.release();
+  res.status(201).json(await getItemFull(itemId));
 });
 
 // PUT /api/items/:id  — owner or admin. Full update incl. tags + accessories.
@@ -225,14 +230,14 @@ router.put('/:id', authRequired, requireOwnerOrAdmin, async (req, res) => {
     }
 
     await client.query('COMMIT');
-    res.json(await getItemFull(id));
   } catch (err) {
     await client.query('ROLLBACK');
-    if (err.code === '23505') return res.status(409).json({ error: 'Serial number already exists' });
-    res.status(500).json({ error: err.message });
-  } finally {
     client.release();
+    if (err.code === '23505') return res.status(409).json({ error: 'Serial number already exists' });
+    return res.status(500).json({ error: err.message });
   }
+  client.release();   // before getItemFull() — see POST above
+  res.json(await getItemFull(id));
 });
 
 // PATCH /api/items/:id/status  — owner or admin (Feature 3).

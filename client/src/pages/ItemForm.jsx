@@ -5,9 +5,11 @@
 // Create / edit an item (Features 1, 2, 3, 5).
 // Handles: catalog fields, category, tags (comma separated), status, and
 // linked accessories (comma separated).
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { celebrate } from '../fx.js';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api.js';
+import { useAuth } from '../auth.jsx';
 import { Icon } from '../icons.jsx';
 
 const STATUSES = ['Available', 'Rented', 'Damaged', 'Under Maintenance', 'Retired'];
@@ -17,17 +19,47 @@ const empty = {
   tags: '', accessories: '',
 };
 
+// Unsaved work survives a refresh, a closed tab or a dropped connection: every
+// change is written to this browser as a draft (one per account and per
+// listing), restored on the next visit, and cleared once the listing is saved.
+function draftKey(userId, itemId) {
+  return `rentalflow_listing_draft_${userId || 'guest'}_${itemId || 'new'}`;
+}
+function readDraft(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+function writeDraft(key, draft) {
+  try { localStorage.setItem(key, JSON.stringify(draft)); } catch { /* storage full or blocked */ }
+}
+function clearDraft(key) {
+  try { localStorage.removeItem(key); } catch { /* ignore */ }
+}
+
 export default function ItemForm() {
   const { id } = useParams();
   const editing = Boolean(id);
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const key = draftKey(user?.id, id);
   const [form, setForm] = useState(empty);
   const [images, setImages] = useState([]); // array of URL strings
   const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [categories, setCategories] = useState([]);
   const [error, setError] = useState('');
+  const [restored, setRestored] = useState(false);
 
-  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+  // A draft is written only after the member actually changes something, so
+  // opening the form (or loading a listing to edit) never counts as a draft.
+  const touched = useRef(false);
+
+  const set = (k) => (e) => {
+    touched.current = true;
+    setForm({ ...form, [k]: e.target.value });
+  };
 
   async function onPickImages(e) {
     const files = Array.from(e.target.files || []);
@@ -37,6 +69,7 @@ export default function ItemForm() {
     setUploading(true);
     try {
       const { urls } = await api.uploadImages(files);
+      touched.current = true;
       setImages((prev) => [...prev, ...urls]);
     } catch (err) {
       setError(err.message);
@@ -46,14 +79,42 @@ export default function ItemForm() {
   }
 
   function removeImage(url) {
+    touched.current = true;
     setImages((prev) => prev.filter((u) => u !== url));
   }
 
   useEffect(() => { api.get('/categories').then(setCategories); }, []);
 
+  // New listing: start from the draft, if there is one.
   useEffect(() => {
-    if (!editing) return;
-    api.get(`/items/${id}`).then((it) => {
+    if (editing) return;
+    const draft = readDraft(key);
+    if (draft) {
+      setForm({ ...empty, ...draft.form });
+      setImages(draft.images || []);
+      setRestored(true);
+    }
+  }, [editing, key]);
+
+  // Save a draft on every change the member makes.
+  useEffect(() => {
+    if (touched.current) writeDraft(key, { form, images, savedAt: Date.now() });
+  }, [form, images, key]);
+
+  function discardDraft() {
+    touched.current = false;
+    clearDraft(key);
+    setRestored(false);
+    if (editing) {
+      loadItem().catch((e) => setError(e.message));
+    } else {
+      setForm(empty);
+      setImages([]);
+    }
+  }
+
+  function loadItem() {
+    return api.get(`/items/${id}`).then((it) => {
       setForm({
         name: it.name || '',
         description: it.description || '',
@@ -66,11 +127,26 @@ export default function ItemForm() {
         accessories: (it.accessories || []).map((a) => a.name).join(', '),
       });
       setImages((it.images || []).map((img) => img.url));
+    });
+  }
+
+  // Editing: load the saved listing, then lay any unsaved changes over it.
+  useEffect(() => {
+    if (!editing) return;
+    loadItem().then(() => {
+      const draft = readDraft(key);
+      if (draft) {
+        setForm((f) => ({ ...f, ...draft.form }));
+        setImages(draft.images || []);
+        setRestored(true);
+      }
     }).catch((e) => setError(e.message));
-  }, [id, editing]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, editing, key]);
 
   async function submit(e) {
     e.preventDefault();
+    if (saving) return;   // a second tap while saving would create a duplicate
     setError('');
     const payload = {
       name: form.name,
@@ -84,12 +160,17 @@ export default function ItemForm() {
       accessories: form.accessories.split(',').map((s) => s.trim()).filter(Boolean),
       images,
     };
+    setSaving(true);
     try {
       if (editing) await api.put(`/items/${id}`, payload);
       else await api.post('/items', payload);
+      touched.current = false;
+      clearDraft(key);
+      celebrate();
       navigate('/dashboard');
     } catch (err) {
       setError(err.message);
+      setSaving(false);
     }
   }
 
@@ -101,6 +182,12 @@ export default function ItemForm() {
           <div className="sub">{editing ? 'Update the details of your listing.' : 'Add a new item to the marketplace.'}</div>
         </div>
       </div>
+      {restored && (
+        <div className="hint" style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, maxWidth: 720 }}>
+          <span><b>Restored your unsaved {editing ? 'changes' : 'listing'}.</b> Everything you typed before is back.</span>
+          <button type="button" className="btn ghost small" onClick={discardDraft}>Discard</button>
+        </div>
+      )}
       <form className="form" onSubmit={submit}>
         <div className="field">
           <label>Name *</label>
@@ -168,10 +255,10 @@ export default function ItemForm() {
         {error && <div className="error"><Icon name="shield" size={16} /> {error}</div>}
 
         <div style={{ display: 'flex', gap: 10 }}>
-          <button className="btn" disabled={uploading}>
-            <Icon name="check" size={16} /> {editing ? 'Save changes' : 'Create listing'}
+          <button className="btn" disabled={uploading || saving}>
+            <Icon name="check" size={16} /> {saving ? 'Saving…' : editing ? 'Save changes' : 'Create listing'}
           </button>
-          <button type="button" className="btn secondary" onClick={() => navigate('/dashboard')}>Cancel</button>
+          <button type="button" className="btn secondary" onClick={() => { clearDraft(key); navigate('/dashboard'); }}>Cancel</button>
         </div>
       </form>
     </div>

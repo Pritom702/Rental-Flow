@@ -1,0 +1,156 @@
+/* ============================================================
+   RentalFlow  |  Marketplace + Messaging  |  Owner: M2 - Tawheed Bin Hamid (Pritom)
+   GitHub: @pritom702  |  Part: product preview, product page, chat
+   ============================================================
+   Uses the app's colour tokens, so light and dark mode both work. */
+
+/* ---------------------------------------------------------------- card preview */
+.product-card {
+  position: relative;
+  cursor: pointer;
+  /* stop the phone's own "save image / copy" menu from hijacking a long-press */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.product-card:focus-visible { outline: none; box-shadow: var(--ring); }
+.product-card img { -webkit-user-drag: none; pointer-events: none; }
+/* the description reveal itself is styled in theme.css */
+
+/* ---------------------------------------------------------------- product page */
+.product-page .btn.ghost { margin-bottom: 14px; }
+.product-layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 32px; align-items: start; }
+.product-main-photo {
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+.product-main-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.product-main-photo .no-photo { height: 100%; display: grid; place-items: center; align-content: center; gap: 8px; color: var(--muted); }
+.product-thumbs { display: flex; gap: 8px; margin-top: 10px; overflow-x: auto; padding-bottom: 4px; }
+.product-thumbs button {
+  flex: none; width: 72px; height: 54px; padding: 0; border-radius: var(--radius-sm);
+  border: 2px solid transparent; overflow: hidden; cursor: pointer; background: var(--surface-2);
+}
+.product-thumbs button.on { border-color: var(--primary); }
+.product-thumbs img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.product-title { display: flex; gap: 10px; align-items: flex-start; justify-content: space-between; }
+.product-title h1 { font-size: 28px; letter-spacing: -.02em; margin: 0; }
+.product-price { font-family: var(--font-display); font-size: 26px; margin: 6px 0 4px; }
+.product-price span { font-family: var(--font-ui); font-size: 14px; color: var(--muted); }
+.product-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 18px 0 8px; }
+.product-actions .btn { justify-content: center; }
+.product-h { font-size: 16px; margin: 22px 0 8px; }
+.product-description { white-space: pre-wrap; line-height: 1.65; color: var(--text-2); margin: 0; }
+.product-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.product-list li { display: flex; gap: 8px; align-items: center; color: var(--text-2); }
+.product-list svg { color: var(--green); }
+.product-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 18px; margin: 0 0 14px; }
+.product-facts dt { color: var(--muted); font-size: 12.5px; }
+.product-facts dd { margin: 2px 0 0; font-weight: 600; }
+
+@media (max-width: 860px) {
+  .product-layout { grid-template-columns: 1fr; gap: 18px; }
+  .product-actions { grid-template-columns: 1fr; }
+  .product-actions .btn { padding: 14px; }
+}
+
+/* ---------------------------------------------------------------- nav badge */
+.side-badge {
+  margin-left: auto;
+  min-width: 20px; height: 20px; padding: 0 6px;
+  border-radius: 99px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11.5px; font-weight: 700;
+  display: inline-grid; place-items: center;
+}
+
+/* ---------------------------------------------------------------- chat */
+.chat-shell {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  height: calc(100dvh - var(--topbar-h));
+  min-height: 420px;
+}
+.chat-list { border-right: 1px solid var(--border); overflow-y: auto; padding: 18px 10px; background: var(--surface); }
+.chat-list h1 { font-size: 22px; margin: 0 8px 12px; }
+.chat-row {
+  display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; align-items: center;
+  padding: 10px 8px; border-radius: var(--radius); color: var(--text); text-decoration: none;
+}
+.chat-row:hover { background: var(--surface-2); }
+.chat-row.on { background: var(--primary-soft); }
+.chat-row img, .chat-row-icon {
+  width: 44px; height: 44px; border-radius: var(--radius-sm); object-fit: cover;
+  background: var(--surface-2); display: grid; place-items: center; color: var(--muted);
+}
+.chat-row-top { display: flex; justify-content: space-between; gap: 8px; }
+.chat-row-top span { color: var(--muted); font-size: 12px; flex: none; }
+.chat-row-item { color: var(--accent); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-row-last { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-unread {
+  min-width: 22px; height: 22px; padding: 0 6px; border-radius: 99px;
+  background: var(--accent); color: #fff; font-size: 12px; font-weight: 700; display: grid; place-items: center;
+}
+.chat-empty, .chat-placeholder {
+  display: grid; justify-items: center; gap: 10px; text-align: center; color: var(--muted); padding: 30px 16px;
+}
+.chat-placeholder { height: 100%; align-content: center; }
+/* min-height 0: a long conversation scrolls inside the thread instead of
+   stretching the page and pushing the message box off screen */
+.chat-thread { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--bg); }
+
+.thread { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.thread-head {
+  display: flex; gap: 10px; align-items: center; padding: 12px 16px;
+  border-bottom: 1px solid var(--border); background: var(--surface);
+}
+.thread-back { display: none; font-size: 18px; }
+.thread-who { display: grid; gap: 2px; min-width: 0; }
+.thread-item { display: flex; gap: 8px; align-items: center; color: var(--accent); font-size: 13px; text-decoration: none; min-width: 0; }
+.thread-item img { width: 26px; height: 26px; border-radius: 6px; object-fit: cover; flex: none; }
+.thread-item span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.thread-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+.thread-hint { color: var(--muted); text-align: center; font-size: 14px; margin: auto 0; }
+.bubble {
+  align-self: flex-start;
+  max-width: min(78%, 520px);
+  padding: 9px 12px 6px;
+  border-radius: 16px 16px 16px 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.bubble.me {
+  align-self: flex-end;
+  border-radius: 16px 16px 4px 16px;
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary);
+}
+.bubble p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.45; }
+.bubble span { display: block; font-size: 11px; opacity: .7; margin-top: 3px; text-align: right; }
+.composer {
+  display: flex; gap: 8px; align-items: flex-end;
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border); background: var(--surface);
+}
+.composer textarea {
+  flex: 1; resize: none; max-height: 140px; min-height: 42px;
+  padding: 10px 12px; font: inherit; font-size: 16px;   /* 16px: no iOS zoom */
+  border-radius: 20px; border: 1px solid var(--border-strong); background: var(--bg); color: var(--text);
+}
+.composer textarea:focus { outline: none; border-color: var(--primary); box-shadow: var(--ring); }
+.composer .btn { border-radius: 20px; padding: 10px 18px; }
+
+@media (max-width: 760px) {
+  .chat-shell { grid-template-columns: 1fr; }
+  .chat-shell.has-thread .chat-list { display: none; }
+  .chat-shell:not(.has-thread) .chat-thread { display: none; }
+  .chat-list { border-right: 0; }
+  .thread-back { display: inline-flex; }
+}
+.composer .btn, .product-card { -webkit-tap-highlight-color: transparent; }

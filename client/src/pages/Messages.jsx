@@ -1,0 +1,185 @@
+// ============================================================
+//  RentalFlow  |  Messaging  |  Owner: M2 - Tawheed Bin Hamid (Pritom)
+//  GitHub: @pritom702  |  Part: conversations list + chat thread
+// ============================================================
+// Computer: conversations on the left, the open chat on the right.
+// Phone:    the list first; opening a chat fills the screen, with a back button.
+// New messages are fetched every few seconds — only the ones newer than the
+// last one already on screen.
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { play } from '../sfx.js';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { api } from '../api.js';
+import { useAuth } from '../auth.jsx';
+import { Icon } from '../icons.jsx';
+import { money } from '../money.js';
+
+const THREAD_POLL_MS = 4000;
+const LIST_POLL_MS = 15000;
+
+function when(d) {
+  if (!d) return '';
+  const date = new Date(d);
+  const today = new Date().toDateString() === date.toDateString();
+  return today
+    ? date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+    : date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+}
+
+export default function Messages() {
+  const { id } = useParams();
+  const [list, setList] = useState(null);
+
+  const loadList = useCallback(() => api.get('/messages/conversations').then(setList).catch(() => {}), []);
+  useEffect(() => {
+    loadList();
+    const t = setInterval(loadList, LIST_POLL_MS);
+    return () => clearInterval(t);
+  }, [loadList]);
+
+  return (
+    <div className={`chat-shell${id ? ' has-thread' : ''}`}>
+      <aside className="chat-list">
+        <h1>Messages</h1>
+        {!list && <p className="muted">Loading…</p>}
+        {list && !list.length && (
+          <div className="chat-empty">
+            <Icon name="chat" size={28} />
+            <p>No conversations yet. Open a listing and press <b>Message the lister</b> to ask about it.</p>
+            <Link to="/browse" className="btn small">Browse listings</Link>
+          </div>
+        )}
+        {list?.map((c) => (
+          <Link key={c.id} to={`/messages/${c.id}`} className={`chat-row${String(c.id) === id ? ' on' : ''}`}>
+            {c.item_cover ? <img src={c.item_cover} alt="" /> : <span className="chat-row-icon"><Icon name="package" size={18} /></span>}
+            <div className="chat-row-main">
+              <div className="chat-row-top">
+                <b>{c.other_name}</b>
+                <span>{when(c.last_message_at || c.created_at)}</span>
+              </div>
+              <div className="chat-row-item">{c.item_name || 'Listing removed'}{c.i_am_owner ? ' · your listing' : ''}</div>
+              <div className="chat-row-last">{c.last_body || 'No messages yet'}</div>
+            </div>
+            {c.unread > 0 && <span className="chat-unread">{c.unread}</span>}
+          </Link>
+        ))}
+      </aside>
+      <section className="chat-thread">
+        {id ? <Thread id={id} onActivity={loadList} /> : (
+          <div className="chat-placeholder"><Icon name="chat" size={30} /><p>Choose a conversation.</p></div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function Thread({ id, onActivity }) {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [convo, setConvo] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [text, setText] = useState('');
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
+  const [seenUpTo, setSeenUpTo] = useState(0);   // the other person has read my messages up to this id
+  const bottom = useRef(null);
+  const lastId = useRef(0);
+
+  const fetchNew = useCallback(async (first = false) => {
+    try {
+      const data = await api.get(`/messages/conversations/${id}?after=${first ? 0 : lastId.current}`);
+      if (first) setConvo(data);
+      setSeenUpTo(data.seenUpTo || 0);
+      if (data.messages.length) {
+        lastId.current = data.messages[data.messages.length - 1].id;
+        setMessages((prev) => (first ? data.messages : [...prev, ...data.messages.filter((m) => !prev.some((p) => p.id === m.id))]));
+        if (!first) onActivity();
+      }
+    } catch (e) {
+      if (first) setError(e.message);
+    }
+  }, [id, onActivity]);
+
+  useEffect(() => {
+    lastId.current = 0;
+    setMessages([]);
+    setConvo(null);
+    setError('');
+    fetchNew(true).then(onActivity);
+    const t = setInterval(() => fetchNew(false), THREAD_POLL_MS);
+    return () => clearInterval(t);
+  }, [id, fetchNew, onActivity]);
+
+  useEffect(() => { bottom.current?.scrollIntoView({ block: 'end' }); }, [messages.length]);
+
+  async function send(e) {
+    e?.preventDefault();
+    const body = text.trim();
+    if (!body || sending) return;
+    setSending(true);
+    setError('');
+    try {
+      const m = await api.post(`/messages/conversations/${id}`, { body });
+      lastId.current = Math.max(lastId.current, m.id);
+      setMessages((prev) => [...prev, m]);
+      play('send');
+      setText('');
+      onActivity();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  if (error && !convo) return <div className="chat-placeholder"><div className="error">{error}</div></div>;
+  if (!convo) return <div className="chat-placeholder"><p className="muted">Loading…</p></div>;
+
+  return (
+    <div className="thread">
+      <header className="thread-head">
+        <button className="btn ghost small thread-back" onClick={() => navigate('/messages')} aria-label="Back to conversations">←</button>
+        <div className="thread-who">
+          <b>{convo.other_name}</b>
+          {convo.item_id
+            ? <Link to={`/product/${convo.item_id}`} className="thread-item">
+                {convo.item_cover && <img src={convo.item_cover} alt="" />}
+                <span>{convo.item_name} · {money(convo.rental_price)}/day</span>
+              </Link>
+            : <span className="muted">This listing was removed</span>}
+        </div>
+      </header>
+
+      <div className="thread-body">
+        {!messages.length && (
+          <p className="thread-hint">
+            {convo.iAmOwner
+              ? `${convo.other_name} opened a chat about your listing.`
+              : `Ask ${convo.other_name} anything about this listing — condition, pickup, dates.`}
+          </p>
+        )}
+        {messages.map((m) => (
+          <div key={m.id} className={`bubble${m.sender_id === user.id ? ' me' : ''}`}>
+            <p>{m.body}</p>
+            <span>{when(m.created_at)}{m.sender_id === user.id && (m.read_at || m.id <= seenUpTo) ? ' · Seen' : ''}</span>
+          </div>
+        ))}
+        <div ref={bottom} />
+      </div>
+
+      <form className="composer" onSubmit={send}>
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
+          placeholder="Write a message…"
+          rows={1}
+          maxLength={2000}
+          aria-label="Message"
+        />
+        <button className="btn" data-sfx="none" disabled={!text.trim() || sending}>Send</button>
+      </form>
+      {error && <div className="error">{error}</div>}
+    </div>
+  );
+}
