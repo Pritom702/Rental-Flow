@@ -25,7 +25,7 @@
     "api/index.js": {
       "maxDuration": 60,
       "memory": 2048,
-      "includeFiles": "node_modules/{@vladmandic/face-api/model/**,@tensorflow/tfjs-backend-wasm/dist/**,@tesseract.js-data/eng/4.0.0_best_int/**,tesseract.js/src/**,tesseract.js-core/**,nsfwjs/package.json,nsfwjs/dist/cjs/**,nsfwjs/dist/models/package.json,nsfwjs/dist/models/mobilenet_v2/**}"
+      "includeFiles": "node_modules/{@vladmandic/face-api/model/**,@tensorflow/tfjs-backend-wasm/dist/**,@tesseract.js-data/eng/4.0.0_best_int/**,tesseract.js/src/**,tesseract.js-core/**,nsfwjs/dist/{cjs/**,models/{package.json,mobilenet_v2/**}}}"
     }
   },
   "crons": [
