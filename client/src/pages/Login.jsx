@@ -3,7 +3,7 @@
 //  GitHub: @___  |  Part: Login / Signup page
 // ============================================================
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 import { Icon } from '../icons.jsx';
 import ThemeToggle from '../components/ThemeToggle.jsx';
@@ -11,7 +11,12 @@ import ThemeToggle from '../components/ThemeToggle.jsx';
 export default function Login() {
   const { login, signup } = useAuth();
   const navigate = useNavigate();
-  const [mode, setMode] = useState('login'); // 'login' | 'signup'
+  const [params] = useSearchParams();
+  // Where to go after signing in, e.g. back to the item a visitor tried to book.
+  // Only same-site paths are accepted.
+  const rawNext = params.get('next') || '';
+  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : null;
+  const [mode, setMode] = useState(params.get('mode') === 'signup' ? 'signup' : 'login'); // 'login' | 'signup'
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -28,7 +33,8 @@ export default function Login() {
         : await signup(form.name, form.email, form.password);
       // A new member confirms their email first; the ID check comes at their first listing.
       const needsEmail = user.role === 'member' && user.emailVerified === false;
-      navigate(needsEmail ? '/verify' : '/browse');
+      if (needsEmail) navigate(next ? `/verify?next=${encodeURIComponent(next)}` : '/verify');
+      else navigate(next || '/browse');
     } catch (err) {
       setError(err.message);
     } finally {

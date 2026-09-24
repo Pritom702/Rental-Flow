@@ -60,12 +60,23 @@ export default function PublicBooking() {
   useEffect(() => { api.get('/categories').then(setCategories).catch(() => {}); }, []);
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [search, categoryId]);
 
+  // Booking needs an account. A visitor who isn't signed in is sent to sign up
+  // first and brought straight back to this item's booking panel afterwards.
+  function openBooking(it) {
+    if (!user) {
+      navigate(`/login?mode=signup&next=${encodeURIComponent(`/browse?item=${it.id}`)}`);
+      return;
+    }
+    setSelectedItem(it);
+  }
+
   // Open the deep-linked item once, as soon as it can be resolved.
   useEffect(() => {
     if (!deepLinkItem) return;
     api.get(`/items/${deepLinkItem}`)
-      .then((it) => setSelectedItem(it))
+      .then(openBooking)
       .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deepLinkItem]);
 
   function clearFilters() {
@@ -249,7 +260,7 @@ export default function PublicBooking() {
                 <button
                   className="btn accent small"
                   disabled={it.status !== 'Available'}
-                  onClick={() => setSelectedItem(it)}
+                  onClick={() => openBooking(it)}
                   title={it.status !== 'Available' ? 'Not available right now' : 'Request a booking'}
                 >
                   <Icon name="calendar" size={15} />
@@ -263,7 +274,7 @@ export default function PublicBooking() {
 
       {/* The booking form is a modal: previously it rendered below the item grid,
           so clicking "Request Booking" appeared to do nothing on a short page. */}
-      {selectedItem && (
+      {selectedItem && user && (
         <div className="modal-backdrop" onClick={() => setSelectedItem(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="panel-head">

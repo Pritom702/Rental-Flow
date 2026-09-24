@@ -87,7 +87,9 @@ export default function ProductDetail() {
           <div className="product-actions">
             {!mine && (
               <button className="btn accent lg" disabled={!available}
-                onClick={() => navigate(`/browse?item=${item.id}`)}>
+                onClick={() => navigate(user
+                  ? `/browse?item=${item.id}`
+                  : `/login?mode=signup&next=${encodeURIComponent(`/browse?item=${item.id}`)}`)}>
                 <Icon name="calendar" size={16} /> {available ? 'Request booking' : 'Not available right now'}
               </button>
             )}
