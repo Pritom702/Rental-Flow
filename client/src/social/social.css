@@ -322,8 +322,8 @@ html[data-theme='dark'] .kind-chip.k-question { background: rgba(140, 180, 255, 
 /* video */
 .pc-video-wrap { margin: 12px -16px 0; position: relative; }
 .pc-reels-link { position: absolute; right: 12px; top: 12px; font-size: 12px; font-weight: 700; color: #fff; background: rgba(0,0,0,.45); padding: 5px 10px; border-radius: 999px; text-decoration: none; }
-.fv { position: relative; overflow: hidden; cursor: pointer; background: #0c1511; -webkit-tap-highlight-color: transparent; max-height: 640px; }
-.fv video { width: 100%; height: 100%; object-fit: contain; display: block; background: transparent; }
+.fv { position: relative; overflow: hidden; cursor: pointer; background: #0c1511; -webkit-tap-highlight-color: transparent; width: 100%; }
+.fv video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; background: transparent; }
 .fv-play {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 64px; height: 64px; border-radius: 50%;
   display: grid; place-items: center; background: rgba(12, 21, 17, .55); color: #fff; font-size: 24px; padding-left: 4px;
@@ -754,7 +754,9 @@ html[data-theme='dark'] .pf-cover { background: radial-gradient(120% 140% at 10%
 
 /* the top bar has more in it now — keep the title on one line on phones */
 @media (max-width: 760px) {
-  .topbar .crumb { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; }
+  /* phones: just the page name ("Feed"), not "RentalFlow / Feed" */
+  .topbar .crumb { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0; }
+  .topbar .crumb b { font-size: 16px; }
   .xp-ring-btn { padding-right: 6px; }
 }
 
@@ -818,3 +820,44 @@ input[type='checkbox']:checked { animation: react-pop .35s var(--spring); }
 }
 @keyframes flow-shine { 0%, 55% { transform: translateX(-120%); } 85%, 100% { transform: translateX(120%); } }
 @media (prefers-reduced-motion: reduce) { .flow-mark::after, .feed-tabs .reels-tab::after { animation: none; } }
+
+/* ================================================================ selling, easy to find */
+.cp-tools .cp-sell {
+  width: auto; padding: 0 12px; font: 700 13px var(--font-ui); border-radius: 999px;
+  background: var(--accent-grad); color: #10291D; box-shadow: var(--glow); white-space: nowrap;
+}
+.cp-tools .cp-sell:hover { background: var(--accent-grad); transform: translateY(-2px) scale(1.05); }
+@media (max-width: 520px) {
+  .cp-tools button:nth-child(n+2):not(.cp-sell) { display: none; }
+  .cp-tools button.cp-sell { display: inline-block; }
+}
+.sell-banner {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 16px 18px; margin-bottom: 14px;
+  border-radius: var(--radius-lg); background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  animation: post-in .45s var(--ease) both;
+}
+.sell-banner > div { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 2px; }
+.sell-banner b { font: 500 20px var(--font-display); }
+.sell-banner span { font-size: 13.5px; color: var(--text-2); }
+
+/* the phone + button, and the sheet it opens */
+.tabbar .tab-create { position: relative; z-index: 1; display: grid; justify-items: center; padding: 8px 0; border: none; background: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.tabbar .tab-create:active .tab-plus { transform: scale(.92) rotate(90deg); }
+.create-sheet-backdrop { position: fixed; inset: 0; z-index: 120; background: rgba(8, 20, 14, .45); display: flex; align-items: flex-end; animation: fade-in .18s; }
+.create-sheet {
+  width: 100%; padding: 18px 16px calc(96px + env(safe-area-inset-bottom)); border-radius: 24px 24px 0 0;
+  background: var(--surface); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: 8px;
+  animation: sheet-up .32s var(--ease);
+}
+.create-title { font: 500 20px var(--font-display); margin: 0 4px 6px; }
+.create-opt {
+  display: flex; align-items: center; gap: 14px; padding: 14px; border-radius: 16px; border: 1px solid var(--border);
+  color: var(--text); text-decoration: none; transition: transform .2s var(--spring), border-color .2s;
+  animation: post-in .4s var(--ease) both;
+}
+.create-opt:nth-child(3) { animation-delay: 40ms; } .create-opt:nth-child(4) { animation-delay: 80ms; }
+.create-opt:active { transform: scale(.97); }
+.create-opt > span { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; font-size: 22px; background: var(--surface-2); }
+.create-opt.sell > span { background: var(--accent-grad); }
+.create-opt div { display: flex; flex-direction: column; }
+.create-opt small { color: var(--muted); font-size: 12.5px; }

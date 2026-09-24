@@ -9,6 +9,8 @@
 //     and only ONE video plays at a time across the whole page
 //   • tap to unmute; the choice is remembered for the next video
 //   • double-tap loves the post (onLove)
+//   • a tall (phone) video shows in a 4:5 frame in the feed, like a photo;
+//     Flow shows it full screen
 import { useEffect, useRef, useState } from 'react';
 import { duration as fmt } from './media.js';
 
@@ -100,7 +102,7 @@ export default function FeedVideo({ video, onLove, reel = false, active }) {
     <div
       ref={wrap}
       className={`fv${reel ? ' fv-reel' : ''}${started ? ' started' : ''}`}
-      style={reel ? undefined : { aspectRatio: Math.max(0.56, Math.min(1.9, ratio)), background: video.color || '#0c1511' }}
+      style={reel ? undefined : { aspectRatio: Math.max(0.8, Math.min(1.9, ratio)), background: video.color || '#0c1511' }}
       onClick={onTap}
       role="button"
       tabIndex={0}

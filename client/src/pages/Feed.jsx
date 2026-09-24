@@ -84,6 +84,17 @@ export default function Feed() {
     }
   }, [feedQuery]);
   useEffect(() => { load(); }, [load]);
+  // /feed?compose=sell (the Sell link, the + button) opens the composer straight away.
+  useEffect(() => {
+    const want = params.get('compose');
+    if (!want) return;
+    const p = new URLSearchParams(params);
+    p.delete('compose');
+    setParams(p, { replace: true });
+    openComposer(want === 'media' ? 'showcase' : want, want === 'media' ? 'media' : undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params]);
+
   // The "pick your communities" card asks for a reload once they are joined.
   useEffect(() => {
     window.addEventListener('rf:feed-refresh', load);
@@ -195,9 +206,9 @@ export default function Feed() {
             <span className="cp-text">{user ? `What's on your mind, ${user.name.split(' ')[0]}?` : 'Join RentalFlow to post, react and chat'}</span>
             <span className="cp-tools" onClick={(e) => e.stopPropagation()}>
               <button type="button" onClick={() => openComposer('showcase', 'media')} title="Photo or video">🖼️</button>
-              <button type="button" onClick={() => openComposer('sell')} title="Sell something">🏷️</button>
               <button type="button" onClick={() => openComposer('question')} title="Ask">🙋</button>
               <button type="button" onClick={() => openComposer('poll')} title="Poll">📊</button>
+              <button type="button" className="cp-sell" onClick={() => openComposer('sell')}>🏷️ Sell</button>
             </span>
           </div>
 
@@ -212,6 +223,16 @@ export default function Feed() {
             <button type="button" className="new-pill" onClick={() => { load(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
               ↑ {fresh} new post{fresh === 1 ? '' : 's'}
             </button>
+          )}
+
+          {saleGridTab(tab) && (
+            <div className="sell-banner">
+              <div>
+                <b>Got something you no longer use?</b>
+                <span>Sell it here in a minute. Buyers message you directly — no fees.</span>
+              </div>
+              <button type="button" className="btn accent" onClick={() => openComposer('sell')}>🏷️ Sell something</button>
+            </div>
           )}
 
           {posts == null ? (
@@ -269,6 +290,8 @@ export default function Feed() {
     </div>
   );
 }
+
+const saleGridTab = (tab) => tab.kind === 'sell';
 
 function CommunityHeader({ c, onJoin }) {
   return (

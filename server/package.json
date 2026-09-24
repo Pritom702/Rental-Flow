@@ -14,7 +14,8 @@
     "db:seed5": "node src/seedProfile.js",
     "db:export": "node src/exportData.js",
     "db:import": "node src/importData.js",
-    "db:migrate": "node src/migrate.js"
+    "db:migrate": "node src/migrate.js",
+    "db:seed-community": "node src/seedCommunity.js"
   },
   "dependencies": {
     "@tensorflow/tfjs": "^4.22.0",

@@ -85,6 +85,7 @@ const NAV_GROUPS = [
     label: 'Marketplace',
     links: [
       { to: '/browse', icon: 'search', label: 'Browse' },
+      { to: '/sell', icon: 'tag', label: 'Sell something' },
       { to: '/messages', icon: 'chat', label: 'Messages', badge: 'unread' },
       { to: '/dashboard', icon: 'package', label: 'My Listings', adminLabel: 'All Listings' },
     ],
@@ -141,8 +142,11 @@ function AppShell({ children }) {
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
 
-  // Close the mobile drawer whenever the route changes.
-  useEffect(() => { setOpen(false); }, [pathname]);
+  // Phones: the + button asks what you want to make.
+  const [creating, setCreating] = useState(false);
+
+  // Close the mobile drawer (and the + sheet) whenever the route changes.
+  useEffect(() => { setOpen(false); setCreating(false); }, [pathname]);
 
   // Unread chat messages, for the badge on "Messages". Re-checked on every
   // page change and every 20 seconds.
@@ -208,12 +212,23 @@ function AppShell({ children }) {
         <div key={pathname} className="page-enter"><Suspense fallback={<PageLoading />}>{children}</Suspense></div>
       </div>
 
+      {creating && (
+        <div className="create-sheet-backdrop" onClick={() => setCreating(false)}>
+          <div className="create-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Create">
+            <b className="create-title">What do you want to do?</b>
+            <Link to="/feed?compose=post" className="create-opt"><span>✍️</span><div><b>Post</b><small>Photos, videos, questions, polls</small></div></Link>
+            <Link to="/feed?tab=sale&compose=sell" className="create-opt sell"><span>🏷️</span><div><b>Sell something</b><small>Buyers message you directly</small></div></Link>
+            <Link to="/items/new" className="create-opt"><span>📦</span><div><b>Rent it out</b><small>List an item and earn every day</small></div></Link>
+          </div>
+        </div>
+      )}
+
       {/* Phones: an app-style tab bar with the five things people do most. */}
       <nav className="tabbar" aria-label="Main" style={{ '--tab': tabIndex(pathname) }}>
         {tabIndex(pathname) >= 0 && <span className="tab-pill" aria-hidden="true" />}
         <NavLink to="/feed"><Icon name="sparkles" size={21} />Feed</NavLink>
         <NavLink to="/browse"><Icon name="search" size={21} />Rent</NavLink>
-        <Link to="/items/new" aria-label="New listing"><span className="tab-plus"><Icon name="plus" size={24} /></span></Link>
+        <button type="button" className="tab-create" aria-label="Create" onClick={() => setCreating(true)}><span className="tab-plus"><Icon name="plus" size={24} /></span></button>
         <NavLink to="/messages">
           <Icon name="chat" size={21} />Messages
           {unread > 0 && <span className="tab-badge">{unread}</span>}
@@ -306,6 +321,7 @@ export default function App() {
         <Route path="/communities" element={<AnyShell><Communities /></AnyShell>} />
         <Route path="/flow" element={<Flow />} />
         <Route path="/reels" element={<Navigate to="/flow" replace />} />
+        <Route path="/sell" element={<Navigate to="/feed?tab=sale&compose=sell" replace />} />
         <Route path="/admin/moderation" element={<RequireAdmin><Moderation /></RequireAdmin>} />
         <Route path="/messages" element={<RequireAuth><Messages /></RequireAuth>} />
         <Route path="/messages/:id" element={<RequireAuth><Messages /></RequireAuth>} />
