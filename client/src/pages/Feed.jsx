@@ -32,7 +32,7 @@ const TABS = [
   { id: 'hot', label: 'Hot', scope: 'all', sort: 'hot', guest: true },
   { id: 'following', label: 'Following', scope: 'following', sort: 'new', auth: true },
   { id: 'new', label: 'New', scope: 'all', sort: 'new' },
-  { id: 'top', label: 'Top this week', scope: 'all', sort: 'top' },
+  { id: 'top', label: 'Top', scope: 'all', sort: 'top' },
   { id: 'sale', label: 'For sale', glyph: 'sell', scope: 'all', sort: 'new', kind: 'sell' },
   { id: 'saved', label: 'Kept', glyph: 'keep', scope: 'saved', sort: 'new', auth: true },
 ];

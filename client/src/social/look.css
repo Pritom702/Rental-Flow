@@ -336,3 +336,12 @@
 @media (prefers-reduced-motion: reduce) {
   .topnav::after, .tn-tag.hot, .tn-create-btn::after, .story-ring::before, .spark-fan button, .tn-btn.active::after { animation: none !important; }
 }
+
+/* Flows stays pinned to the right end of the tab bar, never cut off: the
+   other tabs scroll underneath it. */
+.feed-tabs .reels-tab {
+  position: sticky; right: 0; z-index: 1; margin-left: auto; flex: none;
+  background: linear-gradient(135deg, #1D2E14, #26401A); color: var(--neon);
+  box-shadow: -14px 0 14px 2px var(--night), 10px 0 0 4px var(--night), inset 0 0 0 1px rgba(198, 242, 78, .35);
+}
+.feed-tabs .reels-tab:hover { color: #fff; }
