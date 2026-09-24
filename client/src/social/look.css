@@ -345,3 +345,56 @@
   box-shadow: -14px 0 14px 2px var(--night), 10px 0 0 4px var(--night), inset 0 0 0 1px rgba(198, 242, 78, .35);
 }
 .feed-tabs .reels-tab:hover { color: #fff; }
+
+/* ================================================================ reaction coins
+   Each spark has its own colour. The ones a post received sit side by side as
+   small coins — never overlapping — with mine first and ringed. */
+.rx-spark  { --rx: #C6F24E; }
+.rx-want   { --rx: #FF9466; }
+.rx-genius { --rx: #FFD84A; }
+.rx-wow    { --rx: #7EE0CF; }
+.rx-lol    { --rx: #FFB86B; }
+.rx-adore  { --rx: #FF7A9C; }
+.rx-coins { display: inline-flex; align-items: center; gap: 4px; }
+.rx-coin {
+  width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; flex: none;
+  background: var(--rx); box-shadow: inset 0 -2px 0 rgba(16, 41, 29, .18);
+  --g-line: #10291D; --g-fill: rgba(255, 255, 255, .85);
+}
+.rx-coin .glyph { --g-line: #10291D; --g-fill: rgba(255, 255, 255, .85); }
+.rx-coin.mine { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--rx); }
+.dock-btn.spark.on .rx-coin.mine { box-shadow: 0 0 0 2px var(--night), 0 0 0 3.5px var(--rx), 0 0 12px var(--rx); animation: react-pop .5s var(--spring); }
+.dock-btn:hover .rx-coin .glyph { --g-fill: rgba(255, 255, 255, .85); }
+
+/* the fan: every spark in its own colour */
+.spark-fan button .glyph { --g-line: #10291D; }
+.spark-fan button:nth-child(1) .glyph { --g-fill: #C6F24E; }
+.spark-fan button:nth-child(2) .glyph { --g-fill: #FF9466; }
+.spark-fan button:nth-child(3) .glyph { --g-fill: #FFD84A; }
+.spark-fan button:nth-child(4) .glyph { --g-fill: #7EE0CF; }
+.spark-fan button:nth-child(5) .glyph { --g-fill: #FFB86B; }
+.spark-fan button:nth-child(6) .glyph { --g-fill: #FF7A9C; }
+
+/* The fan, spaced out: a wider arc (30° apart, 112 px out) so the six bubbles
+   never touch each other. */
+.spark-fan button {
+  --a: calc((var(--i) - (var(--n) - 1) / 2) * 30deg);
+  width: 48px; height: 48px; left: -24px; top: -24px;
+  transform: rotate(var(--a)) translateY(-112px) rotate(calc(var(--a) * -1));
+}
+.spark-fan button:hover { transform: rotate(var(--a)) translateY(-122px) rotate(calc(var(--a) * -1)) scale(1.2); }
+.spark-fan::before { left: -170px; top: -175px; width: 340px; height: 185px; }
+@keyframes fan-in { from { opacity: 0; transform: rotate(var(--a)) translateY(-20px) rotate(calc(var(--a) * -1)) scale(.3); } }
+
+/* Spark is the first button in the dock, near the left edge — so the fan
+   sweeps a quarter circle up and to the RIGHT (0° to 80°), never off-screen,
+   16° apart at 175 px, so no two bubbles touch. */
+.spark-fan button {
+  --a: calc(var(--i) * 16deg);
+  transform: rotate(var(--a)) translateY(-175px) rotate(calc(var(--a) * -1));
+}
+.spark-fan button:hover { transform: rotate(var(--a)) translateY(-185px) rotate(calc(var(--a) * -1)) scale(1.18); }
+.spark-fan::before { left: -40px; top: -215px; width: 250px; height: 225px; }
+@keyframes fan-in { from { opacity: 0; transform: rotate(var(--a)) translateY(-30px) rotate(calc(var(--a) * -1)) scale(.3); } }
+/* while its fan is open, a post rises above the sticky tab bar */
+.post-card:has(.spark-fan) { z-index: 20; }

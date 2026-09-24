@@ -441,7 +441,8 @@ export function SparkButton({ mine, count, top = [], onReact }) {
     setFan(false);
     onReact(mine || 'spark', center());
   }
-  const others = (top || []).filter((r) => r.type !== mine).slice(0, 2);
+  // The reactions this post got, as separate full-colour coins (mine first).
+  const coins = [...new Set([mine, ...(top || []).map((r) => r.type)].filter(Boolean))].slice(0, 3);
   return (
     <div
       className="spark-wrap"
@@ -478,10 +479,15 @@ export function SparkButton({ mine, count, top = [], onReact }) {
         aria-label={mine ? `${reactionLabel(mine)} — tap to undo` : 'Spark'}
         data-sfx="none"
       >
-        <span className="spark-stack">
-          <Glyph name={mine || 'spark'} size={21} className={`spark-main${mine ? '' : ' hollow'}`} />
-          {others.map((r) => <Glyph key={r.type} name={r.type} size={15} className="spark-mini" />)}
-        </span>
+        {coins.length === 0
+          ? <Glyph name="spark" size={20} className="spark-main hollow" />
+          : (
+            <span className="rx-coins">
+              {coins.map((t) => (
+                <span key={t} className={`rx-coin rx-${t}${t === mine ? ' mine' : ''}`}><Glyph name={t} size={14} /></span>
+              ))}
+            </span>
+          )}
         <b>{count ? compact(count) : 'Spark'}</b>
       </button>
     </div>
