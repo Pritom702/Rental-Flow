@@ -233,7 +233,7 @@ function PostCard({ post, onChange, onRemove, full = false }) {
 
       {video && (
         <div className={`pc-video-wrap${post.sale?.sold ? ' sold' : ''}`}>
-          <FeedVideo video={video} onLove={loveFromPhoto} />
+          <FeedVideo video={video} onLove={loveFromPhoto} onOpen={() => navigate(`/flows?start=${post.id}`)} />
           <Link to={`/flows?start=${post.id}`} className="pc-reels-link">Watch in Flows ›</Link>
         </div>
       )}

@@ -39,7 +39,9 @@ function observe(el, cb) {
   return () => { watchers.delete(el); observer.unobserve(el); };
 }
 
-export default function FeedVideo({ video, onLove, reel = false, active }) {
+// In the feed, one tap opens the video in Flows (onOpen); in Flows itself a
+// tap pauses or plays. A double tap adores it either way.
+export default function FeedVideo({ video, onLove, onOpen, reel = false, active }) {
   const ref = useRef(null);
   const wrap = useRef(null);
   const [muted, setMuted] = useState(!soundOn);
@@ -92,6 +94,7 @@ export default function FeedVideo({ video, onLove, reel = false, active }) {
     }
     lastTap.current = now;
     tapTimer.current = setTimeout(() => {
+      if (!reel && onOpen) { onOpen(); return; }
       const v = ref.current;
       if (!v) return;
       if (v.paused) tryPlay(); else v.pause();
@@ -107,7 +110,7 @@ export default function FeedVideo({ video, onLove, reel = false, active }) {
       onClick={onTap}
       role="button"
       tabIndex={0}
-      aria-label="Video — tap to play or pause, double-tap to love"
+      aria-label={reel ? 'Video — tap to play or pause, double-tap to adore' : 'Video — tap to watch in Flows, double-tap to adore'}
       data-sfx="none"
     >
       <video
