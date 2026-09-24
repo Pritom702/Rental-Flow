@@ -4,9 +4,10 @@
 // ============================================================
 // Two shells:
 //   PublicShell — slim header for marketing / signed-out pages.
-//   AppShell    — persistent sidebar + topbar for the signed-in workspace.
-// Sidebar links are grouped so the workspace stays readable as features grow.
-import { lazy, Suspense, useEffect, useState } from 'react';
+//   AppShell    — a top bar with the main places as buttons (and "More"),
+//                 a Create button and the account menu. On phones: a bottom
+//                 tab bar, and the full menu slides in from the side.
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Routes, Route, NavLink, Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './auth.jsx';
 import { Icon } from './icons.jsx';
@@ -40,6 +41,7 @@ import { api } from './api.js';
 import ThemeToggle from './components/ThemeToggle.jsx';
 import NotificationBell from './components/NotificationBell.jsx';
 import RewardLayer, { XpRing } from './social/RewardLayer.jsx';
+import { Glyph } from './social/glyphs.jsx';
 import { installLinkTransitions } from './transitions.js';
 
 // Pages load on first visit, so the first screen downloads only what it needs.
@@ -60,7 +62,7 @@ function usePrefetch() {
 }
 
 // Tabs in the phone tab bar, in order; the lime pill slides to the active one.
-const TABS = ['/feed', '/browse', null, '/messages', '/bookings'];
+const TABS = ['/feed', '/communities', null, '/browse', '/messages'];
 function tabIndex(pathname) {
   return TABS.findIndex((t) => t && (pathname === t || pathname.startsWith(`${t}/`)));
 }
@@ -112,41 +114,49 @@ const NAV_GROUPS = [
   },
 ];
 
-// Page title shown in the topbar, so you always know where you are.
-const PAGE_TITLES = {
-  '/browse': 'Browse', '/dashboard': 'Listings', '/bookings': 'Bookings',
-  '/customers': 'Customers', '/maintenance': 'Maintenance', '/analytics': 'Analytics',
-  '/documents': 'Documents', '/admin': 'Admin', '/items/new': 'New listing',
-  '/profile': 'My Profile', '/admin/verifications': 'ID reviews', '/messages': 'Messages', '/admin/incidents': 'Incidents',
-  '/feed': 'Feed', '/communities': 'Communities', '/admin/moderation': 'Moderation',
-};
-function titleFor(pathname) {
-  if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname];
-  if (pathname.endsWith('/edit')) return 'Edit listing';
-  if (pathname.startsWith('/messages')) return 'Messages';
-  if (pathname.startsWith('/product/')) return 'Listing';
-  if (pathname.startsWith('/c/')) return `c/${pathname.slice(3)}`;
-  if (pathname.startsWith('/post/')) return 'Post';
-  if (pathname.startsWith('/u/')) return 'Profile';
-  if (pathname.endsWith('/checkout')) return 'Check out';
-  if (pathname.endsWith('/checkin')) return 'Check in';
-  return 'Workspace';
-}
-
 function initials(name = '') {
   return name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?';
+}
+
+// The top bar's main buttons: our own glyph in a tile, a word, and for some a
+// little tag. Everything else lives under "More".
+const TOP_NAV = [
+  { to: '/feed', glyph: 'sparkle', label: 'Feed' },
+  { to: '/flows', glyph: 'play', label: 'Flows', tag: 'New' },
+  { to: '/communities', glyph: 'people', label: 'Communities' },
+  { to: '/browse', glyph: 'rent', label: 'Rent' },
+  { to: '/sell', glyph: 'sell', label: 'Sell', tag: 'Hot', hot: true },
+  { to: '/messages', glyph: 'chat', label: 'Messages', badge: 'unread', sub: true },
+  { to: '/bookings', glyph: 'ticket', label: 'Bookings', sub: true },
+];
+const MORE_NAV = NAV_GROUPS.flatMap((g) => g.links)
+  .filter((l) => !TOP_NAV.some((t) => t.to === l.to) && l.to !== '/sell');
+
+function useOutside(ref, open, close) {
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) close(); };
+    document.addEventListener('pointerdown', onDown);
+    return () => document.removeEventListener('pointerdown', onDown);
+  }, [ref, open, close]);
 }
 
 function AppShell({ children }) {
   const { user, logout } = useAuth();
   const { pathname } = useLocation();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(false);        // phones: the slide-out menu
+  const [creating, setCreating] = useState(false); // the Create choices
+  const [more, setMore] = useState(false);
+  const [me, setMeMenu] = useState(false);
+  const moreRef = useRef(null);
+  const meRef = useRef(null);
+  const createRef = useRef(null);
+  useOutside(moreRef, more, () => setMore(false));
+  useOutside(meRef, me, () => setMeMenu(false));
+  useOutside(createRef, creating, () => setCreating(false));
 
-  // Phones: the + button asks what you want to make.
-  const [creating, setCreating] = useState(false);
-
-  // Close the mobile drawer (and the + sheet) whenever the route changes.
-  useEffect(() => { setOpen(false); setCreating(false); }, [pathname]);
+  // Close every menu whenever the route changes.
+  useEffect(() => { setOpen(false); setCreating(false); setMore(false); setMeMenu(false); }, [pathname]);
 
   // Unread chat messages, for the badge on "Messages". Re-checked on every
   // page change and every 20 seconds.
@@ -159,10 +169,21 @@ function AppShell({ children }) {
     return () => { alive = false; clearInterval(t); };
   }, [pathname]);
 
+  const moreLinks = MORE_NAV.filter((l) => !l.admin || user?.role === 'admin');
+  const moreActive = moreLinks.some((l) => pathname === l.to || pathname.startsWith(`${l.to}/`));
+  const createChoices = (
+    <>
+      <Link to="/feed?compose=post" className="create-opt"><span><Glyph name="post" size={26} /></span><div><b>Post</b><small>Photos, videos, questions, polls</small></div></Link>
+      <Link to="/feed?tab=sale&compose=sell" className="create-opt sell"><span><Glyph name="sell" size={26} /></span><div><b>Sell something</b><small>Buyers message you directly</small></div></Link>
+      <Link to="/items/new" className="create-opt"><span><Glyph name="rent" size={26} /></span><div><b>Rent it out</b><small>List an item and earn every day</small></div></Link>
+    </>
+  );
+
   return (
-    <div className="shell">
+    <div className="shell shell-top">
+      {/* Phones: the full menu slides in from the side. */}
       {open && <div className="sidebar-scrim" onClick={() => setOpen(false)} />}
-      <aside className={`sidebar${open ? ' open' : ''}`}>
+      <aside className={`sidebar drawer${open ? ' open' : ''}`} aria-hidden={!open}>
         <Link to="/" className="brand"><BrandMark /></Link>
         <nav className="side-nav">
           {NAV_GROUPS.map((group) => {
@@ -183,42 +204,79 @@ function AppShell({ children }) {
           })}
         </nav>
         <div className="side-foot">
-          <div className="side-user">
-            <span className="side-avatar">{initials(user?.name)}</span>
-            <div className="side-user-meta">
-              <div className="side-user-name">{user?.name}</div>
-              <div className="side-user-role">{user?.role}</div>
-            </div>
-          </div>
-          <button className="side-logout" onClick={logout}>
-            <Icon name="logout" size={15} /> Sign out
-          </button>
+          <button className="side-logout" onClick={logout}><Icon name="logout" size={15} /> Sign out</button>
         </div>
       </aside>
 
-      <div className="shell-main">
-        <header className="topbar">
-          <button className="menu-btn" onClick={() => setOpen(true)} aria-label="Open navigation">
-            <Icon name="menu" size={18} />
-          </button>
-          <span className="crumb">RentalFlow / <b>{titleFor(pathname)}</b></span>
-          <div className="spacer" />
-          <Link to="/items/new" className="btn small hide-sm"><Icon name="plus" size={14} /> New listing</Link>
+      <header className="topnav">
+        <button className="menu-btn tn-menu" onClick={() => setOpen(true)} aria-label="Open the menu"><Icon name="menu" size={18} /></button>
+        <Link to="/feed" className="brand tn-brand"><BrandMark /></Link>
+
+        <nav className="tn-nav" aria-label="Main">
+          {TOP_NAV.map((l) => (
+            <NavLink key={l.to} to={l.to} className={`tn-btn${l.hot ? ' hot' : ''}${l.sub ? ' tn-sub' : ''}`} title={l.label}>
+              <span className="tn-tile"><Glyph name={l.glyph} size={18} /></span>
+              <span className="tn-label">{l.label}</span>
+              {l.tag && <em className={`tn-tag${l.hot ? ' hot' : ''}`}>{l.tag}</em>}
+              {l.badge === 'unread' && unread > 0 && <span className="tn-count">{unread > 9 ? '9+' : unread}</span>}
+            </NavLink>
+          ))}
+          <div className="tn-more" ref={moreRef}>
+            <button type="button" className={`tn-btn tn-sub${moreActive ? ' active' : ''}${more ? ' open' : ''}`} onClick={() => setMore((v) => !v)} aria-expanded={more}>
+              <span className="tn-tile"><Glyph name="more" size={18} /></span>
+              <span className="tn-label">More</span>
+            </button>
+            {more && (
+              <div className="tn-pop more-pop">
+                {moreLinks.map((l) => (
+                  <NavLink key={l.to} to={l.to} end={l.to === '/admin'} className="tn-pop-link">
+                    <Icon name={l.icon} size={16} />
+                    {user?.role === 'admin' && l.adminLabel ? l.adminLabel : l.label}
+                  </NavLink>
+                ))}
+              </div>
+            )}
+          </div>
+        </nav>
+
+        <div className="tn-right">
           <XpRing />
-          <ThemeToggle />
+          <div className="tn-create" ref={createRef}>
+            <button type="button" className="tn-create-btn" onClick={() => setCreating((v) => !v)} aria-expanded={creating}>
+              <Glyph name="plus" size={18} /><span>Create</span>
+            </button>
+            {creating && <div className="tn-pop create-pop">{createChoices}</div>}
+          </div>
+          <ThemeToggle className="tn-toggles" />
           <NotificationBell />
-        </header>
+          <div className="tn-me" ref={meRef}>
+            <button type="button" className="tn-avatar" onClick={() => setMeMenu((v) => !v)} aria-label="Your account" aria-expanded={me}>
+              {initials(user?.name)}
+            </button>
+            {me && (
+              <div className="tn-pop me-pop">
+                <div className="me-head"><b>{user?.name}</b><span>{user?.email}</span></div>
+                <Link to="/u/me" className="tn-pop-link"><Glyph name="sparkle" size={16} /> My profile & badges</Link>
+                <Link to="/profile" className="tn-pop-link"><Icon name="settings" size={16} /> Account settings</Link>
+                <Link to="/dashboard" className="tn-pop-link"><Icon name="package" size={16} /> {user?.role === 'admin' ? 'All listings' : 'My listings'}</Link>
+                <button type="button" className="tn-pop-link danger" onClick={logout}><Icon name="logout" size={16} /> Sign out</button>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+
+      <main className="shell-main">
         {/* Keyed by path: every page change replays the fade-up entrance. */}
         <div key={pathname} className="page-enter"><Suspense fallback={<PageLoading />}>{children}</Suspense></div>
-      </div>
+      </main>
 
+      {/* Phones: the + button's choices, as a sheet from the bottom. */}
       {creating && (
-        <div className="create-sheet-backdrop" onClick={() => setCreating(false)}>
+        <div className="create-sheet-backdrop only-phone" onClick={() => setCreating(false)}>
           <div className="create-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Create">
             <b className="create-title">What do you want to do?</b>
-            <Link to="/feed?compose=post" className="create-opt"><span>✍️</span><div><b>Post</b><small>Photos, videos, questions, polls</small></div></Link>
-            <Link to="/feed?tab=sale&compose=sell" className="create-opt sell"><span>🏷️</span><div><b>Sell something</b><small>Buyers message you directly</small></div></Link>
-            <Link to="/items/new" className="create-opt"><span>📦</span><div><b>Rent it out</b><small>List an item and earn every day</small></div></Link>
+            {createChoices}
           </div>
         </div>
       )}
@@ -227,13 +285,13 @@ function AppShell({ children }) {
       <nav className="tabbar" aria-label="Main" style={{ '--tab': tabIndex(pathname) }}>
         {tabIndex(pathname) >= 0 && <span className="tab-pill" aria-hidden="true" />}
         <NavLink to="/feed"><Icon name="sparkles" size={21} />Feed</NavLink>
-        <NavLink to="/browse"><Icon name="search" size={21} />Rent</NavLink>
+        <NavLink to="/communities"><Icon name="users" size={21} />Communities</NavLink>
         <button type="button" className="tab-create" aria-label="Create" onClick={() => setCreating(true)}><span className="tab-plus"><Icon name="plus" size={24} /></span></button>
+        <NavLink to="/browse"><Icon name="search" size={21} />Rent</NavLink>
         <NavLink to="/messages">
           <Icon name="chat" size={21} />Messages
           {unread > 0 && <span className="tab-badge">{unread}</span>}
         </NavLink>
-        <NavLink to="/bookings"><Icon name="calendar" size={21} />Bookings</NavLink>
       </nav>
     </div>
   );
@@ -319,8 +377,9 @@ export default function App() {
         <Route path="/post/:id" element={<AnyShell><PostPage /></AnyShell>} />
         <Route path="/u/:who" element={<AnyShell><UserProfile /></AnyShell>} />
         <Route path="/communities" element={<AnyShell><Communities /></AnyShell>} />
-        <Route path="/flow" element={<Flow />} />
-        <Route path="/reels" element={<Navigate to="/flow" replace />} />
+        <Route path="/flows" element={<Flow />} />
+        <Route path="/flow" element={<Navigate to="/flows" replace />} />
+        <Route path="/reels" element={<Navigate to="/flows" replace />} />
         <Route path="/sell" element={<Navigate to="/feed?tab=sale&compose=sell" replace />} />
         <Route path="/admin/moderation" element={<RequireAdmin><Moderation /></RequireAdmin>} />
         <Route path="/messages" element={<RequireAuth><Messages /></RequireAuth>} />

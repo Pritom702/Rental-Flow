@@ -11,6 +11,7 @@ import { api } from '../api.js';
 import { play } from '../sfx.js';
 import { timeAgo } from '../social/util.jsx';
 import { say } from '../social/toast.js';
+import { Glyph } from '../social/glyphs.jsx';
 
 export default function Moderation() {
   const [data, setData] = useState(null);
@@ -21,7 +22,7 @@ export default function Moderation() {
     if (adult && !window.confirm('Remove as adult content? The author gets a strike: a warning the first time, a ban the second.')) return;
     await api.post(`/community/moderation/${type}/${id}`, { action, adult });
     play('success');
-    say(action === 'remove' ? (adult ? 'Removed — author warned or banned' : 'Removed') : action === 'restore' ? 'Restored' : 'Reports cleared', '🛡️');
+    say(action === 'remove' ? (adult ? 'Removed — author warned or banned' : 'Removed') : action === 'restore' ? 'Restored' : 'Reports cleared', 'shield');
     load();
   }
 
@@ -35,10 +36,10 @@ export default function Moderation() {
           <div className="sub">Posts and comments that members reported. Three reports hide something until you decide.</div>
         </div>
       </div>
-      {empty && <div className="center-empty"><span style={{ fontSize: 34 }}>🧘</span><div className="empty-title">All clear</div>Nothing is waiting for review.</div>}
+      {empty && <div className="center-empty"><Glyph name="shield" size={40} /><div className="empty-title">All clear</div>Nothing is waiting for review.</div>}
       <div className="mod-list">
         {data.posts.map((p) => (
-          <Item key={`p${p.id}`} kind="Post" status={p.status} reports={p.reports} who={p.author_name} when={p.created_at} link={`/post/${p.id}`} where={`c/${p.community_slug}`}
+          <Item key={`p${p.id}`} kind="Post" status={p.status} reports={p.reports} who={p.author_name} when={p.created_at} link={`/post/${p.id}`} where={p.community_slug}
             body={p.body} images={(p.attachments || []).filter((a) => a.type === 'image' || a.type === 'video')}
             onAct={(a, adult) => act('post', p.id, a, adult)} />
         ))}

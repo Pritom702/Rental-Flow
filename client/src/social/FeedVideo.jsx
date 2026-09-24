@@ -1,6 +1,6 @@
 // ============================================================
 //  RentalFlow  |  Community  |  Owner: M2 - Tawheed Bin Hamid (Pritom)
-//  GitHub: @pritom702  |  Part: video in the feed and in Flow
+//  GitHub: @pritom702  |  Part: video in the feed and in Flows
 // ============================================================
 // Light by design:
 //   • nothing downloads until the video is on screen (preload="none" + the
@@ -13,6 +13,7 @@
 //     Flow shows it full screen
 import { useEffect, useRef, useState } from 'react';
 import { duration as fmt } from './media.js';
+import { Glyph } from './glyphs.jsx';
 
 const KEY = 'rentalflow_video_sound';
 let soundOn = false;
@@ -61,7 +62,7 @@ export default function FeedVideo({ video, onLove, reel = false, active }) {
     });
   }
 
-  // Feed: play while visible. Flow: the parent says which one is active.
+  // Feed: play while visible. Flows: the parent says which one is active.
   useEffect(() => {
     if (reel) return undefined;
     return observe(wrap.current, (visible) => {
@@ -125,7 +126,7 @@ export default function FeedVideo({ video, onLove, reel = false, active }) {
       {!started && <span className="fv-play idle" aria-hidden="true">▶</span>}
       {video.duration ? <span className="fv-time">{fmt(video.duration)}</span> : null}
       <button type="button" className="fv-sound" onClick={toggleSound} aria-label={muted ? 'Turn sound on' : 'Mute'} data-sfx="none">
-        {muted ? '🔇' : '🔊'}
+        <Glyph name={muted ? 'sound-off' : 'sound-on'} size={18} />
       </button>
       <i className="fv-bar" style={{ transform: `scaleX(${progress})` }} />
     </div>

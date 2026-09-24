@@ -10,6 +10,7 @@ import { Icon, categoryIcon } from '../icons.jsx';
 import { play } from '../sfx.js';
 import { loadMe } from '../social/store.js';
 import { compact } from '../social/util.jsx';
+import { Glyph } from '../social/glyphs.jsx';
 
 export default function Communities() {
   const { user } = useAuth();
@@ -50,14 +51,14 @@ export default function Communities() {
           {shown.map((c) => (
             <Link key={c.slug} to={`/c/${c.slug}`} className={`community-tile${c.joined ? ' joined' : ''}`}>
               <span className="ct-icon"><Icon name={categoryIcon(c.name)} size={24} /></span>
-              <b>c/{c.slug}</b>
+              <b>{c.name}</b>
               <span className="ct-desc">{c.description}</span>
               <span className="ct-stats">
                 <span>{compact(c.member_count)} members</span>
-                {c.posts_this_week > 0 && <span className="ct-hot">🔥 {c.posts_this_week} this week</span>}
+                {c.posts_this_week > 0 && <span className="ct-hot"><Glyph name="flame" size={13} /> {c.posts_this_week} this week</span>}
                 {c.listings > 0 && <span>{c.listings} for rent</span>}
               </span>
-              <button type="button" className={`btn small ${c.joined ? 'secondary' : 'accent'}`} onClick={(e) => toggle(c, e)}>{c.joined ? '✓ Joined' : 'Join'}</button>
+              <button type="button" className={`btn small ${c.joined ? 'secondary' : 'accent'}`} onClick={(e) => toggle(c, e)}>{c.joined ? 'Joined' : 'Join'}</button>
             </Link>
           ))}
         </div>

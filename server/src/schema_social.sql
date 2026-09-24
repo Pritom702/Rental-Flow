@@ -140,13 +140,22 @@ CREATE INDEX IF NOT EXISTS posts_hashtags_idx   ON posts USING GIN (hashtags);
 CREATE INDEX IF NOT EXISTS posts_moderation_idx ON posts (status) WHERE status <> 'visible' OR report_count > 0;
 
 -- One reaction per person per post; changing it replaces the old one.
+-- RentalFlow's own set ("sparks"): spark, want (I want this), genius, wow, lol, adore.
 CREATE TABLE IF NOT EXISTS post_reactions (
   post_id    INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
   user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  type       VARCHAR(10) NOT NULL CHECK (type IN ('like', 'love', 'fire', 'haha', 'wow', 'sad')),
+  type       VARCHAR(10) NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (post_id, user_id)
 );
+-- The first version used a generic emoji set; move those reactions over.
+ALTER TABLE post_reactions DROP CONSTRAINT IF EXISTS post_reactions_type_check;
+UPDATE post_reactions SET type = CASE type
+  WHEN 'like' THEN 'spark' WHEN 'fire' THEN 'spark' WHEN 'love' THEN 'adore'
+  WHEN 'haha' THEN 'lol' WHEN 'sad' THEN 'genius' ELSE type END
+ WHERE type IN ('like', 'fire', 'love', 'haha', 'sad');
+ALTER TABLE post_reactions ADD CONSTRAINT post_reactions_type_check
+  CHECK (type IN ('spark', 'want', 'genius', 'wow', 'lol', 'adore'));
 CREATE INDEX IF NOT EXISTS post_reactions_user_idx ON post_reactions (user_id);
 
 CREATE TABLE IF NOT EXISTS post_saves (
@@ -243,3 +252,20 @@ ALTER TABLE notifications ADD CONSTRAINT notifications_type_check
                   'social_reaction', 'social_comment', 'social_reply', 'social_mention',
                   'social_follow', 'social_milestone', 'social_wanted', 'social_moderation'));
 CREATE INDEX IF NOT EXISTS notifications_link_idx ON notifications (user_id, type, link) WHERE read_at IS NULL;
+
+-- ---------------------------------------------------------------- interests
+-- What each member is into, learned from what they do (see interests.js):
+-- looking at, booking or listing a product in a category, and reacting,
+-- commenting, saving, voting or reading in a community. Scores fade by 3% a
+-- day, so the feed follows what someone likes NOW. "For you" ranks with it.
+CREATE TABLE IF NOT EXISTS interests (
+  user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  community_id INTEGER NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+  score        REAL NOT NULL DEFAULT 0,
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, community_id)
+);
+-- People who joined communities before interests existed start with them.
+INSERT INTO interests (user_id, community_id, score)
+SELECT user_id, community_id, 5 FROM community_members
+ON CONFLICT (user_id, community_id) DO NOTHING;

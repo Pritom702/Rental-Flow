@@ -20,6 +20,7 @@ import { assertCleanImage, recordAdultStrike, adultError } from '../moderation.j
 import { screenImage } from '../nsfwEngine.js';
 import { generateClientTokenFromReadWriteToken } from '@vercel/blob/client';
 import { head } from '@vercel/blob';
+import { noteInterestLater, interestSql } from '../interests.js';
 import {
   HOT_SQL, parseHashtags, parseMentions, handleFromName, policyCheck, sniffFile,
   levelFor, BADGES, badgeInfo,
@@ -28,7 +29,10 @@ import {
 const router = Router();
 
 const KINDS = ['post', 'showcase', 'question', 'guide', 'wanted', 'poll', 'sell'];
-const REACTIONS = { like: '👍', love: '❤️', fire: '🔥', haha: '😂', wow: '😮', sad: '😢' };
+// RentalFlow's own reactions, and how a notification says each one.
+const REACTIONS = {
+  spark: 'sparked', want: 'wants what you posted in', genius: 'found genius', wow: 'was wowed by', lol: 'laughed at', adore: 'adores',
+};
 const PAGE = 12;
 const REPORTS_TO_HIDE = 3;
 const MILESTONES = [10, 25, 50, 100, 250, 500];
@@ -94,6 +98,11 @@ async function nameOf(userId) {
   return rows[0]?.name || 'Someone';
 }
 
+// The week's top 3 posts (most reactions + comments). Everyone sees them near
+// the top of their feed, marked "Top post".
+const TOP_SQL = `(p.id IN (SELECT t.id FROM posts t WHERE t.status = 'visible' AND t.created_at > NOW() - INTERVAL '7 days'
+    AND t.reaction_count + t.comment_count > 0 ORDER BY t.reaction_count + 2 * t.comment_count DESC, t.id DESC LIMIT 3))`;
+
 // ---------------------------------------------------------------- posts, as the feed shows them
 function postSelect(viewer) {
   const v = viewer ? Number(viewer) : null;
@@ -105,6 +114,7 @@ function postSelect(viewer) {
            (u.role <> 'member' OR (u.verification_status = 'verified' AND u.nid_number IS NOT NULL)) AS author_verified,
            COALESCE(us.xp, 0) AS author_xp, COALESCE(us.streak_days, 0) AS author_streak,
            c.slug AS community_slug, c.name AS community_name, c.category_id,
+           ${TOP_SQL} AS is_top,
            i.name AS item_name, i.rental_price AS item_price, i.status AS item_status,
            (SELECT url FROM item_images WHERE item_id = i.id ORDER BY position, id LIMIT 1) AS item_cover,
            (SELECT COALESCE(json_agg(t), '[]') FROM (
@@ -117,8 +127,9 @@ function postSelect(viewer) {
            ${v ? `(SELECT type FROM post_reactions WHERE post_id = p.id AND user_id = ${v}) AS my_reaction,
            EXISTS (SELECT 1 FROM post_saves WHERE post_id = p.id AND user_id = ${v}) AS saved,
            (SELECT option_idx FROM poll_votes WHERE post_id = p.id AND user_id = ${v}) AS my_vote,
-           EXISTS (SELECT 1 FROM follows WHERE follower_id = ${v} AND followee_id = p.author_id) AS following_author`
-    : `NULL AS my_reaction, FALSE AS saved, NULL AS my_vote, FALSE AS following_author`}
+           EXISTS (SELECT 1 FROM follows WHERE follower_id = ${v} AND followee_id = p.author_id) AS following_author,
+           ROUND(${interestSql(v)}::numeric, 1)::float AS my_interest`
+    : `NULL AS my_reaction, FALSE AS saved, NULL AS my_vote, FALSE AS following_author, 0 AS my_interest`}
       FROM posts p
       JOIN users u ON u.id = p.author_id
       JOIN communities c ON c.id = p.community_id
@@ -230,6 +241,7 @@ async function setMembership(req, res, join) {
     if (rowCount) {
       await query('UPDATE communities SET member_count = member_count + 1 WHERE id = $1', [c.id]);
       grant(res, 'join');
+      noteInterestLater(req.user.id, { communityId: c.id }, 'join');
     }
   } else {
     const { rowCount } = await query('DELETE FROM community_members WHERE community_id = $1 AND user_id = $2', [c.id, req.user.id]);
@@ -253,6 +265,7 @@ router.post('/join-many', authRequired, async (req, res) => {
     [slugs, req.user.id]
   );
   if (rows.length) grant(res, 'join');
+  for (const r of rows) noteInterestLater(req.user.id, { communityId: r.id }, 'join');
   res.json({ joined: rows.length });
 });
 
@@ -276,17 +289,27 @@ function feedFilters(req, me, params) {
     add(`p.author_id IN (SELECT followee_id FROM follows WHERE follower_id = $?)`, me);
   } else if (me && scope === 'saved') {
     add(`p.id IN (SELECT post_id FROM post_saves WHERE user_id = $?)`, me);
-  } else if (me && scope === 'home') {
-    // My communities + people I follow + my own posts. Someone who has not
-    // joined anything yet simply sees everything.
-    params.push(me);
-    const n = params.length;
-    where.push(`(NOT EXISTS (SELECT 1 FROM community_members WHERE user_id = $${n})
-                 OR p.community_id IN (SELECT community_id FROM community_members WHERE user_id = $${n})
-                 OR p.author_id IN (SELECT followee_id FROM follows WHERE follower_id = $${n})
-                 OR p.author_id = $${n})`);
   }
   return where;
+}
+
+// "For you" never filters anything out (a feed must not come up empty just
+// because someone joined a quiet community); it ranks:
+//   fresh engagement (hot)
+//   × what I am into — learned from what I view, book, list, react to, read
+//     and join (interests.js), on a log scale so one topic cannot take over
+//   × people I follow
+//   × the week's top posts, which everyone gets to see
+function forYouOrder(me, params) {
+  params.push(me);
+  const n = params.length;
+  // A gentler age penalty than "Hot" (power 1.15 instead of 1.5), so a post
+  // from a day ago about something I love can still beat a fresh one I don't.
+  return `(((p.reaction_count + 2 * p.comment_count + 1)
+      / POWER(EXTRACT(EPOCH FROM (NOW() - p.created_at)) / 3600 + 2, 1.15))
+    * (1 + 2.5 * LN(1 + ${interestSql(`$${n}`)})
+         + 1.5 * (p.author_id IN (SELECT followee_id FROM follows WHERE follower_id = $${n}))::int
+         + 3 * ${TOP_SQL}::int)) DESC, p.id DESC`;
 }
 
 router.get('/feed', async (req, res) => {
@@ -297,7 +320,8 @@ router.get('/feed', async (req, res) => {
   if (sort === 'top') where.push(`p.created_at > NOW() - INTERVAL '7 days'`);
   const order = sort === 'new' ? 'p.created_at DESC, p.id DESC'
     : sort === 'top' ? '(p.reaction_count + 2 * p.comment_count) DESC, p.id DESC'
-      : `${HOT_SQL} DESC, p.id DESC`;
+      : me && req.query.scope === 'home' ? forYouOrder(me, params)
+        : `(${HOT_SQL} * (1 + 2.5 * ${TOP_SQL}::int)) DESC, p.id DESC`;
   const offset = Math.max(0, Math.min(Number(req.query.offset) || 0, 2000));
   params.push(PAGE + 1, offset);
   const { rows } = await query(
@@ -332,6 +356,7 @@ router.get('/posts/:id', async (req, res) => {
     try { return jwt.verify(req.headers.authorization.slice(7), process.env.JWT_SECRET).role === 'admin'; } catch { return false; }
   })();
   if (!post || (post.status !== 'visible' && post.author_id !== me && !isAdmin)) throw httpError(404, 'This post is not available.');
+  if (me) noteInterestLater(me, { communityId: post.community_id }, 'read_post');
   const { rows: comments } = await query(
     `SELECT cm.id, cm.parent_id, cm.body, cm.like_count, cm.created_at, cm.author_id, cm.status,
             u.name AS author_name, u.handle AS author_handle,
@@ -502,6 +527,7 @@ router.post('/posts', authRequired, async (req, res) => {
   }
 
   grant(res, 'post', ...(poll ? ['poll'] : []));
+  noteInterestLater(me, { communityId: community.id }, 'post');
   res.status(201).json(await loadPost(created.id, me));
 });
 
@@ -571,17 +597,18 @@ router.post('/posts/:id/react', authRequired, async (req, res) => {
   }
 
   const { rows: [now] } = await query('SELECT reaction_count FROM posts WHERE id = $1', [p.id]);
+  if (added) noteInterestLater(me, { postId: p.id }, 'react');
   if (added && p.author_id !== me) {
     grant(res, 'react');
     award(p.author_id, ['reaction_received']).catch(() => {});
     const others = now.reaction_count - 1;
     const who = await nameOf(me);
     await notify(p.author_id, me, 'social_reaction', `/post/${p.id}`,
-      `${who}${others > 0 ? ` and ${others} other${others === 1 ? '' : 's'}` : ''} reacted ${REACTIONS[type]} to your post`,
+      `${who}${others > 0 ? ` and ${others} other${others === 1 ? '' : 's'}` : ''} ${others > 0 ? 'reacted to' : REACTIONS[type].replace(/ in$/, '')} your post`,
       snippet(p.body) || 'Your post', { fold: true });
     if (MILESTONES.includes(now.reaction_count)) {
       await notify(p.author_id, null, 'social_milestone', `/post/${p.id}`,
-        `Your post just hit ${now.reaction_count} reactions 🎉`, snippet(p.body) || 'Keep it up!');
+        `Your post just hit ${now.reaction_count} reactions`, snippet(p.body) || 'Keep it up!');
     }
   }
   const { rows: top } = await query(
@@ -593,6 +620,7 @@ router.post('/posts/:id/save', authRequired, async (req, res) => {
   const del = await query('DELETE FROM post_saves WHERE post_id = $1 AND user_id = $2', [req.params.id, req.user.id]);
   if (del.rowCount) return res.json({ saved: false });
   await query('INSERT INTO post_saves (post_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [req.params.id, req.user.id]);
+  noteInterestLater(req.user.id, { postId: Number(req.params.id) }, 'save');
   res.json({ saved: true });
 });
 
@@ -600,6 +628,7 @@ router.post('/posts/:id/share', authRequired, async (req, res) => {
   const { rows } = await query('UPDATE posts SET share_count = share_count + 1 WHERE id = $1 RETURNING share_count', [req.params.id]);
   if (!rows[0]) throw httpError(404, 'Post not found.');
   grant(res, 'share');
+  noteInterestLater(req.user.id, { postId: Number(req.params.id) }, 'share');
   res.json(rows[0]);
 });
 
@@ -617,6 +646,7 @@ router.post('/posts/:id/vote', authRequired, async (req, res) => {
   const poll = { ...p.poll, counts };
   await query('UPDATE posts SET poll = $2 WHERE id = $1', [p.id, poll]);
   grant(res, 'vote');
+  noteInterestLater(req.user.id, { postId: p.id }, 'vote');
   res.json({ poll, my_vote: option });
 });
 
@@ -663,6 +693,7 @@ router.post('/posts/:id/comments', authRequired, async (req, res) => {
   }
 
   grant(res, 'comment');
+  noteInterestLater(me, { postId: p.id }, 'comment');
   const { rows: [out] } = await query(
     `SELECT cm.id, cm.parent_id, cm.body, cm.like_count, cm.created_at, cm.author_id, cm.status,
             u.name AS author_name, u.handle AS author_handle, FALSE AS liked,
@@ -940,7 +971,7 @@ router.get('/trending', async (_req, res) => {
     query(`SELECT tag, COUNT(*)::int AS n FROM posts, UNNEST(hashtags) AS tag
             WHERE status = 'visible' AND created_at > NOW() - INTERVAL '7 days'
             GROUP BY tag ORDER BY n DESC, tag LIMIT 8`),
-    query(`SELECT p.id, LEFT(p.body, 120) AS body, p.reaction_count, p.comment_count, c.slug AS community_slug,
+    query(`SELECT p.id, LEFT(p.body, 120) AS body, p.reaction_count, p.comment_count, c.slug AS community_slug, c.name AS community_name,
                   (SELECT a->>'url' FROM jsonb_array_elements(p.attachments) a WHERE a->>'type' = 'image' LIMIT 1) AS image
              FROM posts p JOIN communities c ON c.id = p.community_id
             WHERE p.status = 'visible' AND p.created_at > NOW() - INTERVAL '7 days'

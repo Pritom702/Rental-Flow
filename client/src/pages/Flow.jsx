@@ -1,6 +1,6 @@
 // ============================================================
 //  RentalFlow  |  Community  |  Owner: M2 - Tawheed Bin Hamid (Pritom)
-//  GitHub: @pritom702  |  Part: Flow — every video, full screen, swipe up
+//  GitHub: @pritom702  |  Part: Flows — every video, full screen, swipe up
 // ============================================================
 // One video fills the screen; swipe (or scroll, or ↑ ↓) to the next. Only the
 // video on screen plays — the others are just their cover frames — and the
@@ -14,7 +14,8 @@ import { money } from '../money.js';
 import { play } from '../sfx.js';
 import { burst } from '../fx.js';
 import FeedVideo from '../social/FeedVideo.jsx';
-import { Avatar, CONDITIONS, RichText, VerifiedTick, compact, reactionEmoji } from '../social/util.jsx';
+import { Avatar, CONDITIONS, RichText, VerifiedTick, compact } from '../social/util.jsx';
+import { Glyph } from '../social/glyphs.jsx';
 import { say } from '../social/toast.js';
 
 export default function Flow() {
@@ -85,13 +86,13 @@ export default function Flow() {
     <div className="reels-page">
       <div className="reels-top">
         <button type="button" className="reels-back" onClick={() => (window.history.state?.idx > 0 ? navigate(-1) : navigate('/feed'))} aria-label="Back"><Icon name="close" size={20} /></button>
-        <b className="flow-mark">Flow</b>
+        <b className="flow-mark">Flows</b>
       </div>
       {reels == null ? (
         <div className="reel-loading" aria-label="Loading" />
       ) : reels.length === 0 ? (
         <div className="reel-empty">
-          <span>🎬</span>
+          <Glyph name="play" size={48} />
           <b>No videos yet</b>
           <span>Post the first one — it shows up here for everyone.</span>
           <Link to="/feed" className="btn accent">Go to the feed</Link>
@@ -115,8 +116,8 @@ function Reel({ post, i, active, onChange }) {
 
   async function love(e) {
     if (guest()) return;
-    if (e?.clientX) burst(e.clientX, e.clientY, '❤️', 10);
-    const type = post.my_reaction ? null : 'love';
+    if (e?.clientX) burst(e.clientX, e.clientY, 'adore', 10);
+    const type = post.my_reaction ? null : 'adore';
     if (e?.clientX && post.my_reaction) return;       // double-tap never un-loves
     onChange({ ...post, my_reaction: type, reaction_count: post.reaction_count + (type ? 1 : -1) });
     if (type) play('pop');
@@ -131,7 +132,7 @@ function Reel({ post, i, active, onChange }) {
     const url = `${window.location.origin}/post/${post.id}`;
     try {
       if (navigator.share && matchMedia('(pointer: coarse)').matches) await navigator.share({ url });
-      else { await navigator.clipboard.writeText(url); say('Link copied', '🔗'); }
+      else { await navigator.clipboard.writeText(url); say('Link copied', 'link'); }
       if (user) api.post(`/community/posts/${post.id}/share`, {}).catch(() => {});
     } catch { /* cancelled */ }
   }
@@ -162,19 +163,19 @@ function Reel({ post, i, active, onChange }) {
             <RichText text={post.body} />
           </div>
         )}
-        <Link to={`/c/${post.community_slug}`} className="reel-community">c/{post.community_slug}</Link>
+        <Link to={`/c/${post.community_slug}`} className="reel-community">{post.community_name}</Link>
         {post.sale && !post.sale.sold && (
-          <Link to={`/post/${post.id}`} className="reel-sale">🏷️ {money(post.sale.price)} · {CONDITIONS[post.sale.condition]} ›</Link>
+          <Link to={`/post/${post.id}`} className="reel-sale"><Glyph name="sell" size={16} /> {money(post.sale.price)} · {CONDITIONS[post.sale.condition]} ›</Link>
         )}
-        {post.item_id && post.item_name && <Link to={`/product/${post.item_id}`} className="reel-sale">📦 Rent {post.item_name} · {money(post.item_price)}/day ›</Link>}
+        {post.item_id && post.item_name && <Link to={`/product/${post.item_id}`} className="reel-sale"><Glyph name="rent" size={16} /> Rent {post.item_name} · {money(post.item_price)}/day ›</Link>}
       </div>
       <div className="reel-actions">
-        <button type="button" className={`ra${post.my_reaction ? ' on' : ''}`} onClick={() => love()} aria-label="Love" data-sfx="none">
-          <span>{post.my_reaction ? reactionEmoji(post.my_reaction) : '🤍'}</span><small>{compact(post.reaction_count)}</small>
+        <button type="button" className={`ra${post.my_reaction ? ' on' : ''}`} onClick={() => love()} aria-label="Adore" data-sfx="none">
+          <span><Glyph name={post.my_reaction || 'adore'} size={28} className={post.my_reaction ? '' : 'hollow'} /></span><small>{compact(post.reaction_count)}</small>
         </button>
-        <Link to={`/post/${post.id}#reply`} className="ra" aria-label="Comments"><span>💬</span><small>{compact(post.comment_count)}</small></Link>
-        <button type="button" className="ra" onClick={share} aria-label="Share"><span>↗️</span><small>{post.share_count ? compact(post.share_count) : 'Share'}</small></button>
-        <button type="button" className={`ra${post.saved ? ' on' : ''}`} onClick={save} aria-label="Save"><span>{post.saved ? '🔖' : '📑'}</span><small>{post.saved ? 'Saved' : 'Save'}</small></button>
+        <Link to={`/post/${post.id}#reply`} className="ra" aria-label="Comments"><span><Glyph name="chat" size={26} /></span><small>{compact(post.comment_count)}</small></Link>
+        <button type="button" className="ra" onClick={share} aria-label="Share"><span><Glyph name="pass" size={26} /></span><small>{post.share_count ? compact(post.share_count) : 'Pass'}</small></button>
+        <button type="button" className={`ra${post.saved ? ' on' : ''}`} onClick={save} aria-label="Save"><span><Glyph name={post.saved ? 'keep-on' : 'keep'} size={26} /></span><small>{post.saved ? 'Kept' : 'Keep'}</small></button>
       </div>
     </section>
   );

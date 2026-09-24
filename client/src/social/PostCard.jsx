@@ -4,8 +4,8 @@
 // ============================================================
 // Everything a post can hold — text, photos, files, a link, a poll, a
 // "wanted" request, something for sale, a tagged listing — and the things
-// people do with it: react (tap, or hold for the emoji tray), double-tap a
-// photo to love it, comment, share, save, report.
+// people do with it: spark it (tap, or hold for the fan of six sparks), double-tap a
+// photo to adore it, reply, pass it on, keep it, report.
 // Every action updates the screen first and the server second, so it feels
 // instant; if the server says no, the card quietly goes back.
 import { memo, useEffect, useRef, useState } from 'react';
@@ -17,8 +17,9 @@ import { money } from '../money.js';
 import { play } from '../sfx.js';
 import { burst } from '../fx.js';
 import {
-  Avatar, CONDITIONS, KINDS, LevelChip, REACTIONS, RichText, VerifiedTick, compact, reactionEmoji, timeAgo,
+  Avatar, CONDITIONS, CommunityChip, KINDS, REACTIONS, RichText, VerifiedTick, compact, reactionLabel, timeAgo,
 } from './util.jsx';
+import { Glyph } from './glyphs.jsx';
 import { fileSize } from './media.js';
 import FeedVideo from './FeedVideo.jsx';
 import { say } from './toast.js';
@@ -61,7 +62,7 @@ function PostCard({ post, onChange, onRemove, full = false }) {
     update({ my_reaction: next, reaction_count: post.reaction_count + delta });
     if (next) {
       play('pop');
-      if (from) burst(from.x, from.y, reactionEmoji(next), 7);
+      if (from) burst(from.x, from.y, next, 7);
     }
     try {
       const r = await api.post(`/community/posts/${post.id}/react`, { type: next });
@@ -75,8 +76,8 @@ function PostCard({ post, onChange, onRemove, full = false }) {
     if (guest()) return;
     const r = e.currentTarget.getBoundingClientRect();
     const at = { x: e.clientX || r.left + r.width / 2, y: e.clientY || r.top + r.height / 2 };
-    burst(at.x, at.y, '❤️', 10);
-    if (post.my_reaction !== 'love') react('love');
+    burst(at.x, at.y, 'adore', 10);
+    if (post.my_reaction !== 'adore') react('adore');
     else play('pop');
   }
 
@@ -86,7 +87,7 @@ function PostCard({ post, onChange, onRemove, full = false }) {
     const text = post.body.slice(0, 100) || 'On RentalFlow';
     try {
       if (navigator.share && matchMedia('(pointer: coarse)').matches) await navigator.share({ title: 'RentalFlow', text, url });
-      else { await navigator.clipboard.writeText(url); say('Link copied — paste it anywhere', '🔗'); }
+      else { await navigator.clipboard.writeText(url); say('Link copied — paste it anywhere', 'link'); }
     } catch { return; }
     if (user) api.post(`/community/posts/${post.id}/share`, {}).then((r) => update(r)).catch(() => {});
   }
@@ -98,21 +99,21 @@ function PostCard({ post, onChange, onRemove, full = false }) {
     try {
       const r = await api.post(`/community/posts/${post.id}/save`, {});
       update(r);
-      say(r.saved ? 'Saved — find it under Saved' : 'Removed from Saved', r.saved ? '🔖' : '✓');
+      say(r.saved ? 'Kept — find it under Kept' : 'Removed from Kept', r.saved ? 'keep-on' : 'check');
     } catch { update({ saved: post.saved }); }
   }
   async function remove() {
     setMenu(false);
     if (!window.confirm('Delete this post? This cannot be undone.')) return;
     await api.del(`/community/posts/${post.id}`);
-    say('Post deleted', '🗑️');
+    say('Post deleted', 'trash');
     onRemove?.(post.id);
   }
   async function report(reason) {
     setMenu(false);
     if (guest()) return;
     await api.post('/community/report', { post_id: post.id, reason });
-    say('Thanks — our team will take a look', '🛡️');
+    say('Thanks — our team will take a look', 'shield');
   }
 
   // ------------------------------------------------ polls, sales
@@ -121,14 +122,14 @@ function PostCard({ post, onChange, onRemove, full = false }) {
     const poll = { ...post.poll, counts: post.poll.counts.map((c, j) => (j === i ? c + 1 : c)) };
     update({ poll, my_vote: i });
     play('pop');
-    try { update(await api.post(`/community/posts/${post.id}/vote`, { option: i })); } catch (e) { say(e.message, '⚠️'); }
+    try { update(await api.post(`/community/posts/${post.id}/vote`, { option: i })); } catch (e) { say(e.message, 'warn'); }
   }
   async function messageSeller() {
     if (guest()) return;
     try {
       const { id } = await api.post('/messages/conversations', { post_id: post.id });
       navigate(`/messages/${id}`);
-    } catch (e) { say(e.message, '⚠️'); }
+    } catch (e) { say(e.message, 'warn'); }
   }
   async function markSold() {
     const sold = !post.sale.sold;
@@ -136,7 +137,7 @@ function PostCard({ post, onChange, onRemove, full = false }) {
     try {
       const r = await api.patch(`/community/posts/${post.id}/sale`, { sold });
       update(r);
-      if (sold) { play('success'); say('Marked as sold — nice one!', '💸'); }
+      if (sold) { play('success'); say('Marked as sold — nice one!', 'coin'); }
     } catch { update({ sale: post.sale }); }
   }
 
@@ -144,36 +145,48 @@ function PostCard({ post, onChange, onRemove, full = false }) {
   const pollClosed = post.poll && new Date(post.poll.closes_at) < new Date();
   const showResults = post.poll && (post.my_vote != null || pollClosed || !user || mine);
 
+  // Why this post is in my feed — shown as a small line above it.
+  const reason = post.is_top ? { glyph: 'trophy', text: 'Top post this week' }
+    : post.following_author && !mine ? { glyph: 'people', text: `You follow ${post.author_name.split(' ')[0]}` }
+      : post.my_interest >= 3 && !mine ? { glyph: 'spark', text: `You're into ${post.community_name}` }
+        : null;
+
   return (
-    <article className={`post-card kind-${post.kind}${post.status !== 'visible' ? ' is-hidden' : ''}`} id={`post-${post.id}`}>
+    <article className={`post-card kind-${post.kind}${post.status !== 'visible' ? ' is-hidden' : ''}${post.is_top ? ' is-top' : ''}`} id={`post-${post.id}`}>
+      {post.kind !== 'post' && (
+        <span className={`kind-ribbon k-${post.kind}`}><Glyph name={KINDS[post.kind].glyph} size={14} />{KINDS[post.kind].label}</span>
+      )}
+      {reason && !full && <div className="pc-reason"><Glyph name={reason.glyph} size={14} />{reason.text}</div>}
       <header className="pc-head">
-        <Link to={`/u/${post.author_handle || post.author_id}`} className="pc-avatar"><Avatar id={post.author_id} name={post.author_name} size={42} ring={post.author_streak >= 3} /></Link>
+        <Link to={`/u/${post.author_handle || post.author_id}`} className="pc-avatar" title={`Level ${post.author_level} · ${post.author_level_name}`}>
+          <span className="lvl-avatar" style={{ '--lv': `${Math.min(1, post.author_level / 10) * 360}deg` }}>
+            <Avatar id={post.author_id} name={post.author_name} size={40} />
+          </span>
+          <span className="lvl-num">{post.author_level}</span>
+        </Link>
         <div className="pc-who">
           <div className="pc-name">
             <Link to={`/u/${post.author_handle || post.author_id}`}>{post.author_name}</Link>
             {post.author_verified && <VerifiedTick />}
-            <LevelChip level={post.author_level} title={`Level ${post.author_level} · ${post.author_level_name}`} />
-            {post.author_streak >= 3 && <span className="pc-streak" title={`${post.author_streak}-day streak`}>🔥{post.author_streak}</span>}
+            {post.author_streak >= 3 && <span className="pc-streak" title={`${post.author_streak}-day streak`}><Glyph name="flame" size={14} />{post.author_streak}</span>}
           </div>
           <div className="pc-sub">
-            <Link to={`/c/${post.community_slug}`}>c/{post.community_slug}</Link>
-            <span>·</span>
+            <CommunityChip slug={post.community_slug} name={post.community_name} small />
             <Link to={postUrl} className="pc-time">{timeAgo(post.created_at)}{post.edited_at ? ' · edited' : ''}</Link>
           </div>
         </div>
-        {post.kind !== 'post' && <span className={`kind-chip k-${post.kind}`}>{KINDS[post.kind].emoji} {KINDS[post.kind].label}</span>}
         <div className="pc-menu-wrap">
           <button type="button" className="icon-btn" aria-label="More" onClick={() => setMenu((v) => !v)}>
-            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.8" fill="currentColor" /><circle cx="12" cy="12" r="1.8" fill="currentColor" /><circle cx="19" cy="12" r="1.8" fill="currentColor" /></svg>
+            <Glyph name="more" size={18} />
           </button>
           {menu && (
             <div className="pc-menu" onMouseLeave={() => setMenu(false)}>
-              <button type="button" onClick={toggleSave}>{post.saved ? '🔖 Unsave' : '🔖 Save'}</button>
-              <button type="button" onClick={() => { setMenu(false); share(); }}>🔗 Copy link</button>
-              {(mine || user?.role === 'admin') && <button type="button" className="danger" onClick={remove}>🗑️ Delete</button>}
+              <button type="button" onClick={toggleSave}><Glyph name={post.saved ? 'keep-on' : 'keep'} size={16} />{post.saved ? 'Remove from Kept' : 'Keep'}</button>
+              <button type="button" onClick={() => { setMenu(false); share(); }}><Glyph name="link" size={16} />Copy link</button>
+              {(mine || user?.role === 'admin') && <button type="button" className="danger" onClick={remove}><Glyph name="trash" size={16} />Delete</button>}
               {!mine && (
                 <details>
-                  <summary>🚩 Report</summary>
+                  <summary><Glyph name="flag" size={16} />Report</summary>
                   {['spam', 'scam', 'abuse', 'adult', 'misleading', 'other'].map((r) => (
                     <button type="button" key={r} onClick={() => report(r)}>{r[0].toUpperCase() + r.slice(1)}</button>
                   ))}
@@ -184,7 +197,7 @@ function PostCard({ post, onChange, onRemove, full = false }) {
         </div>
       </header>
 
-      {post.status !== 'visible' && <div className="pc-hidden-note">🛡️ Hidden while our team reviews reports. Only you can see it.</div>}
+      {post.status !== 'visible' && <div className="pc-hidden-note"><Glyph name="shield" size={14} /> Hidden while our team reviews reports. Only you can see it.</div>}
 
       {post.body && (
         <div className={`pc-body${long && !expanded ? ' clamped' : ''}`}>
@@ -203,7 +216,7 @@ function PostCard({ post, onChange, onRemove, full = false }) {
           </div>
           <div className="sale-actions">
             {mine
-              ? <button type="button" className="btn secondary small" onClick={markSold}>{post.sale.sold ? 'Mark as available' : '✓ Mark as sold'}</button>
+              ? <button type="button" className="btn secondary small" onClick={markSold}>{post.sale.sold ? 'Mark as available' : 'Mark as sold'}</button>
               : !post.sale.sold && <button type="button" className="btn accent small" onClick={messageSeller}><Icon name="chat" size={15} /> Message seller</button>}
           </div>
         </div>
@@ -221,7 +234,7 @@ function PostCard({ post, onChange, onRemove, full = false }) {
       {video && (
         <div className={`pc-video-wrap${post.sale?.sold ? ' sold' : ''}`}>
           <FeedVideo video={video} onLove={loveFromPhoto} />
-          <Link to={`/flow?start=${post.id}`} className="pc-reels-link">Watch in Flow ›</Link>
+          <Link to={`/flows?start=${post.id}`} className="pc-reels-link">Watch in Flows ›</Link>
         </div>
       )}
 
@@ -262,7 +275,7 @@ function PostCard({ post, onChange, onRemove, full = false }) {
             return showResults ? (
               <div key={o} className={`poll-row result${post.my_vote === i ? ' mine' : ''}`}>
                 <i style={{ width: `${pct}%` }} />
-                <span>{o}{post.my_vote === i && ' ✓'}</span><b>{pct}%</b>
+                <span>{o}{post.my_vote === i && <Glyph name="check" size={14} />}</span><b>{pct}%</b>
               </div>
             ) : (
               <button type="button" key={o} className="poll-row" onClick={() => vote(i)}>{o}</button>
@@ -280,33 +293,26 @@ function PostCard({ post, onChange, onRemove, full = false }) {
         </Link>
       )}
 
-      <div className="pc-stats">
-        {post.reaction_count > 0 && (
-          <span className="pc-rx">
-            <span className="rx-stack">{(post.top_reactions || []).map((r) => <i key={r.type}>{reactionEmoji(r.type)}</i>)}</span>
-            {compact(post.reaction_count)}
-          </span>
-        )}
-        <span className="spacer" />
-        {post.comment_count > 0 && <Link to={postUrl}>{compact(post.comment_count)} comment{post.comment_count === 1 ? '' : 's'}</Link>}
-        {post.share_count > 0 && <span>{compact(post.share_count)} share{post.share_count === 1 ? '' : 's'}</span>}
-      </div>
-
-      <div className="pc-actions">
-        <ReactButton mine={post.my_reaction} onReact={react} />
-        <Link to={full ? '#reply' : `${postUrl}#reply`} className="pc-act" onClick={(e) => { if (guest()) e.preventDefault(); }}>
-          <Icon name="chat" size={18} /> Comment
+      {/* The dock: sparks, replies, pass it on, keep. Counts sit on the buttons. */}
+      <div className="pc-dock">
+        <SparkButton mine={post.my_reaction} count={post.reaction_count} top={post.top_reactions} onReact={react} />
+        <Link to={full ? '#reply' : `${postUrl}#reply`} className="dock-btn" onClick={(e) => { if (guest()) e.preventDefault(); }} aria-label="Replies">
+          <Glyph name="chat" size={20} /><b>{post.comment_count ? compact(post.comment_count) : 'Reply'}</b>
         </Link>
-        <button type="button" className="pc-act" onClick={share}><ShareIcon /> Share</button>
-        <button type="button" className={`pc-act save${post.saved ? ' on' : ''}`} onClick={toggleSave} aria-label={post.saved ? 'Unsave' : 'Save'}>
-          <BookmarkIcon filled={post.saved} />
+        <button type="button" className="dock-btn" onClick={share} aria-label="Pass it on">
+          <Glyph name="pass" size={20} /><b>{post.share_count ? compact(post.share_count) : 'Pass'}</b>
+        </button>
+        <span className="spacer" />
+        <button type="button" className={`dock-btn keep${post.saved ? ' on' : ''}`} onClick={toggleSave} aria-label={post.saved ? 'Remove from Kept' : 'Keep'}>
+          <Glyph name={post.saved ? 'keep-on' : 'keep'} size={20} />
         </button>
       </div>
 
       {!full && post.top_comment && (
-        <Link to={postUrl} className="pc-top-comment">
-          <b>{post.top_comment.author}</b> {post.top_comment.body}
-          {post.comment_count > 1 && <span className="muted"> · view all {post.comment_count}</span>}
+        <Link to={postUrl} className="pc-reply-peek">
+          <Avatar id={post.top_comment.id} name={post.top_comment.author} size={24} />
+          <span><b>{post.top_comment.author}</b> {post.top_comment.body}</span>
+          {post.comment_count > 1 && <em>+{post.comment_count - 1}</em>}
         </Link>
       )}
 
@@ -411,10 +417,10 @@ function LinkCard({ link }) {
   );
 }
 
-// Tap: like (or undo). Hold / hover: the emoji tray opens and you slide or
-// tap to pick. The tray pops in one emoji after another.
-export function ReactButton({ mine, onReact }) {
-  const [tray, setTray] = useState(false);
+// Tap: spark it (or take your reaction back). Hold (phone) or rest the mouse
+// on it: the six sparks fan out in an arc above the button — pick one.
+export function SparkButton({ mine, count, top = [], onReact }) {
+  const [fan, setFan] = useState(false);
   const holdTimer = useRef(null);
   const hoverTimer = useRef(null);
   const held = useRef(false);
@@ -427,34 +433,35 @@ export function ReactButton({ mine, onReact }) {
   function down(e) {
     if (e.pointerType === 'mouse') return;
     held.current = false;
-    holdTimer.current = setTimeout(() => { held.current = true; setTray(true); navigator.vibrate?.(8); }, HOLD_MS);
+    holdTimer.current = setTimeout(() => { held.current = true; setFan(true); navigator.vibrate?.(8); }, HOLD_MS);
   }
   function up() { clearTimeout(holdTimer.current); }
   function click() {
     if (held.current) { held.current = false; return; }
-    setTray(false);
-    onReact(mine || 'like', center());
+    setFan(false);
+    onReact(mine || 'spark', center());
   }
+  const others = (top || []).filter((r) => r.type !== mine).slice(0, 2);
   return (
     <div
-      className="react-wrap"
-      onMouseEnter={() => { hoverTimer.current = setTimeout(() => setTray(true), 450); }}
-      onMouseLeave={() => { clearTimeout(hoverTimer.current); setTray(false); }}
+      className="spark-wrap"
+      onMouseEnter={() => { hoverTimer.current = setTimeout(() => setFan(true), 420); }}
+      onMouseLeave={() => { clearTimeout(hoverTimer.current); setFan(false); }}
     >
-      {tray && (
-        <div className="react-tray" role="menu">
+      {fan && (
+        <div className="spark-fan" role="menu">
           {REACTIONS.map((r, i) => (
             <button
               type="button"
               key={r.type}
-              style={{ animationDelay: `${i * 30}ms` }}
+              style={{ '--i': i, '--n': REACTIONS.length }}
               className={mine === r.type ? 'on' : ''}
-              onClick={(e) => { setTray(false); onReact(r.type, { x: e.clientX, y: e.clientY }); }}
+              onClick={(e) => { setFan(false); onReact(r.type, { x: e.clientX, y: e.clientY }); }}
               aria-label={r.label}
-              title={r.label}
               data-sfx="none"
             >
-              {r.emoji}
+              <Glyph name={r.type} size={30} />
+              <em>{r.label}</em>
             </button>
           ))}
         </div>
@@ -462,33 +469,21 @@ export function ReactButton({ mine, onReact }) {
       <button
         type="button"
         ref={btn}
-        className={`pc-act react${mine ? ` on r-${mine}` : ''}`}
+        className={`dock-btn spark${mine ? ` on r-${mine}` : ''}`}
         onPointerDown={down}
         onPointerUp={up}
         onPointerLeave={up}
         onContextMenu={(e) => e.preventDefault()}
         onClick={click}
+        aria-label={mine ? `${reactionLabel(mine)} — tap to undo` : 'Spark'}
         data-sfx="none"
       >
-        <span className="react-emoji">{mine ? reactionEmoji(mine) : <ThumbIcon />}</span>
-        {mine ? REACTIONS.find((r) => r.type === mine)?.label : 'Like'}
+        <span className="spark-stack">
+          <Glyph name={mine || 'spark'} size={21} className={`spark-main${mine ? '' : ' hollow'}`} />
+          {others.map((r) => <Glyph key={r.type} name={r.type} size={15} className="spark-mini" />)}
+        </span>
+        <b>{count ? compact(count) : 'Spark'}</b>
       </button>
     </div>
   );
 }
-
-const ThumbIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M7 11v9H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1z" /><path d="M7 11l4-8a2.5 2.5 0 0 1 2.5 2.5V9h5.2a2 2 0 0 1 2 2.3l-1.2 7A2 2 0 0 1 17.5 20H7" />
-  </svg>
-);
-const ShareIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7" /><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5" />
-  </svg>
-);
-const BookmarkIcon = ({ filled }) => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" aria-hidden="true">
-    <path d="M6 3h12v18l-6-4.5L6 21z" />
-  </svg>
-);

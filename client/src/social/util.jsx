@@ -4,26 +4,28 @@
 // ============================================================
 import { Fragment } from 'react';
 import { Link } from 'react-router-dom';
+import { Icon, categoryIcon } from '../icons.jsx';
 
+// RentalFlow's own reactions — "sparks" — drawn in glyphs.jsx.
 export const REACTIONS = [
-  { type: 'like', emoji: '👍', label: 'Like' },
-  { type: 'love', emoji: '❤️', label: 'Love' },
-  { type: 'fire', emoji: '🔥', label: 'Fire' },
-  { type: 'haha', emoji: '😂', label: 'Haha' },
-  { type: 'wow', emoji: '😮', label: 'Wow' },
-  { type: 'sad', emoji: '😢', label: 'Sad' },
+  { type: 'spark', label: 'Spark' },
+  { type: 'want', label: 'Want it' },
+  { type: 'genius', label: 'Genius' },
+  { type: 'wow', label: 'Whoa' },
+  { type: 'lol', label: 'LOL' },
+  { type: 'adore', label: 'Adore' },
 ];
-export const reactionEmoji = (t) => REACTIONS.find((r) => r.type === t)?.emoji || '👍';
+export const reactionLabel = (t) => REACTIONS.find((r) => r.type === t)?.label || 'Spark';
 
 // What each kind of post is, as the composer and the card show it.
 export const KINDS = {
-  post:     { label: 'Post',      emoji: '💬', hint: 'Say anything' },
-  showcase: { label: 'Show off',  emoji: '✨', hint: 'Photos of what you made or shot' },
-  question: { label: 'Ask',       emoji: '🙋', hint: 'Get advice before you rent or buy' },
-  guide:    { label: 'Guide',     emoji: '📘', hint: 'Teach something you know' },
-  wanted:   { label: 'Wanted',    emoji: '🔎', hint: 'Looking for something to rent' },
-  poll:     { label: 'Poll',      emoji: '📊', hint: 'Let people vote' },
-  sell:     { label: 'Sell',      emoji: '🏷️', hint: 'Sell something you own' },
+  post:     { label: 'Post',     glyph: 'post',     hint: 'Say anything' },
+  showcase: { label: 'Show off', glyph: 'showcase', hint: 'Photos or video of what you made or shot' },
+  question: { label: 'Ask',      glyph: 'question', hint: 'Get advice before you rent or buy' },
+  guide:    { label: 'Guide',    glyph: 'guide',    hint: 'Teach something you know' },
+  wanted:   { label: 'Wanted',   glyph: 'wanted',   hint: 'Looking for something to rent' },
+  poll:     { label: 'Poll',     glyph: 'poll',     hint: 'Let people vote' },
+  sell:     { label: 'Sell',     glyph: 'sell',     hint: 'Sell something you own' },
 };
 export const CONDITIONS = { new: 'Brand new', like_new: 'Like new', good: 'Good', fair: 'Fair', for_parts: 'For parts' };
 
@@ -62,6 +64,15 @@ export function Avatar({ id, name, size = 40, ring = false, className = '' }) {
     >
       {initials(name)}
     </span>
+  );
+}
+
+// A community as a small chip: its category icon and its name — no prefixes.
+export function CommunityChip({ slug, name, small = false }) {
+  return (
+    <Link to={`/c/${slug}`} className={`c-chip${small ? ' small' : ''}`}>
+      <Icon name={categoryIcon(name || slug)} size={small ? 12 : 14} />{name || slug}
+    </Link>
   );
 }
 

@@ -16,6 +16,7 @@
 import jwt from 'jsonwebtoken';
 import { pool } from './db.js';
 import { applyRewards, localDate } from './socialUtils.js';
+import { interestFromRequest } from './interests.js';
 
 // Record actions for a member; returns what to celebrate (or null).
 export async function award(userId, events) {
@@ -85,6 +86,8 @@ export function rewardMiddleware(req, res, next) {
   res.json = (body) => {
     res.json = send;
     if (res.statusCode >= 300) return send(body);
+    // What this request says about the member's interests (feeds "For you").
+    interestFromRequest(userId, method, path, req, body);
     const events = [...(res.locals.rewardEvents || [])];
     const action = ACTIONS.find(([m, re]) => m === method && re.test(path));
     const fromRoute = action && action[2](req, body);

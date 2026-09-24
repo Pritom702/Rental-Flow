@@ -16,6 +16,7 @@ import PostCard from '../social/PostCard.jsx';
 import { Avatar, RichText, VerifiedTick, timeAgo } from '../social/util.jsx';
 import { say } from '../social/toast.js';
 import { PostSkeleton } from './Feed.jsx';
+import { Glyph } from '../social/glyphs.jsx';
 
 export default function PostPage() {
   const { id } = useParams();
@@ -61,7 +62,7 @@ export default function PostPage() {
       play('send');
       setTimeout(() => document.getElementById(`c${c.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60);
     } catch (err) {
-      say(err.message, '⚠️');
+      say(err.message, 'warn');
     } finally {
       setSending(false);
     }
@@ -71,7 +72,7 @@ export default function PostPage() {
     if (!user) { navigate(`/login?mode=signup&next=${encodeURIComponent(pathname)}`); return; }
     const liked = !c.liked;
     setComments((all) => all.map((x) => (x.id === c.id ? { ...x, liked, like_count: x.like_count + (liked ? 1 : -1) } : x)));
-    if (liked) { play('pop'); burst(e.clientX, e.clientY, '❤️', 6); }
+    if (liked) { play('pop'); burst(e.clientX, e.clientY, 'spark', 6); }
     try {
       const r = await api.post(`/community/comments/${c.id}/like`, {});
       setComments((all) => all.map((x) => (x.id === c.id ? { ...x, ...r } : x)));
@@ -86,7 +87,7 @@ export default function PostPage() {
   async function report(c) {
     if (!user) return;
     await api.post('/community/report', { comment_id: c.id, reason: 'abuse' });
-    say('Thanks — our team will take a look', '🛡️');
+    say('Thanks — our team will take a look', 'shield');
   }
   function reply(c) {
     setReplyTo(c);
@@ -94,7 +95,7 @@ export default function PostPage() {
     setTimeout(() => box.current?.focus(), 30);
   }
 
-  if (error) return <div className="container"><div className="center-empty"><span style={{ fontSize: 34 }}>🫥</span><div className="empty-title">{error}</div><Link to="/feed" className="btn">Back to the feed</Link></div></div>;
+  if (error) return <div className="container"><div className="center-empty"><Glyph name="search" size={40} /><div className="empty-title">{error}</div><Link to="/feed" className="btn">Back to the feed</Link></div></div>;
   if (!post) return <div className="container feed-page narrow"><PostSkeleton /></div>;
 
   const visible = comments.filter((c) => c.status !== 'removed');
@@ -107,8 +108,8 @@ export default function PostPage() {
       <PostCard post={post} full onChange={setPost} onRemove={() => navigate('/feed')} />
 
       <section className="comments" aria-label="Comments">
-        <h2>{post.comment_count ? `${post.comment_count} comment${post.comment_count === 1 ? '' : 's'}` : 'No comments yet'}</h2>
-        {top.length === 0 && <p className="muted">Be the first — people love a reply. 💬</p>}
+        <h2>{post.comment_count ? `${post.comment_count} repl${post.comment_count === 1 ? 'y' : 'ies'}` : 'No replies yet'}</h2>
+        {top.length === 0 && <p className="muted">Be the first — people love a reply.</p>}
         {top.map((c) => (
           <div key={c.id} className="c-thread">
             <Comment c={c} me={user} onLike={like} onReply={reply} onDelete={remove} onReport={report} />
@@ -161,8 +162,8 @@ function Comment({ c, me, onLike, onReply, onDelete, onReport }) {
             : me && <button type="button" onClick={() => onReport(c)}>Report</button>}
         </div>
       </div>
-      <button type="button" className={`c-like${c.liked ? ' on' : ''}`} onClick={(e) => onLike(c, e)} aria-label={c.liked ? 'Unlike' : 'Like'} data-sfx="none">
-        <span>{c.liked ? '❤️' : '🤍'}</span>{c.like_count > 0 && <small>{c.like_count}</small>}
+      <button type="button" className={`c-like${c.liked ? ' on' : ''}`} onClick={(e) => onLike(c, e)} aria-label={c.liked ? 'Take the spark back' : 'Spark this reply'} data-sfx="none">
+        <Glyph name="spark" size={18} className={c.liked ? '' : 'hollow'} />{c.like_count > 0 && <small>{c.like_count}</small>}
       </button>
     </div>
   );

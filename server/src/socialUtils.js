@@ -119,29 +119,30 @@ export const REWARDS = {
 // Extra XP on the daily check-in for keeping a streak alive (max +20).
 export const streakBonus = (streak) => Math.min(20, Math.max(0, streak - 1) * 2);
 
-// Badges unlock from the action counters (and the streak / level).
+// Badges unlock from the action counters (and the streak / level). `icon`
+// names a glyph in the app's own icon set (client/src/social/glyphs.jsx).
 //   c = counters { event: times }, s = { streak, best_streak, level }
 export const BADGES = [
-  { id: 'welcome',       icon: '🌱', name: 'Welcome aboard',  hint: 'Confirm your email or visit for the first time', test: (c) => (c.email_verified || 0) + (c.daily_visit || 0) >= 1 },
-  { id: 'verified',      icon: '🛡️', name: 'Verified',        hint: 'Verify your identity',          test: (c) => (c.verify_identity || 0) >= 1 },
-  { id: 'first_listing', icon: '📦', name: 'First listing',   hint: 'List your first item',          test: (c) => (c.list_item || 0) >= 1 },
-  { id: 'shopkeeper',    icon: '🏪', name: 'Shopkeeper',      hint: 'List 5 items',                  test: (c) => (c.list_item || 0) >= 5 },
-  { id: 'first_sale',    icon: '💸', name: 'First sale',      hint: 'Sell something',                test: (c) => (c.sold || 0) >= 1 },
-  { id: 'first_rental',  icon: '🎟️', name: 'First rental',    hint: 'Request your first booking',    test: (c) => (c.book || 0) >= 1 },
-  { id: 'trusted_host',  icon: '🤝', name: 'Trusted host',    hint: 'Complete 5 rentals',            test: (c) => (c.rental_completed || 0) >= 5 },
-  { id: 'explorer',      icon: '🧭', name: 'Explorer',        hint: 'Look at 20 listings',           test: (c) => (c.view_item || 0) >= 20 },
-  { id: 'first_post',    icon: '👋', name: 'Said hello',      hint: 'Write your first post',         test: (c) => (c.post || 0) >= 1 },
-  { id: 'storyteller',   icon: '📸', name: 'Storyteller',     hint: 'Share 3 moments',               test: (c) => (c.story || 0) >= 3 },
-  { id: 'chatty',        icon: '💬', name: 'Conversationalist', hint: 'Write 25 comments',           test: (c) => (c.comment || 0) >= 25 },
-  { id: 'cheerleader',   icon: '🎉', name: 'Cheerleader',     hint: 'React to 50 posts',             test: (c) => (c.react || 0) >= 50 },
-  { id: 'crowd_fav',     icon: '⭐', name: 'Crowd favourite', hint: 'Receive 25 reactions',          test: (c) => (c.reaction_received || 0) >= 25 },
-  { id: 'pollster',      icon: '📊', name: 'Pollster',        hint: 'Start a poll',                  test: (c) => (c.poll || 0) >= 1 },
-  { id: 'socialite',     icon: '🫶', name: 'Socialite',       hint: 'Follow 5 people',               test: (c) => (c.follow || 0) >= 5 },
-  { id: 'streak_3',      icon: '🔥', name: 'On fire',         hint: 'Visit 3 days in a row',         test: (_c, s) => s.best_streak >= 3 },
-  { id: 'streak_7',      icon: '⚡', name: 'Unstoppable',     hint: 'Visit 7 days in a row',         test: (_c, s) => s.best_streak >= 7 },
-  { id: 'streak_30',     icon: '👑', name: 'Royalty',         hint: 'Visit 30 days in a row',        test: (_c, s) => s.best_streak >= 30 },
-  { id: 'level_5',       icon: '🏅', name: 'Level 5',         hint: 'Reach level 5',                 test: (_c, s) => s.level >= 5 },
-  { id: 'level_10',      icon: '🏆', name: 'Level 10',        hint: 'Reach level 10',                test: (_c, s) => s.level >= 10 },
+  { id: 'welcome',       icon: 'sprout', name: 'Welcome aboard',  hint: 'Confirm your email or visit for the first time', test: (c) => (c.email_verified || 0) + (c.daily_visit || 0) >= 1 },
+  { id: 'verified',      icon: 'shield', name: 'Verified',        hint: 'Verify your identity',          test: (c) => (c.verify_identity || 0) >= 1 },
+  { id: 'first_listing', icon: 'box', name: 'First listing',   hint: 'List your first item',          test: (c) => (c.list_item || 0) >= 1 },
+  { id: 'shopkeeper',    icon: 'store', name: 'Shopkeeper',      hint: 'List 5 items',                  test: (c) => (c.list_item || 0) >= 5 },
+  { id: 'first_sale',    icon: 'coin', name: 'First sale',      hint: 'Sell something',                test: (c) => (c.sold || 0) >= 1 },
+  { id: 'first_rental',  icon: 'ticket', name: 'First rental',    hint: 'Request your first booking',    test: (c) => (c.book || 0) >= 1 },
+  { id: 'trusted_host',  icon: 'key', name: 'Trusted host',    hint: 'Complete 5 rentals',            test: (c) => (c.rental_completed || 0) >= 5 },
+  { id: 'explorer',      icon: 'compass', name: 'Explorer',        hint: 'Look at 20 listings',           test: (c) => (c.view_item || 0) >= 20 },
+  { id: 'first_post',    icon: 'wave', name: 'Said hello',      hint: 'Write your first post',         test: (c) => (c.post || 0) >= 1 },
+  { id: 'storyteller',   icon: 'camera', name: 'Storyteller',     hint: 'Share 3 moments',               test: (c) => (c.story || 0) >= 3 },
+  { id: 'chatty',        icon: 'chat', name: 'Conversationalist', hint: 'Write 25 comments',           test: (c) => (c.comment || 0) >= 25 },
+  { id: 'cheerleader',   icon: 'spark', name: 'Cheerleader',     hint: 'React to 50 posts',             test: (c) => (c.react || 0) >= 50 },
+  { id: 'crowd_fav',     icon: 'star', name: 'Crowd favourite', hint: 'Receive 25 reactions',          test: (c) => (c.reaction_received || 0) >= 25 },
+  { id: 'pollster',      icon: 'poll', name: 'Pollster',        hint: 'Start a poll',                  test: (c) => (c.poll || 0) >= 1 },
+  { id: 'socialite',     icon: 'people', name: 'Socialite',       hint: 'Follow 5 people',               test: (c) => (c.follow || 0) >= 5 },
+  { id: 'streak_3',      icon: 'flame', name: 'On fire',         hint: 'Visit 3 days in a row',         test: (_c, s) => s.best_streak >= 3 },
+  { id: 'streak_7',      icon: 'bolt', name: 'Unstoppable',     hint: 'Visit 7 days in a row',         test: (_c, s) => s.best_streak >= 7 },
+  { id: 'streak_30',     icon: 'crown', name: 'Royalty',         hint: 'Visit 30 days in a row',        test: (_c, s) => s.best_streak >= 30 },
+  { id: 'level_5',       icon: 'medal', name: 'Level 5',         hint: 'Reach level 5',                 test: (_c, s) => s.level >= 5 },
+  { id: 'level_10',      icon: 'trophy', name: 'Level 10',        hint: 'Reach level 10',                test: (_c, s) => s.level >= 10 },
 ];
 export function badgeInfo(id) {
   const b = BADGES.find((x) => x.id === id);

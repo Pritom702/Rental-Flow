@@ -15,6 +15,7 @@ import { play } from '../sfx.js';
 import { CONDITIONS, KINDS, Avatar } from './util.jsx';
 import { fileSize, readVideo, shrinkImage, uploadFile, uploadVideo, duration as fmt } from './media.js';
 import { loadMe, setMe, useMe } from './store.js';
+import { Glyph } from './glyphs.jsx';
 import { say } from './toast.js';
 
 const DRAFT_KEY = 'rentalflow_post_draft';
@@ -194,7 +195,7 @@ export default function Composer({ open, onClose, onCreated, community: fixedCom
       reset();
       onCreated?.(post);
       onClose();
-      say(kind === 'sell' ? 'Listed for sale — buyers can message you' : 'Posted!', kind === 'sell' ? '🏷️' : '🎉');
+      say(kind === 'sell' ? 'Listed for sale — buyers can message you' : 'Posted!', kind === 'sell' ? 'sell' : 'sparkle');
     } catch (e) {
       setError(e.message);
       if (e.reason === 'rules-required') setMe((m) => (m ? { ...m, rulesAccepted: false } : m));
@@ -229,8 +230,8 @@ export default function Composer({ open, onClose, onCreated, community: fixedCom
             <b>{user?.name}</b>
             <select value={community} onChange={(e) => setCommunity(e.target.value)} disabled={Boolean(fixedCommunity)} aria-label="Community">
               <option value="">Choose a community…</option>
-              {joined.length > 0 && <optgroup label="Your communities">{joined.map((c) => <option key={c.slug} value={c.slug}>c/{c.slug}</option>)}</optgroup>}
-              <optgroup label={joined.length ? 'More' : 'Communities'}>{others.map((c) => <option key={c.slug} value={c.slug}>c/{c.slug}</option>)}</optgroup>
+              {joined.length > 0 && <optgroup label="Your communities">{joined.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}</optgroup>}
+              <optgroup label={joined.length ? 'More' : 'Communities'}>{others.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}</optgroup>
             </select>
           </div>
           <button type="button" className="icon-btn" onClick={onClose} aria-label="Close"><Icon name="close" size={18} /></button>
@@ -238,7 +239,7 @@ export default function Composer({ open, onClose, onCreated, community: fixedCom
 
         {me && !me.rulesAccepted ? (
           <div className="rules-card">
-            <h3>Before your first post 🌱</h3>
+            <h3><Glyph name="sprout" size={24} /> Before your first post</h3>
             <ul>
               <li><b>Be kind.</b> No abuse, hate or harassment.</li>
               <li><b>No adult content.</b> Porn and nudity get one warning, then a permanent ban.</li>
@@ -252,7 +253,7 @@ export default function Composer({ open, onClose, onCreated, community: fixedCom
             <div className="kind-row" role="tablist">
               {Object.entries(KINDS).map(([k, v]) => (
                 <button type="button" key={k} role="tab" aria-selected={kind === k} className={`kind-pill${kind === k ? ' on' : ''}`} onClick={() => setKind(k)} title={v.hint}>
-                  <span>{v.emoji}</span>{v.label}
+                  <Glyph name={v.glyph} size={16} />{v.label}
                 </button>
               ))}
             </div>
@@ -300,7 +301,7 @@ export default function Composer({ open, onClose, onCreated, community: fixedCom
                 </label>
                 <label className="switch-line"><input type="checkbox" checked={sale.negotiable} onChange={(e) => setSale({ ...sale, negotiable: e.target.checked })} /> Price is negotiable</label>
                 {Number(sale.price) > 0 && <div className="sale-preview">{money(sale.price)}</div>}
-                {!ready.some((m) => m.kind !== 'file') && <div className="cs-hint">📸 Add at least one photo or video of it</div>}
+                {!ready.some((m) => m.kind !== 'file') && <div className="cs-hint"><Glyph name="camera" size={16} /> Add at least one photo or video of it</div>}
               </div>
             )}
 
@@ -341,7 +342,7 @@ export default function Composer({ open, onClose, onCreated, community: fixedCom
               </div>
             ) : kind !== 'poll' && (
               <details className="cs-tag">
-                <summary>📦 Tag a listing</summary>
+                <summary><Glyph name="rent" size={16} /> Tag a listing</summary>
                 <input placeholder="Search listings…" value={itemSearch} onChange={(e) => setItemSearch(e.target.value)} />
                 <div className="cs-tag-list">
                   {itemResults.map((it) => (
@@ -358,9 +359,9 @@ export default function Composer({ open, onClose, onCreated, community: fixedCom
             <div className="cs-foot">
               <input ref={photoInput} type="file" accept="image/*,video/mp4,video/webm,video/quicktime" multiple hidden onChange={(e) => { addMedia(e.target.files); e.target.value = ''; }} />
               <input ref={fileInput} type="file" accept={DOC_ACCEPT} multiple hidden onChange={(e) => { addMedia(e.target.files); e.target.value = ''; }} />
-              <button type="button" className="tool-btn" onClick={() => photoInput.current?.click()} title="Photos or a video"><span>🖼️</span><em>Photo / video</em></button>
-              <button type="button" className="tool-btn" onClick={() => fileInput.current?.click()} title="PDF, Word, Excel, PowerPoint or text"><span>📎</span><em>File</em></button>
-              <button type="button" className="tool-btn" onClick={() => setKind('poll')} title="Poll"><span>📊</span><em>Poll</em></button>
+              <button type="button" className="tool-btn" onClick={() => photoInput.current?.click()} title="Photos or a video"><Glyph name="media" size={20} /><em>Photo / video</em></button>
+              <button type="button" className="tool-btn" onClick={() => fileInput.current?.click()} title="PDF, Word, Excel, PowerPoint or text"><Glyph name="file" size={20} /><em>File</em></button>
+              <button type="button" className="tool-btn" onClick={() => setKind('poll')} title="Poll"><Glyph name="poll" size={20} /><em>Poll</em></button>
               <span className="spacer" />
               <button type="button" className="btn accent" disabled={!canPost} onClick={submit}>
                 {busy ? 'Posting…' : uploading ? 'Uploading…' : kind === 'sell' ? 'List for sale' : 'Post'}

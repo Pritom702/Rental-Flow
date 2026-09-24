@@ -102,22 +102,22 @@ const COMMENTS = [
 
 // Reactions per post: who reacted with what.
 const REACTIONS = {
-  a7: { karim: 'fire', maliha: 'love', tanvir: 'wow', farhan: 'like', rahim: 'fire' },
-  drone: { nusrat: 'wow', farhan: 'fire', maliha: 'love', rahim: 'like', karim: 'wow' },
-  game: { rahim: 'haha', tanvir: 'fire', nusrat: 'like', maliha: 'haha' },
-  bike: { tanvir: 'fire', farhan: 'love', karim: 'like' },
-  guide: { maliha: 'love', karim: 'like', tanvir: 'like', rahim: 'fire', farhan: 'like' },
-  poll: { nusrat: 'like', rahim: 'like' },
-  sherwani: { nusrat: 'love', rahim: 'love', farhan: 'like' },
-  mixer: { nusrat: 'like' },
-  drill: { rahim: 'fire', tanvir: 'like' },
-  iphone: { rahim: 'wow', tanvir: 'like' },
-  switch: { farhan: 'like' },
-  wanted: { karim: 'like', tanvir: 'haha' },
-  link: { tanvir: 'like', karim: 'like', maliha: 'like' },
-  noflight: { nusrat: 'like' },
-  a7r: { nusrat: 'fire', tanvir: 'wow', maliha: 'love' },
-  bikephoto: { rahim: 'fire' },
+  a7: { karim: 'spark', maliha: 'adore', tanvir: 'wow', farhan: 'want', rahim: 'want' },
+  drone: { nusrat: 'want', farhan: 'wow', maliha: 'adore', rahim: 'spark', karim: 'wow' },
+  game: { rahim: 'lol', tanvir: 'spark', nusrat: 'spark', maliha: 'lol' },
+  bike: { tanvir: 'want', farhan: 'adore', karim: 'spark' },
+  guide: { maliha: 'genius', karim: 'genius', tanvir: 'spark', rahim: 'genius', farhan: 'spark' },
+  poll: { nusrat: 'spark', rahim: 'spark' },
+  sherwani: { nusrat: 'adore', rahim: 'adore', farhan: 'spark' },
+  mixer: { nusrat: 'spark' },
+  drill: { rahim: 'genius', tanvir: 'genius' },
+  iphone: { rahim: 'want', tanvir: 'wow' },
+  switch: { farhan: 'want' },
+  wanted: { karim: 'spark', tanvir: 'lol' },
+  link: { tanvir: 'genius', karim: 'spark', maliha: 'genius' },
+  noflight: { nusrat: 'spark' },
+  a7r: { nusrat: 'want', tanvir: 'wow', maliha: 'adore' },
+  bikephoto: { rahim: 'want' },
 };
 
 const FOLLOWS = [

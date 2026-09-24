@@ -41,7 +41,7 @@ export default function Login() {
       // A new member confirms their email first; the ID check comes at their first listing.
       const needsEmail = user.role === 'member' && user.emailVerified === false;
       if (needsEmail) navigate(next ? `/verify?next=${encodeURIComponent(next)}` : '/verify');
-      else navigate(next || '/browse');
+      else navigate(next || '/feed');
     } catch (err) {
       setError(err.message);
     } finally {

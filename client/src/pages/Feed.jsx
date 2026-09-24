@@ -23,6 +23,7 @@ import { LevelCard } from '../social/RewardLayer.jsx';
 import { loadMe, useMe } from '../social/store.js';
 import { Avatar, CONDITIONS, compact } from '../social/util.jsx';
 import { say } from '../social/toast.js';
+import { Glyph, Medallion } from '../social/glyphs.jsx';
 
 const NEW_POLL_MS = 45000;
 
@@ -32,8 +33,8 @@ const TABS = [
   { id: 'following', label: 'Following', scope: 'following', sort: 'new', auth: true },
   { id: 'new', label: 'New', scope: 'all', sort: 'new' },
   { id: 'top', label: 'Top this week', scope: 'all', sort: 'top' },
-  { id: 'sale', label: '🏷️ For sale', scope: 'all', sort: 'new', kind: 'sell' },
-  { id: 'saved', label: '🔖 Saved', scope: 'saved', sort: 'new', auth: true },
+  { id: 'sale', label: 'For sale', glyph: 'sell', scope: 'all', sort: 'new', kind: 'sell' },
+  { id: 'saved', label: 'Kept', glyph: 'keep', scope: 'saved', sort: 'new', auth: true },
 ];
 
 export default function Feed() {
@@ -162,7 +163,7 @@ export default function Feed() {
       const r = joined ? await api.post(`/community/c/${slug}/join`, {}) : await api.del(`/community/c/${slug}/join`);
       setCommunity((c) => ({ ...c, ...r }));
       loadMe();
-      if (joined) say(`Welcome to c/${slug}!`, '🎉');
+      if (joined) say(`Welcome to ${community.name}!`, 'sparkle');
     } catch { setCommunity(community); }
   }
 
@@ -205,18 +206,20 @@ export default function Feed() {
             {user ? <Avatar id={user.id} name={user.name} size={40} /> : <span className="av av-a" style={{ width: 40, height: 40 }}>+</span>}
             <span className="cp-text">{user ? `What's on your mind, ${user.name.split(' ')[0]}?` : 'Join RentalFlow to post, react and chat'}</span>
             <span className="cp-tools" onClick={(e) => e.stopPropagation()}>
-              <button type="button" onClick={() => openComposer('showcase', 'media')} title="Photo or video">🖼️</button>
-              <button type="button" onClick={() => openComposer('question')} title="Ask">🙋</button>
-              <button type="button" onClick={() => openComposer('poll')} title="Poll">📊</button>
-              <button type="button" className="cp-sell" onClick={() => openComposer('sell')}>🏷️ Sell</button>
+              <button type="button" onClick={() => openComposer('showcase', 'media')} title="Photo or video"><Glyph name="media" size={20} /></button>
+              <button type="button" onClick={() => openComposer('question')} title="Ask"><Glyph name="question" size={20} /></button>
+              <button type="button" onClick={() => openComposer('poll')} title="Poll"><Glyph name="poll" size={20} /></button>
+              <button type="button" className="cp-sell" onClick={() => openComposer('sell')}><Glyph name="sell" size={16} />Sell</button>
             </span>
           </div>
 
+          {!slug && <CommunityStrip />}
+
           <div className="feed-tabs" role="tablist">
             {tabs.map((t) => (
-              <button type="button" key={t.id} role="tab" aria-selected={t.id === tab.id} className={t.id === tab.id ? 'on' : ''} onClick={() => switchTab(t.id)}>{t.label}</button>
+              <button type="button" key={t.id} role="tab" aria-selected={t.id === tab.id} className={t.id === tab.id ? 'on' : ''} onClick={() => switchTab(t.id)}>{t.glyph && <Glyph name={t.glyph} size={15} />}{t.label}</button>
             ))}
-            <Link to="/flow" className="reels-tab">▶ Flow</Link>
+            <Link to="/flows" className="reels-tab"><Glyph name="play" size={14} />Flows</Link>
           </div>
 
           {fresh > 0 && (
@@ -231,7 +234,7 @@ export default function Feed() {
                 <b>Got something you no longer use?</b>
                 <span>Sell it here in a minute. Buyers message you directly — no fees.</span>
               </div>
-              <button type="button" className="btn accent" onClick={() => openComposer('sell')}>🏷️ Sell something</button>
+              <button type="button" className="btn accent" onClick={() => openComposer('sell')}><Glyph name="sell" size={17} /> Sell something</button>
             </div>
           )}
 
@@ -252,7 +255,7 @@ export default function Feed() {
           {loadingMore && <div className="feed-list"><PostSkeleton /></div>}
           {posts?.length > 0 && next == null && (
             <div className="feed-end">
-              <span>✨</span>
+              <Glyph name="sparkle" size={40} />
               <b>You're all caught up</b>
               <span className="muted">Explore another community, or share something of your own.</span>
               <div className="feed-end-actions">
@@ -300,7 +303,7 @@ function CommunityHeader({ c, onJoin }) {
       <div className="c-body">
         <span className="c-icon"><Icon name={categoryIcon(c.name)} size={30} /></span>
         <div className="c-meta">
-          <h1>c/{c.slug}</h1>
+          <h1>{c.name}</h1>
           <p>{c.description}</p>
           <div className="c-stats">
             <span><b>{compact(c.member_count)}</b> member{c.member_count === 1 ? '' : 's'}</span>
@@ -309,7 +312,7 @@ function CommunityHeader({ c, onJoin }) {
           </div>
         </div>
         <button type="button" className={`btn ${c.joined ? 'secondary' : 'accent'} join-btn${c.joined ? ' joined' : ''}`} onClick={onJoin}>
-          {c.joined ? '✓ Joined' : 'Join'}
+          {c.joined ? <><Glyph name="check" size={15} /> Joined</> : 'Join'}
         </button>
       </div>
       {c.leaders?.length > 0 && (
@@ -317,7 +320,7 @@ function CommunityHeader({ c, onJoin }) {
           <span className="muted">Top voices this week</span>
           {c.leaders.map((l, i) => (
             <Link key={l.id} to={`/u/${l.handle || l.id}`} title={`${l.name} · ${l.points} points`}>
-              <Avatar id={l.id} name={l.name} size={28} /><span className="medal">{['🥇', '🥈', '🥉', '', ''][i]}</span>
+              <Avatar id={l.id} name={l.name} size={28} />{i < 3 && <span className={`medal m${i + 1}`}>{i + 1}</span>}
             </Link>
           ))}
         </div>
@@ -341,7 +344,7 @@ function PickCommunities() {
     try {
       await api.post('/community/join-many', { slugs: [...picked] });
       await loadMe();
-      say(`Joined ${picked.size} communit${picked.size === 1 ? 'y' : 'ies'} — your feed is ready`, '🎉');
+      say(`Joined ${picked.size} communit${picked.size === 1 ? 'y' : 'ies'} — your feed is ready`, 'sparkle');
       window.dispatchEvent(new Event('rf:feed-refresh'));
     } finally { setBusy(false); }
   }
@@ -354,7 +357,7 @@ function PickCommunities() {
         {all.map((c) => (
           <button type="button" key={c.slug} className={`pick-chip${picked.has(c.slug) ? ' on' : ''}`} onClick={() => toggle(c.slug)} data-sfx="none">
             <Icon name={categoryIcon(c.name)} size={16} /> {c.name}
-            {picked.has(c.slug) && <span className="pick-check">✓</span>}
+            {picked.has(c.slug) && <span className="pick-check"><Glyph name="check" size={12} /></span>}
           </button>
         ))}
       </div>
@@ -362,6 +365,29 @@ function PickCommunities() {
         {picked.size ? `Join ${picked.size} and build my feed` : 'Pick at least one'}
       </button>
     </section>
+  );
+}
+
+// Phones and narrow screens (where the side panel is hidden): my communities
+// as a row of chips, with the way to all of them at the end.
+function CommunityStrip() {
+  const me = useMe();
+  const [top, setTop] = useState([]);
+  useEffect(() => {
+    if (me?.joined?.length) return;
+    api.get('/community/communities').then((l) => setTop(l.slice(0, 8))).catch(() => {});
+  }, [me]);
+  const list = me?.joined?.length ? me.joined : top;
+  if (!list.length) return null;
+  return (
+    <nav className="c-strip" aria-label="Communities">
+      {list.map((c) => (
+        <Link key={c.slug} to={`/c/${c.slug}`} className="c-strip-chip">
+          <Icon name={categoryIcon(c.name)} size={15} />{c.name}
+        </Link>
+      ))}
+      <Link to="/communities" className="c-strip-chip all">All communities ›</Link>
+    </nav>
   );
 }
 
@@ -373,7 +399,7 @@ function TrendingRail() {
     <>
       {t.tags.length > 0 && (
         <div className="rail-card">
-          <h3>🔥 Trending</h3>
+          <h3><Glyph name="trend" size={18} /> Trending</h3>
           <div className="trend-tags">
             {t.tags.map((x, i) => (
               <Link key={x.tag} to={`/feed?tag=${x.tag}`} className="trend-tag">
@@ -385,12 +411,12 @@ function TrendingRail() {
       )}
       {t.leaders.length > 0 && (
         <div className="rail-card">
-          <h3>🏆 Top this week</h3>
+          <h3><Glyph name="trophy" size={18} /> Top this week</h3>
           {t.leaders.map((l, i) => (
             <Link key={l.id} to={`/u/${l.handle || l.id}`} className="leader-row">
-              <span className="leader-rank">{['🥇', '🥈', '🥉'][i] || i + 1}</span>
+              <span className={`leader-rank r${i + 1}`}>{i + 1}</span>
               <Avatar id={l.id} name={l.name} size={30} />
-              <span className="leader-name">{l.name}<small>Lv {l.level}{l.streak >= 3 ? ` · 🔥${l.streak}` : ''}</small></span>
+              <span className="leader-name">{l.name}<small>Level {l.level}{l.streak >= 3 && <> · <Glyph name="flame" size={12} />{l.streak}</>}</small></span>
               <b>{compact(l.points)}</b>
             </Link>
           ))}
@@ -398,20 +424,20 @@ function TrendingRail() {
       )}
       {t.top.length > 0 && (
         <div className="rail-card">
-          <h3>⭐ Best posts</h3>
+          <h3><Glyph name="star" size={18} /> Best posts</h3>
           {t.top.map((p) => (
             <Link key={p.id} to={`/post/${p.id}`} className="top-post">
               {p.image && <img src={p.image} alt="" loading="lazy" />}
-              <span>{p.body || 'A post'}<small>c/{p.community_slug} · {p.reaction_count} reactions · {p.comment_count} comments</small></span>
+              <span>{p.body || 'A post'}<small>{p.community_name || p.community_slug} · {p.reaction_count} sparks · {p.comment_count} replies</small></span>
             </Link>
           ))}
         </div>
       )}
       <div className="rail-card">
-        <h3>🌱 Communities</h3>
+        <h3><Glyph name="sprout" size={18} /> Communities</h3>
         {t.rising.map((c) => (
           <Link key={c.slug} to={`/c/${c.slug}`} className="rail-community">
-            <Icon name={categoryIcon(c.name)} size={16} /> c/{c.slug}
+            <Icon name={categoryIcon(c.name)} size={16} /> {c.name}
             <small>{c.posts ? `${c.posts} new` : `${compact(c.member_count)} members`}</small>
           </Link>
         ))}
@@ -439,12 +465,12 @@ function SaleTile({ post }) {
 function EmptyFeed({ tab, slug, onCompose }) {
   const copy = {
     following: ['Follow people to fill this', 'Tap a name on any post, then Follow.'],
-    saved: ['Nothing saved yet', 'Tap the bookmark on a post to keep it here.'],
+    saved: ['Nothing kept yet', 'Tap Keep on any post to find it here later.'],
     sale: ['Nothing for sale yet', 'Got something you no longer use? Sell it here in a minute.'],
   }[tab.id] || [slug ? 'Be the first to post here' : 'Nothing here yet', 'Start the conversation — it takes ten seconds.'];
   return (
     <div className="feed-empty">
-      <span className="fe-emoji">{tab.id === 'sale' ? '🏷️' : tab.id === 'saved' ? '🔖' : '🌱'}</span>
+      <span className="fe-emoji"><Glyph name={tab.id === 'sale' ? 'sell' : tab.id === 'saved' ? 'keep' : 'sprout'} size={44} /></span>
       <b>{copy[0]}</b>
       <span className="muted">{copy[1]}</span>
       {tab.id !== 'saved' && tab.id !== 'following' && (

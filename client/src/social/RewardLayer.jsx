@@ -16,6 +16,7 @@ import { useAuth } from '../auth.jsx';
 import { play } from '../sfx.js';
 import { celebrate } from '../fx.js';
 import { applyReward, loadMe, useMe } from './store.js';
+import { Glyph, Medallion } from './glyphs.jsx';
 
 // Where the last tap happened, so "+10 XP" can rise from right there.
 let lastPoint = null;
@@ -59,10 +60,10 @@ export default function RewardLayer() {
         setTimeout(() => setPops((p) => p.filter((q) => q.id !== id)), 1400);
         window.dispatchEvent(new CustomEvent('rf:xp-gain'));
       }
-      if (r.streakUp) toast({ kind: 'streak', icon: '🔥', title: `${r.streak}-day streak!`, body: 'Come back tomorrow to keep it going.' });
+      if (r.streakUp) toast({ kind: 'streak', icon: 'flame', title: `${r.streak}-day streak!`, body: 'Come back tomorrow to keep it going.' });
       (r.badges || []).forEach((b, i) => setTimeout(() => {
         play('success');
-        toast({ kind: 'rt-badge', icon: b.icon, title: 'Badge unlocked', body: b.name });
+        toast({ kind: 'rt-badge', icon: b.icon, medal: true, title: 'Badge unlocked', body: b.name });
       }, 350 + i * 900));
       if (r.levelUp) {
         setTimeout(() => {
@@ -100,7 +101,7 @@ export default function RewardLayer() {
       <div className="reward-toasts">
         {toasts.map((t) => (
           <div key={t.id} className={`reward-toast ${t.kind}`} role="status">
-            <span className="rt-icon">{t.icon}</span>
+            <span className="rt-icon">{t.medal ? <Medallion name={t.icon} size={36} /> : <Glyph name={t.icon} size={24} />}</span>
             <div><b>{t.title}</b>{t.body && <span>{t.body}</span>}</div>
           </div>
         ))}
@@ -108,7 +109,7 @@ export default function RewardLayer() {
       {notice && (
         <div className="modal-backdrop" role="alertdialog" aria-label="Community rules">
           <div className="modal narrow mod-notice">
-            <div className={`mod-icon ${notice.reason === 'adult-warning' ? 'warn' : 'ban'}`}>{notice.reason === 'adult-warning' ? '⚠️' : '⛔'}</div>
+            <div className={`mod-icon ${notice.reason === 'adult-warning' ? 'warn' : 'ban'}`}><Glyph name={notice.reason === 'adult-warning' ? 'warn' : 'ban'} size={48} /></div>
             <h2>{notice.reason === 'adult-warning' ? 'This is your one warning' : 'Your account is banned'}</h2>
             <p>{notice.message}</p>
             {notice.reason === 'adult-warning' ? (
@@ -175,7 +176,7 @@ export function XpRing() {
       </span>
       {me.streak > 0 && (
         <span className={`streak-chip${me.activeToday ? '' : ' cold'}`} title={me.activeToday ? 'Streak kept today' : 'Visit today to keep your streak'}>
-          🔥{me.streak}
+          <Glyph name="flame" size={16} />{me.streak}
         </span>
       )}
     </button>
@@ -198,15 +199,15 @@ export function LevelCard() {
           <span className="muted">{me.xp} XP · {me.level.next - me.xp} to next</span>
         </div>
         <div className={`lc-streak${me.activeToday ? '' : ' cold'}`}>
-          <span>🔥</span><b>{me.streak}</b><small>day{me.streak === 1 ? '' : 's'}</small>
+          <Glyph name="flame" size={26} /><b>{me.streak}</b><small>day{me.streak === 1 ? '' : 's'}</small>
         </div>
       </div>
       <div className="lc-bar"><i style={{ width: `${pct}%` }} /></div>
       <div className="lc-badges">
-        {unlocked.slice(-6).map((b) => <span key={b.id} title={b.name}>{b.icon}</span>)}
+        {unlocked.slice(-6).map((b) => <span key={b.id} title={b.name}><Medallion name={b.icon} size={28} /></span>)}
         <Link to="/u/me" className="lc-all">{unlocked.length}/{me.badges.length} badges</Link>
       </div>
-      {nextBadge && <div className="lc-next">Next: <b>{nextBadge.icon} {nextBadge.name}</b> — {nextBadge.hint.toLowerCase()}</div>}
+      {nextBadge && <div className="lc-next">Next: <b>{nextBadge.name}</b> — {nextBadge.hint.toLowerCase()}</div>}
     </div>
   );
 }

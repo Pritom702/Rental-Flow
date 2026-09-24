@@ -18,6 +18,7 @@ import { loadMe, useMe } from '../social/store.js';
 import { Avatar, VerifiedTick, compact } from '../social/util.jsx';
 import { say } from '../social/toast.js';
 import { PostSkeleton } from './Feed.jsx';
+import { Glyph, Medallion } from '../social/glyphs.jsx';
 
 export default function UserProfile() {
   const { who } = useParams();
@@ -58,7 +59,7 @@ export default function UserProfile() {
     } catch { setP(p); }
   }
 
-  if (error) return <div className="container"><div className="center-empty"><span style={{ fontSize: 34 }}>🫥</span><div className="empty-title">{error}</div><Link to="/feed" className="btn">Back to the feed</Link></div></div>;
+  if (error) return <div className="container"><div className="center-empty"><Glyph name="search" size={40} /><div className="empty-title">{error}</div><Link to="/feed" className="btn">Back to the feed</Link></div></div>;
   if (!p) return <div className="container feed-page narrow"><div className="profile-skel" /><PostSkeleton /></div>;
 
   const allBadges = p.isMe && me ? me.badges : p.badges.map((b) => ({ ...b, unlocked: true }));
@@ -74,7 +75,7 @@ export default function UserProfile() {
           <div className="pf-actions">
             {p.isMe
               ? <button type="button" className="btn secondary small" onClick={() => setEditing(true)}>Edit profile</button>
-              : <button type="button" className={`btn ${p.is_following ? 'secondary' : 'accent'} small follow-btn`} onClick={follow}>{p.is_following ? '✓ Following' : 'Follow'}</button>}
+              : <button type="button" className={`btn ${p.is_following ? 'secondary' : 'accent'} small follow-btn`} onClick={follow}>{p.is_following ? 'Following' : 'Follow'}</button>}
           </div>
         </div>
         <h1 className="pf-name">{p.name}{p.verified && <VerifiedTick />}</h1>
@@ -84,7 +85,7 @@ export default function UserProfile() {
           <span><b>{compact(p.posts)}</b> post{p.posts === 1 ? '' : 's'}</span>
           <span><b>{compact(p.followers)}</b> follower{p.followers === 1 ? '' : 's'}</span>
           <span><b>{compact(p.following)}</b> following</span>
-          <span><b>{compact(p.karma)}</b> reaction{p.karma === 1 ? '' : 's'}</span>
+          <span><b>{compact(p.karma)}</b> spark{p.karma === 1 ? '' : 's'} received</span>
           {p.rentals_hosted > 0 && <span><b>{p.rentals_hosted}</b> rental{p.rentals_hosted === 1 ? '' : 's'} hosted</span>}
         </div>
         <div className="pf-level">
@@ -93,7 +94,7 @@ export default function UserProfile() {
             <div className="pf-level-name"><b>{p.level.name}</b><span className="muted">{p.xp} / {p.level.next} XP</span></div>
             <div className="lc-bar"><i style={{ width: `${pct}%` }} /></div>
           </div>
-          <div className={`lc-streak${p.streak ? '' : ' cold'}`}><span>🔥</span><b>{p.streak}</b><small>best {p.best_streak}</small></div>
+          <div className={`lc-streak${p.streak ? '' : ' cold'}`}><Glyph name="flame" size={26} /><b>{p.streak}</b><small>best {p.best_streak}</small></div>
         </div>
       </section>
 
@@ -103,7 +104,7 @@ export default function UserProfile() {
           <div className="badge-grid">
             {allBadges.map((b) => (
               <div key={b.id} className={`badge-tile${b.unlocked ? '' : ' locked'}`} title={b.hint}>
-                <span className="bt-icon">{b.unlocked ? b.icon : '🔒'}</span>
+                <span className="bt-icon"><Medallion name={b.icon} size={48} locked={!b.unlocked} /></span>
                 <b>{b.name}</b>
                 <small>{b.unlocked ? 'Unlocked' : b.hint}</small>
               </div>
@@ -113,14 +114,14 @@ export default function UserProfile() {
       </section>
 
       <div className="feed-tabs" role="tablist">
-        {[['posts', 'Posts'], ['sale', '🏷️ For sale'], ['listings', `📦 For rent${p.listings.length ? ` (${p.listings.length})` : ''}`], ['communities', 'Communities']].map(([id, label]) => (
+        {[['posts', 'Posts'], ['sale', 'For sale'], ['listings', `For rent${p.listings.length ? ` (${p.listings.length})` : ''}`], ['communities', 'Communities']].map(([id, label]) => (
           <button type="button" key={id} role="tab" aria-selected={tab === id} className={tab === id ? 'on' : ''} onClick={() => setTab(id)}>{label}</button>
         ))}
       </div>
 
       {(tab === 'posts' || tab === 'sale') && (
         posts == null ? <PostSkeleton /> : posts.length === 0 ? (
-          <div className="feed-empty"><span className="fe-emoji">🌱</span><b>{p.isMe ? 'Your posts show up here' : 'Nothing here yet'}</b>{p.isMe && <Link to="/feed" className="btn accent">Write your first post</Link>}</div>
+          <div className="feed-empty"><span className="fe-emoji"><Glyph name="sprout" size={44} /></span><b>{p.isMe ? 'Your posts show up here' : 'Nothing here yet'}</b>{p.isMe && <Link to="/feed" className="btn accent">Write your first post</Link>}</div>
         ) : (
           <div className="feed-list">
             {posts.map((x) => <PostCard key={x.id} post={x} onChange={(n) => setPosts((all) => all.map((y) => (y.id === n.id ? n : y)))} onRemove={(id) => setPosts((all) => all.filter((y) => y.id !== id))} />)}
@@ -128,7 +129,7 @@ export default function UserProfile() {
         )
       )}
       {tab === 'listings' && (
-        p.listings.length === 0 ? <div className="feed-empty"><span className="fe-emoji">📦</span><b>No listings yet</b>{p.isMe && <Link to="/items/new" className="btn accent">List an item (+40 XP)</Link>}</div> : (
+        p.listings.length === 0 ? <div className="feed-empty"><span className="fe-emoji"><Glyph name="rent" size={44} /></span><b>No listings yet</b>{p.isMe && <Link to="/items/new" className="btn accent">List an item (+40 XP)</Link>}</div> : (
           <div className="sale-grid">
             {p.listings.map((it) => (
               <Link key={it.id} to={`/product/${it.id}`} className="sale-tile">
@@ -144,7 +145,7 @@ export default function UserProfile() {
       {tab === 'communities' && (
         <div className="pick-chips">
           {p.communities.length === 0 ? <p className="muted">Not in any communities yet.</p> : p.communities.map((c) => (
-            <Link key={c.slug} to={`/c/${c.slug}`} className="pick-chip">c/{c.slug}</Link>
+            <Link key={c.slug} to={`/c/${c.slug}`} className="pick-chip">{c.name}</Link>
           ))}
         </div>
       )}
@@ -166,7 +167,7 @@ function EditProfile({ p, onClose, onSaved }) {
     try {
       await api.patch('/community/me', { handle, bio });
       play('success');
-      say('Profile saved', '✓');
+      say('Profile saved', 'check');
       onSaved({ handle: handle.replace(/^@/, '').toLowerCase(), bio });
     } catch (err) { setError(err.message); } finally { setBusy(false); }
   }

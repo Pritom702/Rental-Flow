@@ -14,6 +14,7 @@ import { play } from '../sfx.js';
 import { Avatar, timeAgo } from './util.jsx';
 import { shrinkImage, uploadFile } from './media.js';
 import { say } from './toast.js';
+import { Glyph } from './glyphs.jsx';
 
 const STORY_MS = 5000;
 
@@ -36,10 +37,10 @@ export default function StoriesRow() {
       const caption = window.prompt('Add a caption (optional)', '') || '';
       await api.post('/community/stories', { image_url: up.url, caption, color: shrunk.color });
       play('send');
-      say('Your moment is live for 24 hours', '✨');
+      say('Your moment is live for 24 hours', 'sparkle');
       load();
     } catch (e) {
-      say(e.message, '⚠️');
+      say(e.message, 'warn');
     } finally {
       setAdding(false);
     }
@@ -162,14 +163,14 @@ function StoryViewer({ groups, start, onClose }) {
           <b>{group.name}</b><span>{timeAgo(story.created_at)}</span>
         </Link>
         <span className="spacer" />
-        {story.user_id === user?.id && <span className="sv-views">👁 {story.view_count}</span>}
-        {(story.user_id === user?.id || user?.role === 'admin') && <button type="button" className="sv-btn" onClick={(e) => { e.stopPropagation(); remove(); }} aria-label="Delete">🗑️</button>}
+        {story.user_id === user?.id && <span className="sv-views"><Glyph name="eye" size={16} /> {story.view_count}</span>}
+        {(story.user_id === user?.id || user?.role === 'admin') && <button type="button" className="sv-btn" onClick={(e) => { e.stopPropagation(); remove(); }} aria-label="Delete"><Glyph name="trash" size={18} /></button>}
         <button type="button" className="sv-btn" onClick={(e) => { e.stopPropagation(); onClose(); }} aria-label="Close"><Icon name="close" size={20} /></button>
       </div>
       <img key={story.id} src={story.image_url} alt="" className="sv-img" draggable="false" />
       {story.caption && <div className="sv-caption">{story.caption}</div>}
       {story.item_id && story.item_name && (
-        <Link to={`/product/${story.item_id}`} className="sv-item" onClick={onClose}>📦 {story.item_name} <span>Rent it ›</span></Link>
+        <Link to={`/product/${story.item_id}`} className="sv-item" onClick={onClose}><Glyph name="rent" size={16} /> {story.item_name} <span>Rent it ›</span></Link>
       )}
       <button type="button" className="sv-tap left" onClick={(e) => { e.stopPropagation(); prev(); }} aria-label="Previous" data-sfx="none" />
       <button type="button" className="sv-tap right" onClick={(e) => { e.stopPropagation(); next(); }} aria-label="Next" data-sfx="none" />

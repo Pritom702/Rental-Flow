@@ -4,10 +4,11 @@
 // ============================================================
 //   ripples     a soft ring spreads from wherever a button is pressed
 //   celebrate() the success chime plus a short burst of confetti
-//   burst()     a spray of emoji from a point (reactions, double-tap love)
+//   burst()     a spray of glyphs from a point (reactions, double-tap adore)
 //   magnetic    (mouse only) main buttons lean towards the pointer
 // All of it is skipped for people who ask their device to reduce motion.
 import { play } from './sfx.js';
+import { glyphSvg } from './social/glyphs.jsx';
 
 const calm = () => {
   try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
@@ -71,14 +72,14 @@ export function celebrate({ silent = false } = {}) {
   if (!calm()) confetti();
 }
 
-// A little spray of emoji from a point — a reaction, a double-tap "love".
-// Eight DOM nodes, animated by CSS (transform / opacity), removed after.
-export function burst(x, y, emoji = '❤️', count = 8) {
+// A little spray of RentalFlow glyphs from a point — a reaction, a double-tap
+// "adore". A few DOM nodes, animated by CSS (transform / opacity), removed after.
+export function burst(x, y, glyph = 'adore', count = 8) {
   if (calm()) return;
   for (let i = 0; i < count; i += 1) {
     const el = document.createElement('span');
     el.className = 'emoji-burst';
-    el.textContent = emoji;
+    el.innerHTML = glyphSvg(glyph, 22);   // a fixed drawing from glyphs.jsx
     const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
     const dist = 38 + Math.random() * 34;
     el.style.cssText = `left:${x}px;top:${y}px;--dx:${(Math.cos(angle) * dist).toFixed(1)}px;--dy:${(Math.sin(angle) * dist - 26).toFixed(1)}px;--r:${Math.round((Math.random() - 0.5) * 60)}deg`;

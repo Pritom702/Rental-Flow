@@ -50,7 +50,7 @@ export default function Verify() {
   const afterEmail = useCallback(() => {
     setEmailVerified(true);
     if (next) load();
-    else navigate('/browse', { replace: true });
+    else navigate('/feed', { replace: true });
   }, [next, load, navigate, setEmailVerified]);
 
   useEffect(() => { load(); }, [load]);
@@ -88,7 +88,7 @@ export default function Verify() {
         {step === 'rejected' && (
           <RejectedStep note={status.lastResult?.note} onRetry={() => setStatus({ ...status, step: 'nid' })} />
         )}
-        {step === 'done' && <DoneStep next={next} onContinue={() => navigate(next || '/browse')} />}
+        {step === 'done' && <DoneStep next={next} onContinue={() => navigate(next || '/feed')} />}
       </main>
     </div>
   );
@@ -353,7 +353,7 @@ function DoneStep({ next, onContinue }) {
       <h1>You're verified</h1>
       <p className="lead">Thanks! Your identity is confirmed and saved on your account — you won't be asked again.</p>
       <div className="verify-actions">
-        <button className="btn lg block" onClick={onContinue}>{next ? 'Continue to your booking' : 'Start browsing'}</button>
+        <button className="btn lg block" onClick={onContinue}>{next ? 'Continue to your booking' : 'Go to your feed'}</button>
       </div>
     </div>
   );
