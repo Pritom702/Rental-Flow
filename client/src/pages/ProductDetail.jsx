@@ -25,10 +25,13 @@ export default function ProductDetail() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
+  // Community posts that tag this listing: real renters' photos and opinions.
+  const [talk, setTalk] = useState([]);
   useEffect(() => {
     setItem((cur) => (cur && String(cur.id) === String(id) ? cur : null));
     setPhoto(0);
     api.get(`/items/${id}`).then(setItem).catch((e) => setError(e.message));
+    api.get(`/community/feed?item=${id}&sort=top`).then((r) => setTalk(r.posts.slice(0, 3))).catch(() => setTalk([]));
   }, [id]);
 
   async function messageLister() {
@@ -124,6 +127,28 @@ export default function ProductDetail() {
             <div><dt>Status</dt><dd>{item.status}</dd></div>
           </dl>
           <TagList tags={item.tags} />
+
+          <h2 className="product-h">From the community</h2>
+          {talk.length === 0 ? (
+            <p className="muted">No one has posted about this yet. Rented it? Share how it went — it helps the next person.</p>
+          ) : (
+            <div className="product-talk">
+              {talk.map((p) => {
+                const pic = (p.attachments || []).find((a) => a.type === 'image');
+                return (
+                  <Link key={p.id} to={`/post/${p.id}`} className="talk-row">
+                    {pic && <img src={pic.url} alt="" loading="lazy" />}
+                    <span><b>{p.author_name}</b> {p.body.slice(0, 120) || 'shared a post'}<small>{p.reaction_count} reactions · {p.comment_count} comments</small></span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+          {item.category_name && (
+            <Link to={`/c/${item.category_name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')}`} className="btn secondary small" style={{ marginTop: 10 }}>
+              <Icon name="users" size={15} /> Visit the {item.category_name} community
+            </Link>
+          )}
         </section>
       </div>
     </div>

@@ -57,7 +57,7 @@ export default function Messages() {
                 <b>{c.other_name}</b>
                 <span>{when(c.last_message_at || c.created_at)}</span>
               </div>
-              <div className="chat-row-item">{c.item_name || 'Listing removed'}{c.i_am_owner ? ' · your listing' : ''}</div>
+              <div className="chat-row-item">{c.item_name || 'Listing removed'}{c.i_am_owner ? (c.post_id ? ' · you are selling' : ' · your listing') : ''}</div>
               <div className="chat-row-last">{c.last_body || 'No messages yet'}</div>
             </div>
             {c.unread > 0 && <span className="chat-unread">{c.unread}</span>}
@@ -146,7 +146,13 @@ function Thread({ id, onActivity }) {
                 {convo.item_cover && <img src={convo.item_cover} alt="" />}
                 <span>{convo.item_name} · {money(convo.rental_price)}/day</span>
               </Link>
-            : <span className="muted">This listing was removed</span>}
+            : convo.post_id
+              // A chat about something for sale in the community.
+              ? <Link to={`/post/${convo.post_id}`} className="thread-item">
+                  {convo.post_cover && <img src={convo.post_cover} alt="" />}
+                  <span>🏷️ {convo.post_title} · {money(convo.sale?.price)}{convo.sale?.sold ? ' · sold' : ''}</span>
+                </Link>
+              : <span className="muted">This listing was removed</span>}
         </div>
       </header>
 

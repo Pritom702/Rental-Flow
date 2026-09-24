@@ -8,6 +8,8 @@ import './market.css';
 import './verify.css';
 // Site-wide "Atelier" theme (light + dark) — loaded last so it re-themes every page.
 import './theme.css';
+// Community + rewards + the site-wide "feel good" layer.
+import './social/social.css';
 import { installClickSounds } from './sfx.js';
 import { installMagnetic, installRipples } from './fx.js';
 

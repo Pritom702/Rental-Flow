@@ -30,9 +30,16 @@ const PhoneHandoff = lazy(() => import('./pages/PhoneHandoff.jsx'));
 const ProductDetail = lazy(() => import('./pages/ProductDetail.jsx'));
 const Messages = lazy(() => import('./pages/Messages.jsx'));
 const Incidents = lazy(() => import('./pages/Incidents.jsx'));
+const Feed = lazy(() => import('./pages/Feed.jsx'));
+const PostPage = lazy(() => import('./pages/PostPage.jsx'));
+const Reels = lazy(() => import('./pages/Reels.jsx'));
+const UserProfile = lazy(() => import('./pages/UserProfile.jsx'));
+const Communities = lazy(() => import('./pages/Communities.jsx'));
+const Moderation = lazy(() => import('./pages/Moderation.jsx'));
 import { api } from './api.js';
 import ThemeToggle from './components/ThemeToggle.jsx';
 import NotificationBell from './components/NotificationBell.jsx';
+import RewardLayer, { XpRing } from './social/RewardLayer.jsx';
 import { installLinkTransitions } from './transitions.js';
 
 // Pages load on first visit, so the first screen downloads only what it needs.
@@ -42,7 +49,8 @@ const PageLoading = () => <div className="page-loading" aria-label="Loading" />;
 const PREFETCH = [
   () => import('./pages/PublicBooking.jsx'), () => import('./pages/ProductDetail.jsx'), () => import('./pages/Login.jsx'),
   () => import('./pages/Messages.jsx'), () => import('./pages/Dashboard.jsx'), () => import('./pages/ItemForm.jsx'),
-  () => import('./pages/Profile.jsx'),
+  () => import('./pages/Profile.jsx'), () => import('./pages/Feed.jsx'), () => import('./pages/PostPage.jsx'),
+  () => import('./pages/UserProfile.jsx'),
 ];
 function usePrefetch() {
   useEffect(() => {
@@ -52,7 +60,7 @@ function usePrefetch() {
 }
 
 // Tabs in the phone tab bar, in order; the lime pill slides to the active one.
-const TABS = ['/browse', '/messages', null, '/bookings', '/profile'];
+const TABS = ['/feed', '/browse', null, '/messages', '/bookings'];
 function tabIndex(pathname) {
   return TABS.findIndex((t) => t && (pathname === t || pathname.startsWith(`${t}/`)));
 }
@@ -66,6 +74,14 @@ const BrandMark = () => (
 
 // Sidebar structure. `admin: true` entries only render for admins.
 const NAV_GROUPS = [
+  {
+    label: 'Community',
+    links: [
+      { to: '/feed', icon: 'sparkles', label: 'Feed' },
+      { to: '/reels', icon: 'bolt', label: 'Reels' },
+      { to: '/communities', icon: 'users', label: 'Communities' },
+    ],
+  },
   {
     label: 'Marketplace',
     links: [
@@ -91,6 +107,7 @@ const NAV_GROUPS = [
       { to: '/admin', icon: 'settings', label: 'Admin', admin: true },
       { to: '/admin/verifications', icon: 'shield', label: 'ID reviews', admin: true },
       { to: '/admin/incidents', icon: 'alert', label: 'Incidents', admin: true },
+      { to: '/admin/moderation', icon: 'shield', label: 'Moderation', admin: true },
     ],
   },
 ];
@@ -101,12 +118,16 @@ const PAGE_TITLES = {
   '/customers': 'Customers', '/maintenance': 'Maintenance', '/analytics': 'Analytics',
   '/documents': 'Documents', '/admin': 'Admin', '/items/new': 'New listing',
   '/profile': 'My Profile', '/admin/verifications': 'ID reviews', '/messages': 'Messages', '/admin/incidents': 'Incidents',
+  '/feed': 'Feed', '/communities': 'Communities', '/admin/moderation': 'Moderation',
 };
 function titleFor(pathname) {
   if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname];
   if (pathname.endsWith('/edit')) return 'Edit listing';
   if (pathname.startsWith('/messages')) return 'Messages';
   if (pathname.startsWith('/product/')) return 'Listing';
+  if (pathname.startsWith('/c/')) return `c/${pathname.slice(3)}`;
+  if (pathname.startsWith('/post/')) return 'Post';
+  if (pathname.startsWith('/u/')) return 'Profile';
   if (pathname.endsWith('/checkout')) return 'Check out';
   if (pathname.endsWith('/checkin')) return 'Check in';
   return 'Workspace';
@@ -179,7 +200,8 @@ function AppShell({ children }) {
           </button>
           <span className="crumb">RentalFlow / <b>{titleFor(pathname)}</b></span>
           <div className="spacer" />
-          <Link to="/items/new" className="btn small"><Icon name="plus" size={14} /> New listing</Link>
+          <Link to="/items/new" className="btn small hide-sm"><Icon name="plus" size={14} /> New listing</Link>
+          <XpRing />
           <ThemeToggle />
           <NotificationBell />
         </header>
@@ -190,14 +212,14 @@ function AppShell({ children }) {
       {/* Phones: an app-style tab bar with the five things people do most. */}
       <nav className="tabbar" aria-label="Main" style={{ '--tab': tabIndex(pathname) }}>
         {tabIndex(pathname) >= 0 && <span className="tab-pill" aria-hidden="true" />}
-        <NavLink to="/browse"><Icon name="search" size={21} />Browse</NavLink>
+        <NavLink to="/feed"><Icon name="sparkles" size={21} />Feed</NavLink>
+        <NavLink to="/browse"><Icon name="search" size={21} />Rent</NavLink>
+        <Link to="/items/new" aria-label="New listing"><span className="tab-plus"><Icon name="plus" size={24} /></span></Link>
         <NavLink to="/messages">
           <Icon name="chat" size={21} />Messages
           {unread > 0 && <span className="tab-badge">{unread}</span>}
         </NavLink>
-        <Link to="/items/new" aria-label="New listing"><span className="tab-plus"><Icon name="plus" size={24} /></span></Link>
         <NavLink to="/bookings"><Icon name="calendar" size={21} />Bookings</NavLink>
-        <NavLink to="/profile"><Icon name="user" size={21} />Profile</NavLink>
       </nav>
     </div>
   );
@@ -211,6 +233,7 @@ function PublicShell({ children }) {
       <header className="pubnav">
         <Link to="/" className="brand"><BrandMark /></Link>
         <NavLink to="/browse" className="hide-sm">Browse</NavLink>
+        <NavLink to="/feed" className="hide-sm">Community</NavLink>
         <div className="spacer" />
         <ThemeToggle />
         {user ? (
@@ -269,11 +292,21 @@ export default function App() {
   useEffect(() => installLinkTransitions(navigate), [navigate]);
   usePrefetch();
   return (
+    <>
+    {/* XP pops, level ups, badges and moderation notices — on every page. */}
+    <RewardLayer />
     <Suspense fallback={<PageLoading />}>
       <Routes>
         <Route path="/" element={<PublicShell><Landing /></PublicShell>} />
         <Route path="/browse" element={<AnyShell><PublicBooking /></AnyShell>} />
         <Route path="/product/:id" element={<AnyShell><ProductDetail /></AnyShell>} />
+        <Route path="/feed" element={<AnyShell><Feed /></AnyShell>} />
+        <Route path="/c/:slug" element={<AnyShell><Feed /></AnyShell>} />
+        <Route path="/post/:id" element={<AnyShell><PostPage /></AnyShell>} />
+        <Route path="/u/:who" element={<AnyShell><UserProfile /></AnyShell>} />
+        <Route path="/communities" element={<AnyShell><Communities /></AnyShell>} />
+        <Route path="/reels" element={<Reels />} />
+        <Route path="/admin/moderation" element={<RequireAdmin><Moderation /></RequireAdmin>} />
         <Route path="/messages" element={<RequireAuth><Messages /></RequireAuth>} />
         <Route path="/messages/:id" element={<RequireAuth><Messages /></RequireAuth>} />
         <Route path="/login" element={<Login />} />
@@ -297,5 +330,6 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>
+    </>
   );
 }

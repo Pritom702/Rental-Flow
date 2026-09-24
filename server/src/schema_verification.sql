@@ -186,4 +186,10 @@ ALTER TABLE notifications DROP CONSTRAINT IF EXISTS notifications_type_check;
 ALTER TABLE notifications ADD CONSTRAINT notifications_type_check
   CHECK (type IN ('booking_requested', 'booking_approved', 'booking_rejected',
                   'booking_cancelled', 'booking_completed',
-                  'verification_approved', 'verification_rejected', 'verification_review'));
+                  'verification_approved', 'verification_rejected', 'verification_review',
+                  -- types added later (schema_protection.sql, schema_social.sql), listed
+                  -- here too so re-running this file never rejects existing rows
+                  'rental_due_soon', 'rental_overdue', 'rental_warning', 'rental_frozen',
+                  'rental_missing', 'claim_opened', 'claim_update', 'incident',
+                  'social_reaction', 'social_comment', 'social_reply', 'social_mention',
+                  'social_follow', 'social_milestone', 'social_wanted', 'social_moderation'));

@@ -19,8 +19,8 @@ import jwt from 'jsonwebtoken';
 import { query } from '../db.js';
 
 const OPEN_PREFIXES = ['/auth', '/verify', '/files', '/health', '/notifications', '/handoff'];
-// Public catalogue reads — a guest can see these anyway.
-const OPEN_READS = ['/items', '/categories'];
+// Public catalogue and community reads — a guest can see these anyway.
+const OPEN_READS = ['/items', '/categories', '/community'];
 
 // "Verified" for renting means: the check passed AND the NID is on file. An
 // account from before verification existed, with no NID, does the new check

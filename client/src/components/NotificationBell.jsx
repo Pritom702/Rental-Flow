@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
 import { useAuth } from '../auth.jsx';
+import { play } from '../sfx.js';
 
 const POLL_MS = 20000;
 
@@ -72,12 +73,16 @@ export default function NotificationBell() {
   const [items, setItems] = useState([]);
   const [unread, setUnread] = useState(0);
   const wrapRef = useRef(null);
+  const lastUnread = useRef(null);
 
   async function load() {
     try {
       const data = await api.get('/notifications?limit=20');
       setItems(data.notifications);
       setUnread(data.unread);
+      // Something new arrived since the last check: a soft two-note chime.
+      if (lastUnread.current != null && data.unread > lastUnread.current) play('notify');
+      lastUnread.current = data.unread;
     } catch {
       // A failed poll must not break the nav — try again on the next tick.
     }
@@ -110,9 +115,12 @@ export default function NotificationBell() {
       setUnread((c) => Math.max(0, c - 1));
       try { await api.patch(`/notifications/${n.id}/read`, {}); } catch { /* stays unread, retried on next poll */ }
     }
+    // Community notifications carry their own link (a post, a profile).
     // Identity-verification notices open the review queue (admins) or the
     // member's own verification screen; everything else is about a booking.
-    if (n.type === 'verification_review') navigate('/admin/verifications');
+    if (n.link) navigate(n.link);
+    else if (n.type === 'social_moderation') navigate('/feed');
+    else if (n.type === 'verification_review') navigate('/admin/verifications');
     else if (n.type?.startsWith('verification_')) navigate('/verify');
     else navigate('/bookings');
   }
@@ -147,7 +155,7 @@ export default function NotificationBell() {
           </div>
           <div className="bell-list">
             {items.length === 0 ? (
-              <div className="bell-empty">Nothing yet. Booking requests and approvals show up here.</div>
+              <div className="bell-empty">Nothing yet. Reactions, comments, followers and bookings show up here.</div>
             ) : (
               items.map((n) => (
                 <button

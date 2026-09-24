@@ -3,16 +3,26 @@
 //  GitHub: @pritom702  |  Part: interface sounds
 // ============================================================
 // Sounds synthesised on the fly with the Web Audio API — no audio files to
-// download. Small instruments (kalimba, marimba, FM bell, a breath of air) in a
-// little generated room, one voice per purpose:
-//   tap      a kalimba "plink" on a pentatonic note  (buttons)
-//   nav      a soft glass chime                       (links, tabs, cards)
-//   toggle   a swish that lands on two marimba notes  (light / dark switch)
-//   send     a water-drop "bloop"                     (chat message sent)
-//   success  a level-up: arpeggio, sparkle, chord     (booking, listing, verification)
-//   error    a gentle falling marimba pair            (something went wrong)
-// Voices sit between ~500 Hz and 4 kHz and go through a compressor, so they
-// are clear on small phone speakers (which cannot play low notes).
+// download.
+//
+// Soft by design. The first version was found irritating: high glassy notes
+// (1–3.5 kHz), boosted loud, with a reverb tail on every click. Now:
+//   tap      a tiny water-drop "pop", ~60 ms       (every button)
+//   nav      two quick rising drops, ~90 ms        (links, tabs, cards)
+// Both sit in the mid range (about 500–900 Hz), far quieter than the moments
+// below, and each tap takes the next note of a pentatonic scale, so moving
+// around the app plays a soft little melody instead of one repeated beep.
+// The bigger sounds mark moments that matter, and are short and warm too:
+//   send     a soft water-drop                   (chat message, comment, post)
+//   pop      a bright double drop                (a reaction, a like)
+//   toggle   a hushed two-note step              (light / dark switch)
+//   notify   two gentle notes                    (something new arrived)
+//   success  a short warm rising pair            (booking, listing, verification)
+//   levelup  a brief, still-soft arpeggio        (community level up, streak milestone)
+//   error    one low, soft note                  (an action failed)
+// On Android phones a matching tiny vibration goes with pop / success / levelup.
+// Nothing plays while the tab is in the background. Sound and haptics are on
+// by default and share one switch in the top bar; the choice is remembered.
 //
 // Two ways to play them:
 //   • Most devices: live through Web Audio (instant).
@@ -21,7 +31,6 @@
 //     element, which iOS lets through.
 // Phones only allow sound to start from a finished tap (touchend / click), so
 // the first tap "unlocks" audio and plays its own sound as soon as it can.
-// Sounds are on by default and can be muted; the choice is remembered.
 const KEY = 'rentalflow_sfx';
 let muted = false;
 try { muted = localStorage.getItem(KEY) === 'off'; } catch { /* private mode */ }
@@ -49,95 +58,59 @@ function tone(ac, dest, { type = 'sine', f, to = f, start = 0, attack = 0.004, d
   osc.stop(t + dur + 0.05);
 }
 
-// Marimba: a warm body plus a bright, quickly-fading overtone and a soft knock.
+// Marimba: a warm body plus a faint, quickly-fading overtone (no bright
+// "knock" on top — that high click was the harshest part of the old sounds).
 function marimba(ac, dest, f, start = 0, gain = 0.22, dur = 0.45) {
   tone(ac, dest, { f, start, dur, gain });
-  tone(ac, dest, { f: f * 3.99, start, dur: dur * 0.22, gain: gain * 0.35 });
-  tone(ac, dest, { f: f * 10.1, start, dur: 0.03, gain: gain * 0.15 });
-}
-
-// Kalimba / pop: a note that "plinks" in from slightly sharp.
-function kalimba(ac, dest, f, start = 0, gain = 0.22) {
-  tone(ac, dest, { f: f * 1.18, to: f, glide: 0.018, start, dur: 0.28, gain });
-  tone(ac, dest, { f: f * 2.01, start, dur: 0.12, gain: gain * 0.3 });
-}
-
-// Bell: FM synthesis — a glassy, shimmering chime.
-function bell(ac, dest, f, start = 0, gain = 0.14, dur = 1.1) {
-  const t = ac.currentTime + start;
-  const car = ac.createOscillator();
-  const mod = ac.createOscillator();
-  const depth = ac.createGain();
-  const amp = ac.createGain();
-  car.frequency.value = f;
-  mod.frequency.value = f * 3.5;
-  depth.gain.setValueAtTime(f * 2.2, t);
-  depth.gain.exponentialRampToValueAtTime(f * 0.05, t + dur * 0.6);
-  amp.gain.setValueAtTime(0.0001, t);
-  amp.gain.exponentialRampToValueAtTime(gain, t + 0.004);
-  amp.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  mod.connect(depth);
-  depth.connect(car.frequency);
-  car.connect(amp);
-  amp.connect(dest);
-  car.start(t); mod.start(t);
-  car.stop(t + dur + 0.05); mod.stop(t + dur + 0.05);
-}
-
-// A soft band-passed breath of air (the swish).
-function air(ac, dest, { start = 0, dur = 0.3, from = 800, to = 4000, gain = 0.2 }) {
-  const t = ac.currentTime + start;
-  const buf = ac.createBuffer(1, Math.ceil(ac.sampleRate * dur), ac.sampleRate);
-  const data = buf.getChannelData(0);
-  for (let i = 0; i < data.length; i += 1) data[i] = Math.random() * 2 - 1;
-  const src = ac.createBufferSource();
-  const filter = ac.createBiquadFilter();
-  const amp = ac.createGain();
-  src.buffer = buf;
-  filter.type = 'bandpass';
-  filter.Q.value = 0.9;
-  filter.frequency.setValueAtTime(from, t);
-  filter.frequency.exponentialRampToValueAtTime(to, t + dur);
-  amp.gain.setValueAtTime(0.0001, t);
-  amp.gain.exponentialRampToValueAtTime(gain, t + dur * 0.45);
-  amp.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  src.connect(filter);
-  filter.connect(amp);
-  amp.connect(dest);
-  src.start(t);
+  tone(ac, dest, { f: f * 3.99, start, dur: dur * 0.15, gain: gain * 0.18 });
 }
 
 // ---------------------------------------------------------------- the voices
-// Notes come from a major pentatonic scale, so anything played together — or
-// one tap after another — always sounds musical. Taps pick a different note
-// each time, so tapping around the app plays a little tune instead of beeping.
-const PENTA = [1046.5, 1174.7, 1318.5, 1568, 1760];            // C6 D6 E6 G6 A6
+// Low-register sine and triangle tones (roughly 400–1300 Hz), no glassy bells,
+// nothing longer than half a second except the rare level-up.
+
+// A water drop: a pure tone that swoops up into its note and is gone. The
+// upward swoop is what makes it feel like a "yes" rather than a beep.
+function drop(ac, dest, f, start = 0, gain = 0.08) {
+  tone(ac, dest, { f: f * 0.62, to: f, glide: 0.022, start, attack: 0.003, dur: 0.06, gain });
+}
+
+const SCALE = [523.25, 587.33, 659.25, 783.99, 880];         // C5 D5 E5 G5 A5 (pentatonic)
 const VOICES = {
   //       [clip length s, draw(ac, dest, variant), variants]
-  tap: [0.45, (ac, d, v) => kalimba(ac, d, PENTA[v], 0, 0.46), PENTA.length],
-  nav: [0.7, (ac, d, v) => bell(ac, d, PENTA[v] * 2, 0, 0.24, 0.55), PENTA.length],
-  toggle: [0.9, (ac, d) => {
-    air(ac, d, { dur: 0.34, from: 700, to: 5200, gain: 0.26 });
-    marimba(ac, d, 784, 0.1, 0.16);                          // G5 …
-    marimba(ac, d, 1174.7, 0.19, 0.16);                      // … up to D6
-  }, 1],
-  send: [0.7, (ac, d) => {                                   // a water-drop "bloop"
-    tone(ac, d, { f: 380, to: 1250, glide: 0.06, dur: 0.16, gain: 0.55 });
-    tone(ac, d, { f: 1250, to: 1900, glide: 0.05, start: 0.05, dur: 0.14, gain: 0.16 });
-    bell(ac, d, 2637, 0.08, 0.1, 0.5);
-  }, 1],
-  success: [1.8, (ac, d) => {                                // a "level up": arpeggio → sparkle → chord
-    [1046.5, 1318.5, 1568, 2093].forEach((f, i) => marimba(ac, d, f, i * 0.065, 0.19, 0.5));
-    bell(ac, d, 2093, 0.27, 0.12, 1.3);
-    bell(ac, d, 2637, 0.32, 0.08, 1.2);
-    bell(ac, d, 3136, 0.37, 0.06, 1.1);
-    [523.25, 659.25, 784].forEach((f) => tone(ac, d, { type: 'triangle', f, start: 0.26, attack: 0.08, dur: 1.2, gain: 0.05 }));
-  }, 1],
-  error: [0.7, (ac, d) => {                                  // soft, never harsh
-    marimba(ac, d, 659.25, 0, 0.13, 0.3);                    // E5
-    marimba(ac, d, 523.25, 0.12, 0.13, 0.45);                // → C5
-  }, 1],
+  tap: [0.15, (ac, d, v) => drop(ac, d, SCALE[v], 0, 0.1), SCALE.length],
+  nav: [0.2, (ac, d, v) => {
+    drop(ac, d, SCALE[v], 0, 0.07);
+    drop(ac, d, SCALE[v] * 1.5, 0.045, 0.05);                // a fifth above
+  }, SCALE.length],
+  send: [0.4, (ac, d) => {
+    tone(ac, d, { f: 420, to: 820, glide: 0.07, dur: 0.14, gain: 0.22 });
+  }],
+  pop: [0.3, (ac, d) => {                                   // a brighter double drop
+    drop(ac, d, 783.99, 0, 0.16);                           // G5
+    drop(ac, d, 1174.66, 0.05, 0.09);                       // → D6
+  }],
+  toggle: [0.4, (ac, d) => {
+    tone(ac, d, { f: 523.25, dur: 0.12, gain: 0.12 });
+    tone(ac, d, { f: 659.25, start: 0.07, dur: 0.16, gain: 0.12 });
+  }],
+  notify: [0.5, (ac, d) => {
+    marimba(ac, d, 659.25, 0, 0.1, 0.25);                   // E5
+    marimba(ac, d, 880, 0.1, 0.09, 0.3);                    // → A5
+  }],
+  success: [0.6, (ac, d) => {
+    marimba(ac, d, 523.25, 0, 0.12, 0.3);                   // C5
+    marimba(ac, d, 784, 0.08, 0.12, 0.4);                   // → G5
+  }],
+  levelup: [0.9, (ac, d) => {
+    [523.25, 659.25, 784, 1046.5].forEach((f, i) => marimba(ac, d, f, i * 0.07, 0.11, 0.35));
+    tone(ac, d, { type: 'triangle', f: 1046.5, start: 0.28, attack: 0.03, dur: 0.5, gain: 0.04 });
+  }],
+  error: [0.4, (ac, d) => {
+    tone(ac, d, { type: 'triangle', f: 330, to: 290, glide: 0.12, dur: 0.22, gain: 0.14 });
+  }],
 };
+const HAPTICS = { pop: 8, success: [10, 40, 14], levelup: [12, 50, 12, 50, 20] };
 
 // A small generated room: a burst of decaying noise used as a reverb.
 function room(ac) {
@@ -160,8 +133,8 @@ function master(ac) {
   comp.threshold.value = -20; comp.knee.value = 12; comp.ratio.value = 4;
   comp.attack.value = 0.002; comp.release.value = 0.12;
   const boost = ac.createGain();
-  boost.gain.value = 1.7;
-  wet.gain.value = 0.22;
+  boost.gain.value = 0.9;
+  wet.gain.value = 0.08;
   const verb = room(ac);
   input.connect(comp);
   input.connect(verb);
@@ -184,11 +157,10 @@ function context() {
   } catch { ctx = null; }
   return ctx;
 }
-// Which variant plays: taps and chimes step through the scale (never the same
-// note twice in a row); other voices have just one.
+// Taps and links step through the scale, never the same note twice in a row.
 let lastVariant = -1;
 function variant(name) {
-  const n = VOICES[name][2];
+  const n = VOICES[name][2] || 1;
   if (n < 2) return 0;
   let v = Math.floor(Math.random() * n);
   if (v === lastVariant) v = (v + 1) % n;
@@ -218,16 +190,16 @@ function wav(buffer) {
 async function renderClips() {
   const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
   if (!OAC) return;
-  await Promise.all(Object.entries(VOICES).map(async ([name, [len, draw, variants]]) => {
+  await Promise.all(Object.entries(VOICES).map(async ([name, [len, draw, variants = 1]]) => {
     try {
-      // one clip per note (or two copies of a single-variant voice, so it can overlap itself)
+      // one clip per note (or two copies of a single-note voice, so it can overlap itself)
       const urls = await Promise.all(Array.from({ length: variants }, async (_, v) => {
         const ac = new OAC(1, Math.ceil(44100 * len), 44100);
         draw(ac, master(ac), v);
         return wav(await ac.startRendering());
       }));
       const list = variants > 1 ? urls : [urls[0], urls[0]];
-      clips[name] = list.map((url) => { const a = new Audio(url); a.preload = 'auto'; return a; });
+      clips[name] = list.map((u) => { const a = new Audio(u); a.preload = 'auto'; return a; });
     } catch { /* this voice stays silent */ }
   }));
 }
@@ -235,7 +207,7 @@ let clipTurn = 0;
 function playClip(name) {
   const pool = clips[name];
   if (!pool) return;
-  const a = VOICES[name][2] > 1 ? pool[variant(name)] : pool[(clipTurn += 1) % pool.length];
+  const a = (VOICES[name][2] || 1) > 1 ? pool[variant(name)] : pool[(clipTurn += 1) % pool.length];
   try { a.currentTime = 0; } catch { /* not loaded yet */ }
   a.play().catch(() => {});
 }
@@ -255,9 +227,11 @@ function unlockClips() {
 let last = 0;
 export function play(name) {
   if (muted || !VOICES[name]) return;
+  if (typeof document !== 'undefined' && document.hidden) return;   // never from a background tab
   const now = performance.now();
-  if (now - last < 40) return;                   // never stack sounds from one gesture
+  if (now - last < 60) return;                   // never stack sounds from one gesture
   last = now;
+  if (HAPTICS[name]) { try { navigator.vibrate?.(HAPTICS[name]); } catch { /* not supported */ } }
   if (IOS) {
     if (clipsUnlocked) playClip(name); else pending = { name, at: now };
     return;
@@ -298,13 +272,15 @@ export function setMuted(value) {
   try { localStorage.setItem(KEY, value ? 'off' : 'on'); } catch { /* private mode */ }
 }
 
-// Buttons and links make their own sound without every page wiring it up.
-// Pages add the special ones (send, success, error) where they happen.
+// Buttons and links make their own soft sound without every page wiring it
+// up; an element can pick another voice with data-sfx="<voice>" or opt out
+// with data-sfx="none". Pages play the special moments (send, pop, success,
+// error) where they happen.
 export function installClickSounds() {
   if (IOS) renderClips();
   document.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
-    const el = e.target.closest('button, a, [role="link"], [role="button"], summary, input[type="checkbox"], input[type="radio"]');
+    const el = e.target.closest('button, a, [role="link"], [role="button"], summary, input[type="checkbox"], input[type="radio"], [data-sfx]');
     if (!el || el.disabled || el.dataset.sfx === 'none') return;
     play(el.dataset.sfx || (el.matches('button, [role="button"], summary, input') ? 'tap' : 'nav'));
   }, { capture: true, passive: true });

@@ -5,6 +5,7 @@
 //   GET  /api/messages/unread                   → { count } (for the nav badge)
 //   GET  /api/messages/conversations            → my conversations, newest first
 //   POST /api/messages/conversations            { item_id } → open (or reuse) a chat with its lister
+//                                               { post_id } → ...or with the seller of a "for sale" post
 //   GET  /api/messages/conversations/:id        ?after=<message id> → messages; marks theirs read
 //   POST /api/messages/conversations/:id        { body } → send
 //
@@ -45,9 +46,10 @@ router.get('/unread', async (req, res) => {
 
 router.get('/conversations', async (req, res) => {
   const { rows } = await query(
-    `SELECT c.id, c.item_id, c.last_message_at, c.created_at,
-            i.name AS item_name,
-            (SELECT url FROM item_images WHERE item_id = c.item_id ORDER BY position, id LIMIT 1) AS item_cover,
+    `SELECT c.id, c.item_id, c.post_id, c.last_message_at, c.created_at,
+            COALESCE(i.name, CASE WHEN p.id IS NOT NULL THEN 'For sale · ' || LEFT(p.body, 50) END) AS item_name,
+            COALESCE((SELECT url FROM item_images WHERE item_id = c.item_id ORDER BY position, id LIMIT 1),
+                     (SELECT a->>'url' FROM jsonb_array_elements(p.attachments) a WHERE a->>'type' = 'image' LIMIT 1)) AS item_cover,
             other.id AS other_id, other.name AS other_name,
             (c.owner_id = $1) AS i_am_owner,
             last.body AS last_body, last.sender_id AS last_sender_id,
@@ -55,6 +57,7 @@ router.get('/conversations', async (req, res) => {
               WHERE m.conversation_id = c.id AND m.sender_id <> $1 AND m.read_at IS NULL) AS unread
        FROM conversations c
        LEFT JOIN items i ON i.id = c.item_id
+       LEFT JOIN posts p ON p.id = c.post_id
        JOIN users other ON other.id = CASE WHEN c.owner_id = $1 THEN c.renter_id ELSE c.owner_id END
        LEFT JOIN LATERAL (
          SELECT body, sender_id FROM messages WHERE conversation_id = c.id ORDER BY id DESC LIMIT 1
@@ -69,6 +72,7 @@ router.get('/conversations', async (req, res) => {
 // Open the chat about an item with the person who listed it. Asking again
 // returns the same conversation instead of starting a new one.
 router.post('/conversations', async (req, res) => {
+  if (req.body.post_id) return openAboutPost(req, res);
   const itemId = Number(req.body.item_id);
   const { rows: items } = await query('SELECT id, owner_id FROM items WHERE id = $1', [itemId]);
   const item = items[0];
@@ -86,6 +90,23 @@ router.post('/conversations', async (req, res) => {
   );
   res.status(201).json({ id: rows[0].id });
 });
+
+// A buyer writing to the seller of a "for sale" community post.
+async function openAboutPost(req, res) {
+  const { rows: [post] } = await query(
+    `SELECT id, author_id, sale FROM posts WHERE id = $1 AND kind = 'sell' AND status = 'visible'`, [Number(req.body.post_id)]);
+  if (!post) return res.status(404).json({ error: 'That item is no longer for sale.' });
+  if (post.author_id === req.user.id) return res.status(400).json({ error: 'This is your own post.' });
+  const { rows } = await query(
+    `INSERT INTO conversations (post_id, renter_id, owner_id)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (post_id, renter_id, owner_id) WHERE post_id IS NOT NULL
+     DO UPDATE SET post_id = EXCLUDED.post_id
+     RETURNING id`,
+    [post.id, req.user.id, post.author_id]
+  );
+  res.status(201).json({ id: rows[0].id });
+}
 
 router.get('/conversations/:id', async (req, res) => {
   const convo = await mine(req.params.id, req.user.id);
@@ -107,9 +128,12 @@ router.get('/conversations/:id', async (req, res) => {
   const { rows: meta } = await query(
     `SELECT i.id AS item_id, i.name AS item_name, i.rental_price, i.status AS item_status,
             (SELECT url FROM item_images WHERE item_id = i.id ORDER BY position, id LIMIT 1) AS item_cover,
+            p.id AS post_id, LEFT(p.body, 80) AS post_title, p.sale,
+            (SELECT a->>'url' FROM jsonb_array_elements(p.attachments) a WHERE a->>'type' = 'image' LIMIT 1) AS post_cover,
             other.id AS other_id, other.name AS other_name
        FROM conversations c
        LEFT JOIN items i ON i.id = c.item_id
+       LEFT JOIN posts p ON p.id = c.post_id
        JOIN users other ON other.id = CASE WHEN c.owner_id = $2 THEN c.renter_id ELSE c.owner_id END
       WHERE c.id = $1`,
     [convo.id, req.user.id]

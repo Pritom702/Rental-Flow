@@ -12,6 +12,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { authRequired } from '../middleware/auth.js';
 import { query } from '../db.js';
+import { assertCleanImage } from '../moderation.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Older photos (and the seeded demo images) may still live in this folder;
@@ -42,9 +43,10 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB per image
   fileFilter: (_req, file, cb) => {
     // Photos only. SVG is refused on purpose: it can carry script, and these
-    // files are served from our own domain.
-    if (['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.mimetype)) cb(null, true);
-    else cb(new Error('Only JPEG, PNG, WebP or GIF photos are allowed'));
+    // files are served from our own domain. JPEG and PNG only, because every
+    // photo is checked for adult content first (moderation.js).
+    if (['image/jpeg', 'image/png'].includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Only JPEG or PNG photos are allowed'));
   },
 });
 
@@ -58,6 +60,8 @@ router.post('/', authRequired, (req, res) => {
       return res.status(400).json({ error: 'No image uploaded' });
     }
     try {
+      // No adult content anywhere: every photo is checked before any is saved.
+      for (const f of req.files) await assertCleanImage(f.buffer, f.mimetype, req.user.id, 'a listing photo');
       const urls = [];
       for (const f of req.files) {
         const name = uniqueName(f.originalname);
@@ -66,7 +70,7 @@ router.post('/', authRequired, (req, res) => {
       }
       res.status(201).json({ urls });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(e.status || 500).json({ error: e.message, ...(e.reason && { reason: e.reason }) });
     }
   });
 });

@@ -53,6 +53,12 @@ async function main() {
   await pool.query('DROP TABLE IF EXISTS damage_claims, incidents, identity_blacklist, system_state CASCADE');
   await pool.query(fs.readFileSync(path.join(__dirname, 'schema_protection.sql'), 'utf8'));
   console.log('✅ Rental protection created (claims, incidents, blacklist)');
+
+  // Community: communities, posts, comments, reactions, moments, rewards.
+  await pool.query(`DROP TABLE IF EXISTS communities, community_members, posts, post_reactions, post_saves,
+    poll_votes, comments, comment_likes, content_reports, stories, story_views, follows, user_stats CASCADE`);
+  await pool.query(fs.readFileSync(path.join(__dirname, 'schema_social.sql'), 'utf8'));
+  console.log('✅ Community created (posts, comments, moments, rewards)');
   await pool.end();
 }
 

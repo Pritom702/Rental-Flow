@@ -26,6 +26,7 @@ async function request(method, path, body) {
     body: body ? JSON.stringify(body) : undefined,
   });
 
+  announceReward(res);
   if (res.status === 204) return null;
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -41,6 +42,11 @@ async function request(method, path, body) {
       && window.location.pathname !== '/verify') {
       window.location.assign('/verify');
     }
+    // Adult content (a warning, then a ban) and banned accounts get a clear
+    // full-screen notice from the reward layer, not just a red line of text.
+    if (['adult-warning', 'adult-banned', 'account-suspended'].includes(data.reason)) {
+      window.dispatchEvent(new CustomEvent('rf:moderation', { detail: { reason: data.reason, message: data.error } }));
+    }
     if (method !== 'GET') play('error');   // an action the member took failed
     const err = new Error(data.error || `Request failed (${res.status})`);
     err.status = res.status;
@@ -51,18 +57,37 @@ async function request(method, path, body) {
   return data;
 }
 
+// Anything a member does may earn XP, a level or a badge. The server sends
+// that back in an X-Reward header; the reward layer (social/RewardLayer.jsx)
+// listens for this event and celebrates it.
+export function announceReward(res) {
+  const raw = res.headers.get('X-Reward');
+  if (!raw) return;
+  try {
+    window.dispatchEvent(new CustomEvent('rf:reward', { detail: JSON.parse(decodeURIComponent(raw)) }));
+  } catch { /* a malformed reward is simply not shown */ }
+}
+
 // Upload one or more image files from the user's device.
 // Returns { urls: [...] }. Sends multipart/form-data (no JSON Content-Type so the
 // browser sets the multipart boundary itself).
 async function uploadImages(fileList) {
+  // Every photo is checked for adult content on the server, which reads JPEG
+  // and PNG; anything else (WebP, HEIC, GIF) and anything large is turned into
+  // a compact JPEG on the device first — smaller uploads, same picture.
+  const { shrinkImage } = await import('./social/media.js');
   const form = new FormData();
-  for (const file of fileList) form.append('images', file);
+  for (const file of fileList) {
+    const keep = ['image/jpeg', 'image/png'].includes(file.type) && file.size < 1.5 * 1024 * 1024;
+    form.append('images', keep ? file : (await shrinkImage(file, 2000)).file);
+  }
 
   const headers = {};
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
   const res = await fetch('/api/uploads', { method: 'POST', headers, body: form });
+  announceReward(res);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) { play('error'); throw new Error(data.error || `Upload failed (${res.status})`); }
   return data;

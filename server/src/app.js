@@ -30,6 +30,8 @@ import fileRoutes from './routes/files.js';
 import handoffRoutes from './routes/handoff.js';
 import messageRoutes from './routes/messages.js';
 import protectionRoutes from './routes/protection.js';
+import communityRoutes from './routes/community.js';
+import { rewardMiddleware } from './rewards.js';
 import { maybeRunEscalation } from './protection.js';
 import { auditLogger } from './middleware/audit.js';
 import { blockSuspended } from './middleware/accountStatus.js';
@@ -39,7 +41,7 @@ import { pool } from './db.js';
 dotenv.config();
 
 const app = express();
-app.use(cors());
+app.use(cors({ exposedHeaders: ['X-Reward'] }));
 // 4 MB: the NID step sends two card photos in one request. The browser shrinks
 // each to ~300 KB first, and Vercel's own cap is 4.5 MB.
 app.use(express.json({ limit: '4mb' }));
@@ -50,6 +52,9 @@ app.use('/api', blockSuspended);
 app.use('/api', auditLogger);
 // A new member cannot reach the platform until their identity is verified.
 app.use('/api', requireVerified);
+// Rewards: XP, streaks, levels and badges for what members do anywhere on the
+// site. Travels back in an X-Reward header (see rewards.js).
+app.use('/api', rewardMiddleware);
 // Rental protection: overdue rentals escalate as the site is used (reminders,
 // freezing, missing reports). Bookings and the notification bell are what
 // everyone loads, so they carry the sweep — at most once every few minutes.
@@ -90,6 +95,7 @@ app.use('/api/files', fileRoutes);
 app.use('/api/handoff', handoffRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/protection', protectionRoutes);
+app.use('/api/community', communityRoutes);
 
 // Unknown /api path → JSON 404 (not the SPA's index.html), so a typo in a fetch
 // surfaces as a clear error instead of "Unexpected token < in JSON".
@@ -103,7 +109,7 @@ app.use('/api', (_req, res) => {
 // those rejections arrive here and become a normal 500 JSON response.
 app.use((err, _req, res, _next) => {
   console.error('Unhandled API error:', err);
-  res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
+  res.status(err.status || 500).json({ error: err.message || 'Internal server error', ...(err.reason && { reason: err.reason }) });
 });
 
 export default app;

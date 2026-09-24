@@ -111,4 +111,8 @@ ALTER TABLE notifications ADD CONSTRAINT notifications_type_check
                   'booking_cancelled', 'booking_completed',
                   'verification_approved', 'verification_rejected', 'verification_review',
                   'rental_due_soon', 'rental_overdue', 'rental_warning', 'rental_frozen',
-                  'rental_missing', 'claim_opened', 'claim_update', 'incident'));
+                  'rental_missing', 'claim_opened', 'claim_update', 'incident',
+                  -- the community's types (schema_social.sql), listed here too so that
+                  -- re-running this file never rejects notifications that already exist
+                  'social_reaction', 'social_comment', 'social_reply', 'social_mention',
+                  'social_follow', 'social_milestone', 'social_wanted', 'social_moderation'));

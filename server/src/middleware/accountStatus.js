@@ -18,9 +18,13 @@ export async function blockSuspended(req, res, next) {
     return next();   // invalid token: let authRequired produce the 401
   }
   try {
-    const { rows } = await query('SELECT status FROM users WHERE id = $1', [payload.id]);
+    const { rows } = await query('SELECT * FROM users WHERE id = $1', [payload.id]);
     if (rows[0] && rows[0].status === 'suspended') {
-      return res.status(403).json({ error: 'This account has been suspended by an administrator' });
+      // A community ban (adult content twice) says so; otherwise an admin did it.
+      return res.status(403).json({
+        error: rows[0].suspended_reason || 'This account has been suspended by an administrator',
+        reason: 'account-suspended',
+      });
     }
   } catch {
     // Table missing (schema not migrated yet) — do not lock everyone out.
