@@ -64,7 +64,9 @@ export default function RenterModal({ bookingId, onClose, onDecide }) {
                 <div>
                   <strong>Identity verified</strong>
                   <div className="muted" style={{ fontSize: 13.5 }}>
-                    A National ID has been on file since {dateOf(data.nid.submittedAt)}.
+                    {data.nid.private
+                      ? `Their National ID and a live selfie were checked by RentalFlow on ${dateOf(data.nid.submittedAt)}. For privacy, only admins can see the details.`
+                      : `A National ID has been on file since ${dateOf(data.nid.submittedAt)}.`}
                   </div>
                 </div>
               </div>
@@ -109,8 +111,8 @@ export default function RenterModal({ bookingId, onClose, onDecide }) {
               )}
             </dl>
 
-            {/* ---- The NID itself ---- */}
-            {data.nid.onFile && (
+            {/* ---- The NID itself: admins only (listers just see "verified") ---- */}
+            {data.nid.onFile && !data.nid.private && (
               <>
                 <h3 style={{ marginTop: 20 }}>National ID</h3>
                 <dl className="detail-grid">

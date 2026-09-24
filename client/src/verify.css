@@ -1,0 +1,309 @@
+/* ============================================================
+   RentalFlow  |  Identity verification  |  Owner: M2 - Tawheed Bin Hamid (Pritom)
+   GitHub: @pritom702  |  Part: styles for the verification + review screens
+   ============================================================
+   Phone first: everything is one column sized for a thumb, and the main button
+   sticks to the bottom of the screen on long forms. Uses the app's colour
+   tokens, so light and dark mode come for free. */
+
+/* ---------------------------------------------------------------- shell */
+.verify {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+}
+.verify-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  max-width: 520px;
+  width: 100%;
+  margin: 0 auto;
+}
+.verify-top .wordmark { font-family: var(--font-display); font-size: 20px; font-weight: 600; }
+.verify-top .wordmark span { color: var(--accent); }
+
+.verify-progress {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  max-width: 520px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+.verify-progress span { height: 5px; border-radius: 99px; background: var(--border); }
+.verify-progress span.on { background: var(--primary); }
+.verify-progress small { grid-column: 1 / -1; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+
+.verify-body {
+  flex: 1;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 18px 16px 28px;
+}
+.verify-step h1 {
+  font-size: 26px;
+  letter-spacing: -.02em;
+  margin: 10px 0 6px;
+}
+.verify-step .lead { color: var(--text-2); font-size: 15.5px; line-height: 1.5; margin: 0 0 20px; }
+.verify-step.center { text-align: center; padding-top: 28px; }
+.verify-step .center { text-align: center; }
+.verify-step .error.left { text-align: left; }
+.verify-step .field input { font-size: 16px; padding: 12px 13px; }   /* 16px stops iOS zooming in */
+
+.verify-icon {
+  width: 52px; height: 52px;
+  border-radius: 16px;
+  display: grid; place-items: center;
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+.verify-icon.big { width: 76px; height: 76px; border-radius: 50%; margin: 0 auto 6px; }
+.verify-icon.ok { background: color-mix(in srgb, var(--green) 16%, transparent); color: var(--green); }
+.verify-icon.bad { background: color-mix(in srgb, var(--red) 14%, transparent); color: var(--red); }
+.verify-icon.wait { background: var(--accent-soft); color: var(--accent); }
+
+.verify-actions { display: grid; gap: 10px; margin-top: 22px; }
+.verify-actions.sticky {
+  position: sticky;
+  bottom: 0;
+  margin: 22px -16px 0;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--bg) 70%, transparent);
+}
+.btn.block { width: 100%; justify-content: center; }
+.btn.lg.block { padding: 15px 20px; font-size: 16px; }
+
+/* ---------------------------------------------------------------- email */
+.code-input {
+  width: 100%;
+  font-size: 30px;
+  letter-spacing: 12px;
+  text-align: center;
+  padding: 14px 10px;
+  border-radius: var(--radius);
+  border: 1.5px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.code-input:focus { outline: none; border-color: var(--primary); box-shadow: var(--ring); }
+.devcode { font-size: 18px; letter-spacing: 3px; }
+.verify-step .hint { margin: 0 0 14px; }
+
+/* ---------------------------------------------------------------- NID */
+.tips {
+  display: grid;
+  gap: 3px;
+  padding: 11px 13px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 13.5px;
+  margin: 4px 0 16px;
+}
+
+.idphoto {
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin-bottom: 14px;
+  background: var(--surface);
+}
+.idphoto.good { border-style: solid; border-color: var(--green); }
+.idphoto.bad { border-style: solid; border-color: var(--red); }
+.idphoto-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 14.5px; }
+.idphoto-ok { display: inline-flex; gap: 4px; align-items: center; color: var(--green); font-size: 13px; font-weight: 600; }
+.idphoto-empty {
+  aspect-ratio: 1.58;          /* an ID card's shape */
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 6px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 13.5px;
+}
+.idphoto-preview {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1.58;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+}
+.idphoto.warn { border-style: solid; border-color: var(--accent); }
+.idphoto-warn { color: var(--accent); font-size: 13.5px; margin-top: 9px; line-height: 1.4; font-weight: 500; }
+.idphoto-problem { color: var(--red); font-size: 13.5px; margin-top: 9px; line-height: 1.4; font-weight: 500; }
+.idphoto-actions { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 10px; }
+.idphoto-actions .btn { justify-content: center; padding: 11px 14px; }
+
+/* ---------------------------------------------------------------- selfie */
+.checklist { list-style: none; padding: 0; margin: 0 0 8px; display: grid; gap: 10px; }
+.checklist li { display: flex; gap: 10px; align-items: center; font-size: 15px; color: var(--text-2); }
+.checklist li svg { color: var(--green); flex: none; }
+
+.selfie { display: grid; gap: 12px; }
+.selfie-stage {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: #000;
+}
+.selfie-video {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);        /* a mirror, like every selfie camera */
+}
+.selfie-oval {
+  position: absolute;
+  inset: 12% 18% 16%;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, .85);
+  box-shadow: 0 0 0 999px rgba(0, 0, 0, .35);
+  pointer-events: none;
+}
+.selfie-loading { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font-size: 15px; }
+.selfie-steps { display: flex; justify-content: center; gap: 8px; }
+.selfie-steps span { width: 34px; height: 5px; border-radius: 99px; background: var(--border); }
+.selfie-steps span.now { background: var(--accent); }
+.selfie-steps span.done { background: var(--green); }
+.selfie-instruction { text-align: center; font-size: 22px; font-weight: 600; letter-spacing: -.01em; }
+.selfie-tip { text-align: center; color: var(--accent); font-size: 14.5px; min-height: 20px; }
+.selfie-msg { display: grid; gap: 14px; padding-top: 20px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .selfie-steps span.now { animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .45; } }
+}
+
+/* ---------------------------------------------------------------- admin review */
+.review-h { font-size: 16px; margin: 22px 0 10px; }
+.review-list { display: grid; gap: 8px; }
+.review-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 2fr) auto;
+  gap: 14px;
+  align-items: center;
+  text-align: left;
+  padding: 13px 15px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+}
+.review-row:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm); }
+.review-row.warn { border-left: 4px solid var(--red); }
+.review-who { display: grid; min-width: 0; }
+.review-who span, .review-when { color: var(--muted); font-size: 13px; }
+.review-who b, .review-who span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.review-why { font-size: 13.5px; color: var(--text-2); }
+
+.review-detail .page-head { margin-top: 10px; }
+.review-reasons {
+  display: grid; gap: 6px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+.review-reasons div { display: flex; gap: 8px; align-items: flex-start; }
+.review-reasons svg { color: var(--accent); flex: none; margin-top: 2px; }
+.review-photos { display: grid; grid-template-columns: 1.4fr 1fr 1.4fr; gap: 12px; margin-bottom: 16px; }
+.review-photos figure { margin: 0; }
+.review-photos img {
+  width: 100%;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  display: block;
+}
+.review-photos figcaption { color: var(--muted); font-size: 12.5px; margin-top: 5px; }
+.review-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+.review-detail .panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+.review-detail .panel h3 { font-size: 15px; margin: 0 0 10px; }
+.review-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.review-table th, .review-table td { text-align: left; padding: 7px 6px; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
+.review-table thead th { color: var(--muted); font-weight: 500; font-size: 12.5px; }
+.review-table td.ok { color: var(--green); }
+.review-table td.no { color: var(--red); }
+.meter { height: 10px; border-radius: 99px; background: var(--surface-2); overflow: hidden; margin: 6px 0 8px; }
+.meter span { display: block; height: 100%; border-radius: 99px; }
+.meter span.ok { background: var(--green); }
+.meter span.no { background: var(--red); }
+.ocr-raw { margin-bottom: 14px; }
+.ocr-raw summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+.ocr-raw pre { white-space: pre-wrap; font-size: 12.5px; color: var(--text-2); margin: 10px 0 0; }
+.review-decide textarea { width: 100%; }
+.review-buttons { display: flex; gap: 10px; justify-content: flex-end; }
+
+.risk-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.risk-badge.ok { background: color-mix(in srgb, var(--green) 15%, transparent); color: var(--green); }
+.risk-badge.mid { background: var(--accent-soft); color: var(--accent); }
+.risk-badge.no { background: color-mix(in srgb, var(--red) 13%, transparent); color: var(--red); }
+.review-when { display: grid; justify-items: end; gap: 4px; }
+.model-panel, .risk-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+.model-panel h3, .risk-panel h3 { font-size: 15px; margin: 0 0 4px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.model-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.model-panel .review-table { margin-top: 10px; }
+.risk-factors { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 6px; font-size: 14px; }
+.risk-factors li { display: flex; gap: 8px; align-items: baseline; }
+.risk-factors li.ok span { color: var(--green); }
+.risk-factors li.no span { color: var(--red); }
+
+@media (max-width: 720px) {
+  .review-when { justify-items: start; grid-auto-flow: column; justify-content: start; align-items: center; }
+  .review-row { grid-template-columns: 1fr; gap: 4px; }
+  .review-photos { grid-template-columns: 1fr 1fr; }
+  .review-photos figure:first-child { grid-column: 1 / -1; }
+  .review-grid { grid-template-columns: 1fr; }
+  .review-buttons .btn { flex: 1; justify-content: center; padding: 13px; }
+}
+
+/* ---------------------------------------------------------------- continue on phone */
+.handoff {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 16px;
+  margin-bottom: 18px;
+  border-radius: var(--radius);
+  background: var(--primary-soft);
+  border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
+}
+.handoff-text b { display: inline-flex; gap: 6px; align-items: center; font-size: 15px; }
+.handoff-text p { margin: 6px 0; font-size: 14px; color: var(--text-2); }
+.handoff-qr { width: 150px; height: 150px; border-radius: var(--radius-sm); background: #fff; padding: 6px; }
+
+.verify-progress.two { grid-template-columns: repeat(2, 1fr); }

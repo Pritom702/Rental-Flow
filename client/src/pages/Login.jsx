@@ -6,12 +6,13 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 import { Icon } from '../icons.jsx';
+import ThemeToggle from '../components/ThemeToggle.jsx';
 
 export default function Login() {
   const { login, signup } = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'member' });
+  const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -22,9 +23,12 @@ export default function Login() {
     setError('');
     setBusy(true);
     try {
-      if (mode === 'login') await login(form.email, form.password);
-      else await signup(form.name, form.email, form.password, form.role);
-      navigate('/dashboard');
+      const user = mode === 'login'
+        ? await login(form.email, form.password)
+        : await signup(form.name, form.email, form.password);
+      // A new member confirms their email first; the ID check comes at their first listing.
+      const needsEmail = user.role === 'member' && user.emailVerified === false;
+      navigate(needsEmail ? '/verify' : '/browse');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -34,6 +38,7 @@ export default function Login() {
 
   return (
     <div className="auth-split">
+      <ThemeToggle className="auth-theme" />
       <aside className="auth-aside">
         <h2>Rent smarter.<br />Earn from what you own.</h2>
         <p>Join RentalFlow to list your equipment and rent from members — all with tracked availability, deposits, and condition reports.</p>
@@ -64,16 +69,12 @@ export default function Login() {
             </div>
             <div className="field">
               <label>Password</label>
-              <input type="password" value={form.password} onChange={set('password')} required autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />
+              <input type="password" value={form.password} onChange={set('password')} required minLength={mode === 'signup' ? 8 : undefined} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />
             </div>
             {mode === 'signup' && (
-              <div className="field">
-                <label>Sign up as</label>
-                <select value={form.role} onChange={set('role')}>
-                  <option value="member">Member — list &amp; rent equipment</option>
-                  <option value="admin">Admin — manage the platform</option>
-                </select>
-              </div>
+              <p className="muted" style={{ marginTop: -6, marginBottom: 16 }}>
+                Next, you'll confirm your email with a 6-digit code. Before your first listing you'll also verify your National ID.
+              </p>
             )}
 
             {error && <div className="error"><Icon name="shield" size={16} /> {error}</div>}
@@ -94,7 +95,8 @@ export default function Login() {
                 <b>Demo accounts</b><br />
                 Member — rahim@rentalflow.test / member123<br />
                 Member — karim@rentalflow.test / member123<br />
-                Admin — admin@rentalflow.test / admin123
+                Admin — admin@rentalflow.test / admin123<br />
+                Staff — staff@rentalflow.test / staff123
               </div>
             )}
           </form>

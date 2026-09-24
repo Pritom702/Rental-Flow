@@ -16,13 +16,15 @@ import {
   normalizeNid, maskNid, canSubmitNid,
   isValidPaymentMethod, maskAccountRef, defaultLabel, shouldBecomeDefault,
 } from '../profileUtils.js';
+import { checkNidStructure, REASON_TEXT } from '../nidUtils.js';
+import { signFileUrl } from './files.js';
 
 const router = Router();
 router.use(authRequired);
 
 // Columns that are safe to send to the browser. The raw nid_number is NEVER in
 // this list — it is masked by the handler before it leaves the server.
-const ACCOUNT_COLUMNS = `id, name, email, role, status, phone,
+const ACCOUNT_COLUMNS = `id, name, email, role, status, phone, verification_status,
   nid_number, nid_name, nid_front_url, nid_back_url, nid_submitted_at, created_at`;
 
 async function loadUser(id) {
@@ -83,17 +85,11 @@ router.get('/', async (req, res) => {
       phone: user.phone,
       memberSince: user.created_at,
     },
-    // The identity block. `number` is masked; the full value never leaves the DB.
+    // Identity: the member sees only whether they are verified. The NID number
+    // and photos are visible to admins alone (GET /api/verify/admin/users/:id).
     nid: user.nid_number
-      ? {
-        onFile: true,
-        number: maskNid(user.nid_number),
-        name: user.nid_name,
-        frontUrl: user.nid_front_url,
-        backUrl: user.nid_back_url,
-        submittedAt: user.nid_submitted_at,
-      }
-      : { onFile: false },
+      ? { onFile: true, verified: user.verification_status === 'verified', submittedAt: user.nid_submitted_at }
+      : { onFile: false, status: user.verification_status },
     paymentMethods: await loadPaymentMethods(user.id),
     activity: {
       listings: listings.rows[0],
@@ -146,15 +142,23 @@ router.post('/nid', async (req, res) => {
       .json({ error: messages[check.reason], reason: check.reason });
   }
 
+  // The same number rules the new-member verification uses: made-up patterns
+  // and impossible birth years are refused, and the 13-digit core is what must
+  // be unique, so the 13- and 17-digit forms of one card cannot both be used.
+  const structure = checkNidStructure(submission.nid_number);
+  if (!structure.ok) {
+    return res.status(400).json({ error: REASON_TEXT[structure.reason], reason: structure.reason });
+  }
+
   try {
     const { rows } = await query(
       `UPDATE users
           SET nid_number = $2, nid_name = $3, nid_front_url = $4,
-              nid_back_url = $5, nid_submitted_at = NOW()
+              nid_back_url = $5, nid_submitted_at = NOW(), nid_canonical = $6
         WHERE id = $1 AND nid_number IS NULL
         RETURNING id, nid_number, nid_name, nid_front_url, nid_back_url, nid_submitted_at`,
       [user.id, submission.nid_number, String(submission.nid_name).trim(),
-        submission.nid_front_url, submission.nid_back_url]
+        submission.nid_front_url, submission.nid_back_url, structure.canonical]
     );
     // The WHERE guard lost a race with a second concurrent submit.
     if (!rows[0]) {

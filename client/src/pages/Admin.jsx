@@ -4,6 +4,7 @@
 // ============================================================
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
+import AdminIdentityModal from "../components/AdminIdentityModal.jsx";
 import { useAuth } from "../auth.jsx";
 import { Icon } from "../icons.jsx";
 import { StatTile, BarChart } from "../components/Charts.jsx";
@@ -22,6 +23,7 @@ export default function Admin() {
 	const [showForm, setShowForm] = useState(false);
 	const [error, setError] = useState("");
 	const [success, setSuccess] = useState("");
+	const [identityOf, setIdentityOf] = useState(null);
 
 	async function load() {
 		const q = entityFilter
@@ -248,6 +250,14 @@ export default function Admin() {
 											<div className="muted small">
 												{u.email}
 											</div>
+											{u.role === "member" && (
+												<button
+													className="btn ghost small"
+													onClick={() => setIdentityOf(u.id)}
+												>
+													View ID
+												</button>
+											)}
 										</td>
 										<td>
 											<select
@@ -416,6 +426,9 @@ export default function Admin() {
 						</div>
 					)}
 				</>
+			)}
+			{identityOf && (
+				<AdminIdentityModal userId={identityOf} onClose={() => setIdentityOf(null)} />
 			)}
 		</div>
 	);

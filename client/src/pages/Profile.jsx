@@ -11,7 +11,6 @@ import { api } from '../api.js';
 import { useAuth } from '../auth.jsx';
 import { Icon } from '../icons.jsx';
 import { money } from '../money.js';
-import NidForm from '../components/NidForm.jsx';
 import PaymentMethods from '../components/PaymentMethods.jsx';
 
 const dateOf = (iso) => (iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
@@ -64,18 +63,6 @@ export default function Profile() {
       {error && <div className="error"><Icon name="shield" size={16} /> {error}</div>}
 
       {/* ---------- Identity banner ---------- */}
-      {!nid.onFile && (
-        <div className="notice warn">
-          <Icon name="shield" size={18} />
-          <div>
-            <strong>Your identity is not verified yet.</strong>
-            <div className="muted" style={{ fontSize: 13.5 }}>
-              RentalFlow needs a National ID on file before you can request a booking, so that
-              damage and penalty claims can be settled. It is a one-time step.
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ---------- Account ---------- */}
       <section className="panel">
@@ -117,31 +104,28 @@ export default function Profile() {
         )}
       </section>
 
-      {/* ---------- NID ---------- */}
+      {/* ---------- Identity ---------- */}
       <section className="panel">
         <div className="panel-head">
-          <h2>National ID verification</h2>
-          {nid.onFile && <span className="badge Completed">Verified</span>}
+          <h2>Identity verification</h2>
+          {nid.onFile && nid.verified && <span className="badge Completed">Verified</span>}
         </div>
         {nid.onFile ? (
-          <>
-            <dl className="detail-grid">
-              <div><dt>Name on NID</dt><dd>{nid.name}</dd></div>
-              <div><dt>NID number</dt><dd className="mono">{nid.number}</dd></div>
-              <div><dt>Submitted</dt><dd>{dateOf(nid.submittedAt)}</dd></div>
-            </dl>
-            <div className="nid-shots">
-              {nid.frontUrl && <figure><img src={nid.frontUrl} alt="NID front" onError={(e) => { e.currentTarget.closest("figure").hidden = true; }} /><figcaption>Front</figcaption></figure>}
-              {nid.backUrl && <figure><img src={nid.backUrl} alt="NID back" onError={(e) => { e.currentTarget.closest("figure").hidden = true; }} /><figcaption>Back</figcaption></figure>}
-            </div>
-            <div className="locked">
-              <Icon name="shield" size={15} />
-              Your National ID is recorded once and cannot be changed or removed.
-              Contact an admin if something is wrong.
-            </div>
-          </>
+          <div className="locked">
+            <Icon name="shield" size={15} />
+            Your National ID and selfie were verified{nid.submittedAt ? ` on ${dateOf(nid.submittedAt)}` : ''} and are
+            saved on your account. For your privacy, only RentalFlow admins can see the details.
+          </div>
+        ) : nid.status === 'pending_review' ? (
+          <div className="locked">
+            <Icon name="shield" size={15} />
+            Your ID is being checked by our team. You can rent as soon as it is approved.
+          </div>
         ) : (
-          <NidForm onDone={load} />
+          <div className="locked" style={{ display: 'grid', gap: 10 }}>
+            <span><Icon name="shield" size={15} /> You'll verify your identity once, before your first rental — a photo of your NID and a quick selfie.</span>
+            <Link to="/verify?next=/profile" className="btn small" style={{ justifySelf: 'start' }}>Verify now</Link>
+          </div>
         )}
       </section>
 
