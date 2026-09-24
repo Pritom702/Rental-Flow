@@ -42,6 +42,7 @@ import ThemeToggle from './components/ThemeToggle.jsx';
 import NotificationBell from './components/NotificationBell.jsx';
 import RewardLayer, { XpRing } from './social/RewardLayer.jsx';
 import { Glyph } from './social/glyphs.jsx';
+import { useMe } from './social/store.js';
 import { installLinkTransitions } from './transitions.js';
 
 // Pages load on first visit, so the first screen downloads only what it needs.
@@ -143,6 +144,7 @@ function useOutside(ref, open, close) {
 
 function AppShell({ children }) {
   const { user, logout } = useAuth();
+  const meStats = useMe();
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);        // phones: the slide-out menu
   const [creating, setCreating] = useState(false); // the Create choices
@@ -251,7 +253,7 @@ function AppShell({ children }) {
           <NotificationBell />
           <div className="tn-me" ref={meRef}>
             <button type="button" className="tn-avatar" onClick={() => setMeMenu((v) => !v)} aria-label="Your account" aria-expanded={me}>
-              {initials(user?.name)}
+              {meStats?.avatar_url ? <img src={meStats.avatar_url} alt="" /> : initials(user?.name)}
             </button>
             {me && (
               <div className="tn-pop me-pop">

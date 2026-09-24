@@ -19,6 +19,10 @@
 ALTER TABLE users ADD COLUMN IF NOT EXISTS handle VARCHAR(32);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS bio VARCHAR(200);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS community_rules_at TIMESTAMPTZ;
+-- Profile photo: must show the member themselves (checked in routes/community.js).
+-- avatar_matched = the face was compared with the member's verified selfie.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_matched BOOLEAN NOT NULL DEFAULT FALSE;
 -- Adult content: 1st strike = warning, 2nd = banned (see moderation.js).
 ALTER TABLE users ADD COLUMN IF NOT EXISTS content_strikes INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS suspended_reason VARCHAR(160);

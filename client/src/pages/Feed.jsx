@@ -203,7 +203,7 @@ export default function Feed() {
             onClick={() => openComposer('post')}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openComposer('post'); } }}
           >
-            {user ? <Avatar id={user.id} name={user.name} size={40} /> : <span className="av av-a" style={{ width: 40, height: 40 }}>+</span>}
+            {user ? <Avatar id={user.id} name={user.name} src={me?.avatar_url} size={40} /> : <span className="av av-a" style={{ width: 40, height: 40 }}>+</span>}
             <span className="cp-text">{user ? `What's on your mind, ${user.name.split(' ')[0]}?` : 'Join RentalFlow to post, react and chat'}</span>
             <span className="cp-tools" onClick={(e) => e.stopPropagation()}>
               <button type="button" onClick={() => openComposer('showcase', 'media')} title="Photo or video"><Glyph name="media" size={20} /></button>
@@ -320,7 +320,7 @@ function CommunityHeader({ c, onJoin }) {
           <span className="muted">Top voices this week</span>
           {c.leaders.map((l, i) => (
             <Link key={l.id} to={`/u/${l.handle || l.id}`} title={`${l.name} · ${l.points} points`}>
-              <Avatar id={l.id} name={l.name} size={28} />{i < 3 && <span className={`medal m${i + 1}`}>{i + 1}</span>}
+              <Avatar id={l.id} name={l.name} src={l.avatar_url} size={28} />{i < 3 && <span className={`medal m${i + 1}`}>{i + 1}</span>}
             </Link>
           ))}
         </div>
@@ -415,7 +415,7 @@ function TrendingRail() {
           {t.leaders.map((l, i) => (
             <Link key={l.id} to={`/u/${l.handle || l.id}`} className="leader-row">
               <span className={`leader-rank r${i + 1}`}>{i + 1}</span>
-              <Avatar id={l.id} name={l.name} size={30} />
+              <Avatar id={l.id} name={l.name} src={l.avatar_url} size={30} />
               <span className="leader-name">{l.name}<small>Level {l.level}{l.streak >= 3 && <> · <Glyph name="flame" size={12} />{l.streak}</>}</small></span>
               <b>{compact(l.points)}</b>
             </Link>

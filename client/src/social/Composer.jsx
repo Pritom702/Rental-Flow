@@ -225,7 +225,7 @@ export default function Composer({ open, onClose, onCreated, community: fixedCom
     <div className="modal-backdrop composer-backdrop" onClick={onClose}>
       <div className="modal composer-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Create a post">
         <div className="cs-head">
-          <Avatar id={user?.id} name={user?.name} size={38} />
+          <Avatar id={user?.id} name={user?.name} src={me?.avatar_url} size={38} />
           <div className="cs-who">
             <b>{user?.name}</b>
             <select value={community} onChange={(e) => setCommunity(e.target.value)} disabled={Boolean(fixedCommunity)} aria-label="Community">
@@ -263,7 +263,7 @@ export default function Composer({ open, onClose, onCreated, community: fixedCom
               {mention?.results?.length > 0 && (
                 <div className="mention-list">
                   {mention.results.map((u) => (
-                    <button type="button" key={u.id} onClick={() => pickMention(u)}><Avatar id={u.id} name={u.name} size={24} /> {u.name} <span className="muted">@{u.handle}</span></button>
+                    <button type="button" key={u.id} onClick={() => pickMention(u)}><Avatar id={u.id} name={u.name} src={u.avatar_url} size={24} /> {u.name} <span className="muted">@{u.handle}</span></button>
                   ))}
                 </div>
               )}

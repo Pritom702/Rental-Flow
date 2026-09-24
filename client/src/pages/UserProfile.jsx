@@ -6,7 +6,7 @@
 // streak, badges, followers, what they post, sell and rent out. On your own
 // profile the badges you have not earned yet are shown greyed out with how to
 // get them — there is always a next goal in sight.
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api.js';
 import { useAuth } from '../auth.jsx';
@@ -14,7 +14,8 @@ import { Icon } from '../icons.jsx';
 import { money } from '../money.js';
 import { play } from '../sfx.js';
 import PostCard from '../social/PostCard.jsx';
-import { loadMe, useMe } from '../social/store.js';
+import { loadMe, setMe, useMe } from '../social/store.js';
+import { uploadAvatar } from '../social/media.js';
 import { Avatar, VerifiedTick, compact } from '../social/util.jsx';
 import { say } from '../social/toast.js';
 import { PostSkeleton } from './Feed.jsx';
@@ -71,7 +72,11 @@ export default function UserProfile() {
       <section className="profile-card">
         <div className="pf-cover" aria-hidden="true" />
         <div className="pf-top">
-          <span className={`pf-avatar${p.streak >= 3 ? ' hot' : ''}`}><Avatar id={p.id} name={p.name} size={96} /></span>
+          <span className={`pf-avatar${p.streak >= 3 ? ' hot' : ''}`}>
+            <Avatar id={p.id} name={p.name} src={p.avatar_url} size={96} />
+            {p.isMe && <AvatarButton onChanged={(url, matched) => setP({ ...p, avatar_url: url, avatar_matched: matched })} />}
+            {p.avatar_url && p.avatar_matched && <span className="pf-photo-ok" title="Photo matches their verified ID"><Glyph name="shield" size={16} /></span>}
+          </span>
           <div className="pf-actions">
             {p.isMe
               ? <button type="button" className="btn secondary small" onClick={() => setEditing(true)}>Edit profile</button>
@@ -152,6 +157,36 @@ export default function UserProfile() {
 
       {editing && <EditProfile p={p} onClose={() => setEditing(false)} onSaved={(np) => { setP({ ...p, ...np }); setEditing(false); if (np.handle !== p.handle) navigate(`/u/${np.handle}`, { replace: true }); }} />}
     </div>
+  );
+}
+
+// On my own profile: a camera button on the photo. The server checks it is
+// really me (one face, matching my verified ID) and says plainly if not.
+function AvatarButton({ onChanged }) {
+  const [busy, setBusy] = useState(false);
+  const input = useRef(null);
+  async function pick(file) {
+    if (!file) return;
+    setBusy(true);
+    try {
+      const r = await uploadAvatar(file);
+      setMe((m) => (m ? { ...m, avatar_url: r.avatar_url, avatarMatched: r.matched } : m));
+      onChanged(r.avatar_url, r.matched);
+      play('success');
+      say(r.matched ? 'Looking good — it matches your ID' : 'Profile photo updated', 'camera');
+    } catch (e) {
+      say(e.message, 'warn');
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <>
+      <button type="button" className={`pf-cam${busy ? ' busy' : ''}`} onClick={() => input.current?.click()} disabled={busy} aria-label="Change your profile photo" title="Change your photo — it must be of you">
+        {busy ? <span className="pf-spin" /> : <Glyph name="camera" size={18} />}
+      </button>
+      <input ref={input} type="file" accept="image/*" hidden onChange={(e) => { pick(e.target.files[0]); e.target.value = ''; }} />
+    </>
   );
 }
 

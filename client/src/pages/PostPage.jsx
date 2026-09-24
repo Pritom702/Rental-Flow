@@ -16,11 +16,13 @@ import PostCard from '../social/PostCard.jsx';
 import { Avatar, RichText, VerifiedTick, timeAgo } from '../social/util.jsx';
 import { say } from '../social/toast.js';
 import { PostSkeleton } from './Feed.jsx';
+import { useMe } from '../social/store.js';
 import { Glyph } from '../social/glyphs.jsx';
 
 export default function PostPage() {
   const { id } = useParams();
   const { user } = useAuth();
+  const me = useMe();
   const navigate = useNavigate();
   const { hash, pathname } = useLocation();
   const [post, setPost] = useState(null);
@@ -127,7 +129,7 @@ export default function PostPage() {
           <div className="reply-to">Replying to <b>{replyTo.author_name}</b> <button type="button" onClick={() => { setReplyTo(null); setText(''); }} aria-label="Cancel reply"><Icon name="close" size={12} /></button></div>
         )}
         <div className="cb-row">
-          {user && <Avatar id={user.id} name={user.name} size={34} />}
+          {user && <Avatar id={user.id} name={user.name} src={me?.avatar_url} size={34} />}
           <textarea
             ref={box}
             rows={1}
@@ -148,7 +150,7 @@ function Comment({ c, me, onLike, onReply, onDelete, onReport }) {
   const mine = me && me.id === c.author_id;
   return (
     <div className={`comment${c.status === 'hidden' ? ' is-hidden' : ''}`} id={`c${c.id}`}>
-      <Link to={`/u/${c.author_handle || c.author_id}`}><Avatar id={c.author_id} name={c.author_name} size={34} /></Link>
+      <Link to={`/u/${c.author_handle || c.author_id}`}><Avatar id={c.author_id} name={c.author_name} src={c.author_avatar} size={34} /></Link>
       <div className="c-main">
         <div className="c-bubble">
           <Link to={`/u/${c.author_handle || c.author_id}`} className="c-name">{c.author_name}{c.author_verified && <VerifiedTick />}</Link>

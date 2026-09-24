@@ -15,11 +15,13 @@ import { Avatar, timeAgo } from './util.jsx';
 import { shrinkImage, uploadFile } from './media.js';
 import { say } from './toast.js';
 import { Glyph } from './glyphs.jsx';
+import { useMe } from './store.js';
 
 const STORY_MS = 5000;
 
 export default function StoriesRow() {
   const { user } = useAuth();
+  const me = useMe();
   const [groups, setGroups] = useState(null);
   const [open, setOpen] = useState(null);           // index of the group being watched
   const [adding, setAdding] = useState(false);
@@ -55,13 +57,13 @@ export default function StoriesRow() {
       <div className="stories-row" role="list">
         {user && !mine && (
           <button type="button" className="story-bubble add" onClick={() => input.current?.click()} disabled={adding} role="listitem">
-            <span className="story-ring none"><Avatar id={user.id} name={user.name} size={58} /><span className="story-plus">{adding ? '…' : '+'}</span></span>
+            <span className="story-ring none"><Avatar id={user.id} name={user.name} src={me?.avatar_url} size={58} /><span className="story-plus">{adding ? '…' : '+'}</span></span>
             <span className="story-name">{adding ? 'Posting…' : 'Your moment'}</span>
           </button>
         )}
         {groups.map((g, i) => (
           <button type="button" key={g.user_id} className="story-bubble" onClick={() => setOpen(i)} role="listitem">
-            <span className={`story-ring${g.unseen ? '' : ' seen'}`}><Avatar id={g.user_id} name={g.name} size={58} /></span>
+            <span className={`story-ring${g.unseen ? '' : ' seen'}`}><Avatar id={g.user_id} name={g.name} src={g.avatar_url} size={58} /></span>
             <span className="story-name">{g.mine ? 'You' : g.name.split(' ')[0]}</span>
           </button>
         ))}
@@ -159,7 +161,7 @@ function StoryViewer({ groups, start, onClose }) {
       </div>
       <div className="sv-head">
         <Link to={`/u/${group.handle || group.user_id}`} onClick={onClose} className="sv-who">
-          <Avatar id={group.user_id} name={group.name} size={34} />
+          <Avatar id={group.user_id} name={group.name} src={group.avatar_url} size={34} />
           <b>{group.name}</b><span>{timeAgo(story.created_at)}</span>
         </Link>
         <span className="spacer" />

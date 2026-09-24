@@ -21,6 +21,8 @@ import { screenImage } from '../nsfwEngine.js';
 import { generateClientTokenFromReadWriteToken } from '@vercel/blob/client';
 import { head } from '@vercel/blob';
 import { noteInterestLater, interestSql } from '../interests.js';
+import { findFaces, faceDistance } from '../faceEngine.js';
+import { decodeJpeg } from '../imageUtils.js';
 import {
   HOT_SQL, parseHashtags, parseMentions, handleFromName, policyCheck, sniffFile,
   levelFor, BADGES, badgeInfo,
@@ -110,7 +112,7 @@ function postSelect(viewer) {
     SELECT p.id, p.community_id, p.author_id, p.kind, p.body, p.attachments, p.link, p.poll, p.wanted, p.sale,
            p.item_id, p.hashtags, p.reaction_count, p.comment_count, p.share_count, p.status,
            p.created_at, p.edited_at,
-           u.name AS author_name, u.handle AS author_handle,
+           u.name AS author_name, u.handle AS author_handle, u.avatar_url AS author_avatar,
            (u.role <> 'member' OR (u.verification_status = 'verified' AND u.nid_number IS NOT NULL)) AS author_verified,
            COALESCE(us.xp, 0) AS author_xp, COALESCE(us.streak_days, 0) AS author_streak,
            c.slug AS community_slug, c.name AS community_name, c.category_id,
@@ -120,7 +122,7 @@ function postSelect(viewer) {
            (SELECT COALESCE(json_agg(t), '[]') FROM (
               SELECT type, COUNT(*)::int AS n FROM post_reactions WHERE post_id = p.id
                GROUP BY type ORDER BY n DESC LIMIT 3) t) AS top_reactions,
-           (SELECT json_build_object('id', cm.id, 'author', cu.name, 'handle', cu.handle, 'body', LEFT(cm.body, 200), 'likes', cm.like_count)
+           (SELECT json_build_object('id', cm.id, 'author', cu.name, 'handle', cu.handle, 'avatar', cu.avatar_url, 'author_id', cu.id, 'body', LEFT(cm.body, 200), 'likes', cm.like_count)
               FROM comments cm JOIN users cu ON cu.id = cm.author_id
              WHERE cm.post_id = p.id AND cm.status = 'visible' AND cm.parent_id IS NULL
              ORDER BY cm.like_count DESC, cm.id LIMIT 1) AS top_comment,
@@ -146,12 +148,35 @@ async function loadPost(id, viewer) {
 }
 
 // ---------------------------------------------------------------- me
+// A photo uploaded before the member verified their identity could not be
+// compared with anything. Once a verified selfie exists, check it once: keep it
+// (now "matched") if it is the same person, otherwise take it down and say why.
+async function recheckAvatar(userId) {
+  const { rows: [u] } = await query(
+    'SELECT avatar_url, avatar_matched, face_descriptor FROM users WHERE id = $1', [userId]);
+  if (!u?.avatar_url || u.avatar_matched || u.face_descriptor?.length !== 128) return;
+  const { rows: [img] } = await query('SELECT data FROM public_images WHERE name = $1', [u.avatar_url.split('/').pop()]);
+  let same = false;
+  try {
+    const faces = img ? await findFaces(decodeJpeg(img.data), 0.6) : [];
+    same = faces.length > 0 && faceDistance(u.face_descriptor, faces[0].descriptor) <= AVATAR_MATCH;
+  } catch { same = false; }
+  if (same) {
+    await query('UPDATE users SET avatar_matched = TRUE WHERE id = $1', [userId]);
+    return;
+  }
+  await query('UPDATE users SET avatar_url = NULL, avatar_matched = FALSE WHERE id = $1', [userId]);
+  await notify(userId, null, 'social_moderation', '/u/me', 'Your profile photo was removed',
+    "It doesn't match the face on your verified ID. Profile photos have to be of yourself — add a new one any time.");
+}
+
 // GET /api/community/me — my level, streak, badges, communities.
 router.get('/me', authRequired, async (req, res) => {
+  await recheckAvatar(req.user.id).catch((e) => console.error('Avatar re-check failed:', e.message));
   const handle = await ensureHandle(req.user.id);
   await query('INSERT INTO user_stats (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING', [req.user.id]);
   const { rows: [s] } = await query(
-    `SELECT us.*, u.bio, u.community_rules_at FROM user_stats us JOIN users u ON u.id = us.user_id WHERE us.user_id = $1`,
+    `SELECT us.*, u.bio, u.community_rules_at, u.avatar_url, u.avatar_matched FROM user_stats us JOIN users u ON u.id = us.user_id WHERE us.user_id = $1`,
     [req.user.id]
   );
   const { rows: joined } = await query(
@@ -162,6 +187,8 @@ router.get('/me', authRequired, async (req, res) => {
   res.json({
     handle,
     bio: s.bio,
+    avatar_url: s.avatar_url,
+    avatarMatched: s.avatar_matched,
     rulesAccepted: Boolean(s.community_rules_at),
     xp: s.xp,
     karma: s.karma,
@@ -224,7 +251,7 @@ router.get('/c/:slug', async (req, res) => {
   if (!c) throw httpError(404, 'That community does not exist.');
   // Top voices this week: the members whose posts here drew the most.
   const { rows: leaders } = await query(
-    `SELECT u.id, u.name, u.handle, SUM(p.reaction_count + 2 * p.comment_count)::int AS points
+    `SELECT u.id, u.name, u.handle, u.avatar_url, SUM(p.reaction_count + 2 * p.comment_count)::int AS points
        FROM posts p JOIN users u ON u.id = p.author_id
       WHERE p.community_id = $1 AND p.status = 'visible' AND p.created_at > NOW() - INTERVAL '7 days'
       GROUP BY u.id ORDER BY points DESC LIMIT 5`, [c.id]
@@ -359,7 +386,7 @@ router.get('/posts/:id', async (req, res) => {
   if (me) noteInterestLater(me, { communityId: post.community_id }, 'read_post');
   const { rows: comments } = await query(
     `SELECT cm.id, cm.parent_id, cm.body, cm.like_count, cm.created_at, cm.author_id, cm.status,
-            u.name AS author_name, u.handle AS author_handle,
+            u.name AS author_name, u.handle AS author_handle, u.avatar_url AS author_avatar,
             (u.role <> 'member' OR (u.verification_status = 'verified' AND u.nid_number IS NOT NULL)) AS author_verified,
             ${me ? `EXISTS (SELECT 1 FROM comment_likes l WHERE l.comment_id = cm.id AND l.user_id = ${Number(me)})` : 'FALSE'} AS liked
        FROM comments cm JOIN users u ON u.id = cm.author_id
@@ -696,7 +723,7 @@ router.post('/posts/:id/comments', authRequired, async (req, res) => {
   noteInterestLater(me, { postId: p.id }, 'comment');
   const { rows: [out] } = await query(
     `SELECT cm.id, cm.parent_id, cm.body, cm.like_count, cm.created_at, cm.author_id, cm.status,
-            u.name AS author_name, u.handle AS author_handle, FALSE AS liked,
+            u.name AS author_name, u.handle AS author_handle, u.avatar_url AS author_avatar, FALSE AS liked,
             (u.role <> 'member' OR (u.verification_status = 'verified' AND u.nid_number IS NOT NULL)) AS author_verified
        FROM comments cm JOIN users u ON u.id = cm.author_id WHERE cm.id = $1`, [c.id]);
   res.status(201).json(out);
@@ -843,6 +870,64 @@ router.get('/files/:name', async (req, res) => {
   res.send(data);
 });
 
+// ---------------------------------------------------------------- profile photo
+// A profile photo must show the member themselves:
+//   • exactly one clear human face, big enough to recognise
+//   • no adult content (the same check as every photo)
+//   • if the member verified their identity, the face must match the verified
+//     selfie — so nobody can wear someone else's face or a celebrity's
+// The app sends a square JPEG (≈640 px), already shrunk on the device.
+const AVATAR_MATCH = 0.55;   // the ID check's own threshold is 0.5; a casual photo varies a little more
+const avatarUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 3 * 1024 * 1024, files: 1 } });
+
+router.post('/avatar', authRequired, (req, res, next) => {
+  avatarUpload.single('file')(req, res, async (err) => {
+    try {
+      if (err || !req.file) throw httpError(400, 'Choose a photo of yourself.');
+      const kind = sniffFile(req.file.buffer, req.file.originalname);
+      if (kind.ext !== 'jpg') throw httpError(400, 'Profile photos must be JPEG.');
+      await assertCleanImage(req.file.buffer, 'image/jpeg', req.user.id, 'a profile photo');
+
+      let rgba;
+      try { rgba = decodeJpeg(req.file.buffer); } catch { throw httpError(400, 'That photo could not be read.'); }
+      const faces = await findFaces(rgba, 0.6);
+      if (!faces.length) {
+        throw httpError(400, "We couldn't find a face. Use a clear photo of yourself, facing the camera.", { reason: 'avatar-no-face' });
+      }
+      if (faces.length > 1 && faces[1].area > faces[0].area * 0.25) {
+        throw httpError(400, 'Only you should be in your profile photo — no group shots.', { reason: 'avatar-many-faces' });
+      }
+      if (faces[0].area / (rgba.width * rgba.height) < 0.04) {
+        throw httpError(400, 'Move closer — your face should fill more of the photo.', { reason: 'avatar-too-small' });
+      }
+      const { rows: [u] } = await query('SELECT face_descriptor FROM users WHERE id = $1', [req.user.id]);
+      const known = u?.face_descriptor?.length === 128;
+      if (known && faceDistance(u.face_descriptor, faces[0].descriptor) > AVATAR_MATCH) {
+        throw httpError(400, "This doesn't look like you. Your profile photo has to be of yourself — the same person who verified this account.", { reason: 'avatar-mismatch' });
+      }
+
+      const name = `s-av-${req.user.id}-${Date.now()}.jpg`;
+      await query('INSERT INTO public_images (name, mime, data) VALUES ($1, $2, $3)', [name, 'image/jpeg', req.file.buffer]);
+      const url = `/api/community/files/${name}`;
+      const { rows: [old] } = await query('SELECT avatar_url FROM users WHERE id = $1', [req.user.id]);
+      await query('UPDATE users SET avatar_url = $2, avatar_matched = $3 WHERE id = $1', [req.user.id, url, known]);
+      if (old?.avatar_url?.startsWith('/api/community/files/s-av-')) {
+        query('DELETE FROM public_images WHERE name = $1', [old.avatar_url.split('/').pop()]).catch(() => {});
+      }
+      res.status(201).json({ avatar_url: url, matched: known });
+    } catch (e) { next(e); }
+  });
+});
+
+router.delete('/avatar', authRequired, async (req, res) => {
+  const { rows: [old] } = await query('SELECT avatar_url FROM users WHERE id = $1', [req.user.id]);
+  await query('UPDATE users SET avatar_url = NULL, avatar_matched = FALSE WHERE id = $1', [req.user.id]);
+  if (old?.avatar_url?.startsWith('/api/community/files/s-av-')) {
+    await query('DELETE FROM public_images WHERE name = $1', [old.avatar_url.split('/').pop()]);
+  }
+  res.json({ avatar_url: null });
+});
+
 // ---------------------------------------------------------------- videos
 // 1. The app pulls a few frames from the video and sends them here. Each is
 //    checked for adult content; a clean set earns a 30-minute clearance.
@@ -901,7 +986,7 @@ router.get('/users/search', async (req, res) => {
   const q = String(req.query.q || '').replace(/^@/, '').trim().toLowerCase();
   if (!q) return res.json([]);
   const { rows } = await query(
-    `SELECT id, name, handle FROM users
+    `SELECT id, name, handle, avatar_url FROM users
       WHERE status = 'active' AND handle IS NOT NULL AND (LOWER(handle) LIKE $1 OR LOWER(name) LIKE $2)
       ORDER BY (LOWER(handle) LIKE $1) DESC, name LIMIT 6`, [`${q}%`, `%${q}%`]);
   res.json(rows);
@@ -911,7 +996,7 @@ router.get('/users/:who', async (req, res) => {
   const me = viewerId(req);
   const who = String(req.params.who);
   const { rows: [u] } = await query(
-    `SELECT u.id, u.name, u.handle, u.bio, u.role, u.created_at,
+    `SELECT u.id, u.name, u.handle, u.bio, u.role, u.created_at, u.avatar_url, u.avatar_matched,
             (u.role <> 'member' OR (u.verification_status = 'verified' AND u.nid_number IS NOT NULL)) AS verified,
             COALESCE(us.xp, 0) AS xp, COALESCE(us.karma, 0) AS karma, COALESCE(us.streak_days, 0) AS streak,
             COALESCE(us.best_streak, 0) AS best_streak, COALESCE(us.badges, '{}') AS badges,
@@ -976,7 +1061,7 @@ router.get('/trending', async (_req, res) => {
              FROM posts p JOIN communities c ON c.id = p.community_id
             WHERE p.status = 'visible' AND p.created_at > NOW() - INTERVAL '7 days'
             ORDER BY (p.reaction_count + 2 * p.comment_count) DESC, p.id DESC LIMIT 4`),
-    query(`SELECT u.id, u.name, u.handle, COALESCE(us.xp, 0) AS xp, COALESCE(us.streak_days, 0) AS streak,
+    query(`SELECT u.id, u.name, u.handle, u.avatar_url, COALESCE(us.xp, 0) AS xp, COALESCE(us.streak_days, 0) AS streak,
                   SUM(p.reaction_count + 2 * p.comment_count + 3)::int AS points
              FROM posts p JOIN users u ON u.id = p.author_id LEFT JOIN user_stats us ON us.user_id = u.id
             WHERE p.status = 'visible' AND p.created_at > NOW() - INTERVAL '7 days'
@@ -1002,7 +1087,7 @@ router.get('/stories', async (req, res) => {
   if (Math.random() < 0.05) query(`DELETE FROM stories WHERE expires_at < NOW() - INTERVAL '1 day'`).catch(() => {});
   const { rows } = await query(
     `SELECT s.id, s.user_id, s.image_url, s.caption, s.color, s.item_id, s.view_count, s.created_at,
-            u.name, u.handle, i.name AS item_name,
+            u.name, u.handle, u.avatar_url, i.name AS item_name,
             ${me ? `EXISTS (SELECT 1 FROM story_views v WHERE v.story_id = s.id AND v.user_id = ${Number(me)})` : 'FALSE'} AS seen,
             ${me ? `EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = ${Number(me)} AND f.followee_id = s.user_id)` : 'FALSE'} AS followed
        FROM stories s JOIN users u ON u.id = s.user_id LEFT JOIN items i ON i.id = s.item_id
@@ -1010,7 +1095,7 @@ router.get('/stories', async (req, res) => {
       ORDER BY s.created_at`);
   const byUser = new Map();
   for (const s of rows) {
-    if (!byUser.has(s.user_id)) byUser.set(s.user_id, { user_id: s.user_id, name: s.name, handle: s.handle, followed: s.followed, stories: [] });
+    if (!byUser.has(s.user_id)) byUser.set(s.user_id, { user_id: s.user_id, name: s.name, handle: s.handle, avatar_url: s.avatar_url, followed: s.followed, stories: [] });
     byUser.get(s.user_id).stories.push(s);
   }
   const groups = [...byUser.values()].map((g) => ({

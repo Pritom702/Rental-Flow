@@ -153,3 +153,37 @@ export function duration(s) {
   const n = Math.round(Number(s) || 0);
   return `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}`;
 }
+
+// A profile photo: the centre square, 640 × 640, as JPEG.
+export async function squarePhoto(file, side = 640) {
+  const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' }).catch(() => null);
+  if (!bitmap) throw new Error('That photo could not be read. Try a JPEG or PNG.');
+  const s = Math.min(bitmap.width, bitmap.height);
+  const canvas = document.createElement('canvas');
+  canvas.width = side; canvas.height = side;
+  const g = canvas.getContext('2d');
+  g.fillStyle = '#ffffff';
+  g.fillRect(0, 0, side, side);
+  g.drawImage(bitmap, (bitmap.width - s) / 2, (bitmap.height - s) / 2, s, s, 0, 0, side, side);
+  bitmap.close?.();
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.88));
+  return new File([blob], 'me.jpg', { type: 'image/jpeg' });
+}
+
+export async function uploadAvatar(file) {
+  const form = new FormData();
+  form.append('file', await squarePhoto(file));
+  const headers = {};
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch('/api/community/avatar', { method: 'POST', headers, body: form });
+  announceReward(res);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    if (['adult-warning', 'adult-banned'].includes(data.reason)) {
+      window.dispatchEvent(new CustomEvent('rf:moderation', { detail: { reason: data.reason, message: data.error } }));
+    }
+    throw new Error(data.error || 'That photo could not be used.');
+  }
+  return data;
+}

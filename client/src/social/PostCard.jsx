@@ -160,7 +160,7 @@ function PostCard({ post, onChange, onRemove, full = false }) {
       <header className="pc-head">
         <Link to={`/u/${post.author_handle || post.author_id}`} className="pc-avatar" title={`Level ${post.author_level} · ${post.author_level_name}`}>
           <span className="lvl-avatar" style={{ '--lv': `${Math.min(1, post.author_level / 10) * 360}deg` }}>
-            <Avatar id={post.author_id} name={post.author_name} size={40} />
+            <Avatar id={post.author_id} name={post.author_name} src={post.author_avatar} size={40} />
           </span>
           <span className="lvl-num">{post.author_level}</span>
         </Link>
@@ -310,7 +310,7 @@ function PostCard({ post, onChange, onRemove, full = false }) {
 
       {!full && post.top_comment && (
         <Link to={postUrl} className="pc-reply-peek">
-          <Avatar id={post.top_comment.id} name={post.top_comment.author} size={24} />
+          <Avatar id={post.top_comment.author_id} name={post.top_comment.author} src={post.top_comment.avatar} size={24} />
           <span><b>{post.top_comment.author}</b> {post.top_comment.body}</span>
           {post.comment_count > 1 && <em>+{post.comment_count - 1}</em>}
         </Link>

@@ -398,3 +398,20 @@
 @keyframes fan-in { from { opacity: 0; transform: rotate(var(--a)) translateY(-30px) rotate(calc(var(--a) * -1)) scale(.3); } }
 /* while its fan is open, a post rises above the sticky tab bar */
 .post-card:has(.spark-fan) { z-index: 20; }
+
+/* ================================================================ profile photos */
+.av.av-img { object-fit: cover; padding: 0; background: var(--surface-2); }
+.tn-avatar { overflow: hidden; padding: 0; }
+.tn-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+.pf-avatar { position: relative; }
+.pf-cam {
+  position: absolute; right: 0; bottom: 2px; width: 36px; height: 36px; border-radius: 50%; border: none; cursor: pointer;
+  display: grid; place-items: center; background: var(--neon-grad); color: #0B140F; box-shadow: 0 0 0 3px var(--surface), var(--neon-glow);
+  transition: transform .25s var(--spring);
+}
+.pf-cam .glyph { --g-line: #0B140F; --g-fill: rgba(255, 255, 255, .7); }
+.pf-cam:hover { transform: scale(1.12) rotate(-8deg); }
+.pf-cam.busy { pointer-events: none; }
+.pf-spin { width: 16px; height: 16px; border-radius: 50%; border: 2.5px solid rgba(11, 20, 15, .25); border-top-color: #0B140F; animation: spin .7s linear infinite; }
+.pf-photo-ok { position: absolute; left: 2px; bottom: 2px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--night); box-shadow: 0 0 0 3px var(--surface); }
+.pf-photo-ok .glyph { --g-line: var(--neon); --g-fill: transparent; }

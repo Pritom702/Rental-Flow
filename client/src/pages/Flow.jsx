@@ -151,7 +151,7 @@ function Reel({ post, i, active, onChange }) {
       {video && <FeedVideo video={video} reel active={active} onLove={love} />}
       <div className="reel-info">
         <div className="reel-who">
-          <Link to={`/u/${post.author_handle || post.author_id}`}><Avatar id={post.author_id} name={post.author_name} size={36} /></Link>
+          <Link to={`/u/${post.author_handle || post.author_id}`}><Avatar id={post.author_id} name={post.author_name} src={post.author_avatar} size={36} /></Link>
           <Link to={`/u/${post.author_handle || post.author_id}`} className="reel-name">{post.author_name}</Link>
           {post.author_verified && <VerifiedTick />}
           {user?.id !== post.author_id && (

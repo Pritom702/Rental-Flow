@@ -51,11 +51,23 @@ export function initials(name = '') {
   return name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?';
 }
 
-// A person's circle: initials on one of a few theme-friendly colours, picked
-// from their id so everyone keeps the same colour everywhere.
+// A person's circle: their profile photo, or their initials on one of a few
+// theme-friendly colours picked from their id (the same colour everywhere).
 const HUES = ['a', 'b', 'c', 'd', 'e', 'f'];
-export function Avatar({ id, name, size = 40, ring = false, className = '' }) {
+export function Avatar({ id, name, src, size = 40, ring = false, className = '' }) {
   const hue = HUES[Math.abs(Number(id) || 0) % HUES.length];
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt=""
+        className={`av av-img${ring ? ' av-ring' : ''} ${className}`}
+        style={{ width: size, height: size }}
+        loading="lazy"
+        decoding="async"
+      />
+    );
+  }
   return (
     <span
       className={`av av-${hue}${ring ? ' av-ring' : ''} ${className}`}
