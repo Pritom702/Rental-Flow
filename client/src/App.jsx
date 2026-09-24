@@ -32,7 +32,7 @@ const Messages = lazy(() => import('./pages/Messages.jsx'));
 const Incidents = lazy(() => import('./pages/Incidents.jsx'));
 const Feed = lazy(() => import('./pages/Feed.jsx'));
 const PostPage = lazy(() => import('./pages/PostPage.jsx'));
-const Reels = lazy(() => import('./pages/Reels.jsx'));
+const Flow = lazy(() => import('./pages/Flow.jsx'));
 const UserProfile = lazy(() => import('./pages/UserProfile.jsx'));
 const Communities = lazy(() => import('./pages/Communities.jsx'));
 const Moderation = lazy(() => import('./pages/Moderation.jsx'));
@@ -78,7 +78,6 @@ const NAV_GROUPS = [
     label: 'Community',
     links: [
       { to: '/feed', icon: 'sparkles', label: 'Feed' },
-      { to: '/reels', icon: 'bolt', label: 'Reels' },
       { to: '/communities', icon: 'users', label: 'Communities' },
     ],
   },
@@ -305,7 +304,8 @@ export default function App() {
         <Route path="/post/:id" element={<AnyShell><PostPage /></AnyShell>} />
         <Route path="/u/:who" element={<AnyShell><UserProfile /></AnyShell>} />
         <Route path="/communities" element={<AnyShell><Communities /></AnyShell>} />
-        <Route path="/reels" element={<Reels />} />
+        <Route path="/flow" element={<Flow />} />
+        <Route path="/reels" element={<Navigate to="/flow" replace />} />
         <Route path="/admin/moderation" element={<RequireAdmin><Moderation /></RequireAdmin>} />
         <Route path="/messages" element={<RequireAuth><Messages /></RequireAuth>} />
         <Route path="/messages/:id" element={<RequireAuth><Messages /></RequireAuth>} />

@@ -1,6 +1,6 @@
 // ============================================================
 //  RentalFlow  |  Community  |  Owner: M2 - Tawheed Bin Hamid (Pritom)
-//  GitHub: @pritom702  |  Part: video in the feed and in Reels
+//  GitHub: @pritom702  |  Part: video in the feed and in Flow
 // ============================================================
 // Light by design:
 //   • nothing downloads until the video is on screen (preload="none" + the
@@ -59,7 +59,7 @@ export default function FeedVideo({ video, onLove, reel = false, active }) {
     });
   }
 
-  // Feed: play while visible. Reels: the parent says which one is active.
+  // Feed: play while visible. Flow: the parent says which one is active.
   useEffect(() => {
     if (reel) return undefined;
     return observe(wrap.current, (visible) => {

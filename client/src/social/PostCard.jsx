@@ -221,7 +221,7 @@ function PostCard({ post, onChange, onRemove, full = false }) {
       {video && (
         <div className={`pc-video-wrap${post.sale?.sold ? ' sold' : ''}`}>
           <FeedVideo video={video} onLove={loveFromPhoto} />
-          <Link to={`/reels?start=${post.id}`} className="pc-reels-link">Watch in Reels ›</Link>
+          <Link to={`/flow?start=${post.id}`} className="pc-reels-link">Watch in Flow ›</Link>
         </div>
       )}
 

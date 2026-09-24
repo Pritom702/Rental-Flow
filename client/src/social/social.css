@@ -797,3 +797,24 @@ input[type='checkbox']:checked { animation: react-pop .35s var(--spring); }
 .talk-row img { width: 56px; height: 56px; object-fit: cover; border-radius: 10px; flex: none; }
 .talk-row span { display: flex; flex-direction: column; gap: 3px; }
 .talk-row small { color: var(--muted); font-size: 12px; }
+
+/* ================================================================ Flow (the full-screen video stream) */
+.flow-mark {
+  position: relative; font: 500 24px/1 var(--font-display); letter-spacing: -.01em;
+  background: linear-gradient(100deg, #F3EFE5 0%, #D9FA73 40%, #C6F24E 60%, #F3EFE5 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent; padding-bottom: 6px;
+}
+.flow-mark::after {   /* a small lime wave that keeps moving */
+  content: ''; position: absolute; left: 0; bottom: -2px; width: 100%; height: 6px; overflow: hidden;
+  background: radial-gradient(circle at 6px -2px, transparent 5px, var(--accent-fill) 5.5px, var(--accent-fill) 7px, transparent 7.5px) 0 0 / 12px 6px repeat-x;
+  animation: flow-wave 1.2s linear infinite;
+}
+@keyframes flow-wave { to { background-position: 12px 0; } }
+.feed-tabs .reels-tab { position: relative; overflow: hidden; }
+.feed-tabs .reels-tab::after {
+  content: ''; position: absolute; inset: 0; transform: translateX(-120%);
+  background: linear-gradient(100deg, transparent 30%, rgba(255,255,255,.7) 50%, transparent 70%);
+  animation: flow-shine 3.2s ease-in-out infinite;
+}
+@keyframes flow-shine { 0%, 55% { transform: translateX(-120%); } 85%, 100% { transform: translateX(120%); } }
+@media (prefers-reduced-motion: reduce) { .flow-mark::after, .feed-tabs .reels-tab::after { animation: none; } }

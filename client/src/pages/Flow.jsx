@@ -1,6 +1,6 @@
 // ============================================================
 //  RentalFlow  |  Community  |  Owner: M2 - Tawheed Bin Hamid (Pritom)
-//  GitHub: @pritom702  |  Part: Reels — every video, full screen, swipe up
+//  GitHub: @pritom702  |  Part: Flow — every video, full screen, swipe up
 // ============================================================
 // One video fills the screen; swipe (or scroll, or ↑ ↓) to the next. Only the
 // video on screen plays — the others are just their cover frames — and the
@@ -17,7 +17,7 @@ import FeedVideo from '../social/FeedVideo.jsx';
 import { Avatar, CONDITIONS, RichText, VerifiedTick, compact, reactionEmoji } from '../social/util.jsx';
 import { say } from '../social/toast.js';
 
-export default function Reels() {
+export default function Flow() {
   const [params] = useSearchParams();
   const start = params.get('start');
   const [reels, setReels] = useState(null);
@@ -85,7 +85,7 @@ export default function Reels() {
     <div className="reels-page">
       <div className="reels-top">
         <button type="button" className="reels-back" onClick={() => (window.history.state?.idx > 0 ? navigate(-1) : navigate('/feed'))} aria-label="Back"><Icon name="close" size={20} /></button>
-        <b>Reels</b>
+        <b className="flow-mark">Flow</b>
       </div>
       {reels == null ? (
         <div className="reel-loading" aria-label="Loading" />

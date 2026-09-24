@@ -205,7 +205,7 @@ export default function Feed() {
             {tabs.map((t) => (
               <button type="button" key={t.id} role="tab" aria-selected={t.id === tab.id} className={t.id === tab.id ? 'on' : ''} onClick={() => switchTab(t.id)}>{t.label}</button>
             ))}
-            <Link to="/reels" className="reels-tab">▶ Reels</Link>
+            <Link to="/flow" className="reels-tab">▶ Flow</Link>
           </div>
 
           {fresh > 0 && (
