@@ -276,7 +276,10 @@ select option { background: var(--surface-solid); color: var(--text); }
 
 /* page entrance */
 @media (prefers-reduced-motion: no-preference) {
-  .page-enter { animation: page-in .55s var(--ease) both; }
+  /* "backwards", not "both": a transform left on after the animation would make
+     this wrapper the containing block for every position:fixed modal inside it,
+     centring popups on the whole page instead of the screen. */
+  .page-enter { animation: page-in .55s var(--ease) backwards; }
   @keyframes page-in { from { opacity: 0; transform: translateY(16px) scale(.995); } }
 }
 .page-enter { overflow-x: clip; }
