@@ -3,11 +3,32 @@ import { query, pool } from '../db.js';
 import { authRequired } from '../middleware/auth.js';
 import { calculateDeposit, calculateLateFee, overdueDays, calculatePenalty, buildBill } from '../bookingUtils.js';
 import { buildNotification, eventForStatus, recipientSide, canDecide } from '../notificationUtils.js';
-import { hasVerifiedNid } from '../profileUtils.js';
 import { buildProfile } from '../customerUtils.js';
+import { signFileUrl } from './files.js';
+import { identityVerified } from '../middleware/requireVerified.js';
+import { standingFor, quoteFor, openClaim } from '../protection.js';
+import { checkGuarantor, handoverCode, escalationStage, hoursLate } from '../protectionUtils.js';
 
 const router = Router();
 const VALID_STATUSES = ['Pending', 'Approved', 'Cancelled', 'Completed', 'Rejected'];
+
+// The hand-over code is shown to the renter alone (GET /api/protection/handover),
+// so it never leaves the server in any booking response.
+// Who may see a booking: the item's owner, the renter, and admin / staff.
+function canView(user, b) {
+  if (!user || !b) return false;
+  if (user.role === 'admin' || user.role === 'staff') return true;
+  if (Number(b.owner_id) === Number(user.id)) return true;
+  if (b.renter_id && Number(b.renter_id) === Number(user.id)) return true;
+  return String(b.customer_email || '').toLowerCase() === String(user.email || '').toLowerCase();
+}
+const NOT_YOURS = { error: 'You can only see bookings for your own items or your own rentals.' };
+
+function publicBooking(b) {
+  if (!b) return b;
+  const { handover_code: _code, ...rest } = b;
+  return rest;
+}
 
 // Write one in-app notification. `side` is 'owner' or 'customer'; the customer
 // only has an account if they signed up with the same email they booked with,
@@ -99,20 +120,38 @@ router.get('/', authRequired, async (req, res) => {
   const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
   const { rows } = await query(
     `SELECT b.*, i.name AS item_name, i.rental_price, i.replacement_cost,
-            i.status AS item_status, i.owner_id
+            i.status AS item_status, i.owner_id,
+            c.id AS claim_id, c.kind AS claim_kind, c.status AS claim_status, c.charges AS claim_charges,
+            c.deposit_applied AS claim_deposit_applied, c.balance AS claim_balance,
+            c.respond_by AS claim_respond_by, c.renter_response AS claim_response, c.paid_at AS claim_paid_at
        FROM bookings b
        LEFT JOIN items i ON i.id = b.item_id
+       LEFT JOIN damage_claims c ON c.booking_id = b.id
        ${where}
        ORDER BY b.start_date ASC, b.id DESC`,
     params
   );
-  res.json(rows.map((b) => ({ ...b, overdue_days: overdueDays(b.end_date) })));
+  const me = req.user;
+  res.json(rows.map((b) => {
+    const out = b.checked_out_at && !b.checked_in_at && b.status === 'Approved';
+    return {
+      ...publicBooking(b),
+      overdue_days: overdueDays(b.end_date),
+      // which side of this booking the viewer is on
+      my_role: Number(b.owner_id) === Number(me.id) ? 'owner'
+        : (Number(b.renter_id) === Number(me.id) || String(b.customer_email).toLowerCase() === String(me.email || '').toLowerCase()) ? 'renter'
+          : 'staff',
+      escalation: out ? escalationStage(b.end_date) : 0,
+      hours_late: out ? hoursLate(b.end_date) : 0,
+    };
+  }));
 });
 
 router.get('/:id', authRequired, async (req, res) => {
   const booking = await getBookingById(req.params.id);
   if (!booking) return res.status(404).json({ error: 'Booking not found' });
-  res.json({ ...booking, overdue_days: overdueDays(booking.end_date) });
+  if (!canView(req.user, booking)) return res.status(403).json(NOT_YOURS);
+  res.json({ ...publicBooking(booking), overdue_days: overdueDays(booking.end_date) });
 });
 
 // GET /api/bookings/:id/renter — who is asking for this item, and are they real?
@@ -135,7 +174,7 @@ router.get('/:id/renter', authRequired, async (req, res) => {
 
   // The renter is matched to an account by the email they booked with.
   const { rows: users } = await query(
-    `SELECT id, name, email, phone, status, created_at,
+    `SELECT id, name, email, phone, status, created_at, role, verification_status,
             nid_number, nid_name, nid_front_url, nid_back_url, nid_submitted_at
        FROM users WHERE LOWER(email) = LOWER($1)`,
     [booking.customer_email || '']
@@ -194,19 +233,21 @@ router.get('/:id/renter', authRequired, async (req, res) => {
     account: account
       ? { exists: true, name: account.name, status: account.status, memberSince: account.created_at }
       : { exists: false },
-    // The identity itself. Shown in full to the people entitled to act on this
-    // booking, because they may have to pursue a real-world damage claim — and
-    // they can read the number off the card image anyway, so masking the text
-    // while showing the photo would be security theatre.
+    // The identity. A lister sees only THAT the renter is verified; the NID
+    // number and card photos are shown to admins alone, who handle any
+    // real-world damage claim on the lister's behalf.
     nid: account?.nid_number
-      ? {
-        onFile: true,
-        number: account.nid_number,
-        name: account.nid_name,
-        frontUrl: account.nid_front_url,
-        backUrl: account.nid_back_url,
-        submittedAt: account.nid_submitted_at,
-      }
+      ? (req.user.role === 'admin'
+        ? {
+          onFile: true,
+          verified: identityVerified(account),
+          number: account.nid_number,
+          name: account.nid_name,
+          frontUrl: signFileUrl(account.nid_front_url),
+          backUrl: signFileUrl(account.nid_back_url),
+          submittedAt: account.nid_submitted_at,
+        }
+        : { onFile: true, verified: identityVerified(account), submittedAt: account.nid_submitted_at, private: true })
       : { onFile: false },
     profile: history.length ? buildProfile(history) : null,
     history,
@@ -214,24 +255,30 @@ router.get('/:id/renter', authRequired, async (req, res) => {
 });
 
 router.post('/', authRequired, async (req, res) => {
-  const { item_id, customer_name, customer_email, start_date, end_date, notes } = req.body;
+  const { item_id, start_date, end_date, notes } = req.body;
+  let { customer_name, customer_email } = req.body;
+  // A member always books as themselves: the booking is tied to their verified
+  // account, not to whatever name and email were typed. (Staff at the counter
+  // may still book for a walk-in customer.)
+  let renterId = null;
+  if (req.user.role === 'member') {
+    const { rows: [me] } = await query('SELECT id, name, email FROM users WHERE id = $1', [req.user.id]);
+    renterId = me.id;
+    customer_name = me.name;
+    customer_email = me.email;
+  } else if (customer_email) {
+    const { rows: [acct] } = await query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [customer_email]);
+    renterId = acct?.id || null;
+  }
   if (!item_id || !customer_name || !customer_email || !start_date || !end_date) {
     return res.status(400).json({ error: 'item_id, customer_name, customer_email, start_date and end_date are required' });
   }
 
   try {
-    // Damage control (F21): a booking must be backed by a verified identity, so
-    // that a penalty for a damaged item is actually enforceable. The NID is
-    // collected once and then lives on the account, so this gate only ever
-    // stops a member's very first booking. `reason` lets the browser open the
-    // NID step instead of showing a dead-end error.
-    const { rows: idRows } = await query('SELECT nid_number FROM users WHERE id = $1', [req.user.id]);
-    if (!hasVerifiedNid(idRows[0] || {})) {
-      return res.status(403).json({
-        error: 'Verify your National ID before requesting a booking. This is a one-time step.',
-        reason: 'nid-required',
-      });
-    }
+    // Damage control (F21): a booking must be backed by a verified identity so
+    // that a penalty for a damaged item is enforceable. That rule now lives in
+    // middleware/requireVerified.js — the full NID + live-selfie check, done at
+    // a member's first rental and saved on the account.
 
     const normalizedStart = parseDate(start_date);
     const normalizedEnd = parseDate(end_date);
@@ -253,19 +300,51 @@ router.post('/', authRequired, async (req, res) => {
         return res.status(409).json({ error: 'This item is not currently available for booking' });
       }
 
+      if (renterId && Number(existingItem.rows[0].owner_id) === Number(renterId)) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'You cannot rent your own item.' });
+      }
+
       const overlapRows = await ensureNoOverlap(client, item_id, normalizedStart, normalizedEnd);
       if (overlapRows.length) {
         await client.query('ROLLBACK');
         return res.status(409).json({ error: 'The selected dates overlap with an existing booking' });
       }
 
-      const depositAmount = calculateDeposit(existingItem.rows[0].replacement_cost);
+      // Rental protection: the renter's standing decides whether they may rent
+      // now, how big the deposit is, and whether a guarantor is needed.
+      let depositAmount = calculateDeposit(existingItem.rows[0].replacement_cost);
+      let trustLevel = null;
+      let depositRate = null;
+      let guarantor = { name: null, phone: null, relation: null };
+      if (renterId) {
+        const standing = await standingFor(renterId, client);
+        if (standing.blocks.length) {
+          await client.query('ROLLBACK');
+          return res.status(403).json({ error: standing.blocks[0].text, reason: 'renter-blocked', blocks: standing.blocks });
+        }
+        const quote = quoteFor(standing, existingItem.rows[0]);
+        depositAmount = quote.amount;
+        depositRate = quote.rate;
+        trustLevel = standing.tier.level;
+        if (quote.needsGuarantor) {
+          const g = req.body.guarantor || {};
+          const problem = checkGuarantor(g);
+          if (problem) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: problem, reason: 'guarantor-required' });
+          }
+          guarantor = { name: g.name.trim(), phone: String(g.phone).replace(/[\s-]/g, ''), relation: g.relation.trim() };
+        }
+      }
       const { rows } = await client.query(
         `INSERT INTO bookings (
-          item_id, customer_name, customer_email, start_date, end_date, status, deposit_amount, late_fee_amount, notes
-        ) VALUES ($1, $2, $3, $4, $5, 'Pending', $6, 0, $7)
+          item_id, customer_name, customer_email, start_date, end_date, status, deposit_amount, late_fee_amount, notes,
+          renter_id, trust_level, deposit_rate, guarantor_name, guarantor_phone, guarantor_relation
+        ) VALUES ($1, $2, $3, $4, $5, 'Pending', $6, 0, $7, $8, $9, $10, $11, $12, $13)
         RETURNING *`,
-        [item_id, customer_name, customer_email, normalizedStart, normalizedEnd, depositAmount, notes || null]
+        [item_id, customer_name, customer_email, normalizedStart, normalizedEnd, depositAmount, notes || null,
+          renterId, trustLevel, depositRate, guarantor.name, guarantor.phone, guarantor.relation]
       );
 
       // Tell the member who owns the item that a request is waiting for them.
@@ -276,7 +355,7 @@ router.post('/', authRequired, async (req, res) => {
       }, 'booking_requested');
 
       await client.query('COMMIT');
-      res.status(201).json(rows[0]);
+      res.status(201).json(publicBooking(rows[0]));
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;
@@ -292,6 +371,10 @@ router.put('/:id', authRequired, async (req, res) => {
   const { customer_name, customer_email, start_date, end_date, notes, status } = req.body;
   const booking = await getBookingById(req.params.id);
   if (!booking) return res.status(404).json({ error: 'Booking not found' });
+  // Editing a booking (dates, status) is the owner's or staff's job — a renter
+  // must not be able to, say, mark their own rental "Completed".
+  if (!canDecide(req.user, booking)) return res.status(403).json({ error: 'Only the owner of this item (or staff) can edit this booking.' });
+  if (booking.status === 'Missing') return res.status(409).json({ error: 'This item was reported missing; an admin resolves it from Incidents.' });
 
   const normalizedStart = start_date ? parseDate(start_date) : booking.start_date;
   const normalizedEnd = end_date ? parseDate(end_date) : booking.end_date;
@@ -325,7 +408,7 @@ router.put('/:id', authRequired, async (req, res) => {
       [req.params.id, customer_name || null, customer_email || null, normalizedStart, normalizedEnd, notes ?? null, finalStatus, depositAmount, lateFeeAmount]
     );
     await client.query('COMMIT');
-    res.json(rows[0]);
+    res.json(publicBooking(rows[0]));
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(400).json({ error: err.message });
@@ -364,9 +447,16 @@ router.patch('/:id/status', authRequired, async (req, res) => {
     if (status === 'Completed') {
       lateFee = calculateLateFee(rows[0].rental_price, overdueDays(rows[0].end_date));
     }
+    // Missing is set only by the missing-item report, never by hand.
+    if (rows[0].status === 'Missing') {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'This item was reported missing; an admin resolves it from Incidents.' });
+    }
     const updated = await client.query(
-      'UPDATE bookings SET status = $2, late_fee_amount = $3 WHERE id = $1 RETURNING *',
-      [req.params.id, status, lateFee]
+      `UPDATE bookings SET status = $2, late_fee_amount = $3,
+              handover_code = CASE WHEN $5 AND handover_code IS NULL THEN $4 ELSE handover_code END
+        WHERE id = $1 RETURNING *`,
+      [req.params.id, status, lateFee, handoverCode(), status === 'Approved']
     );
     await syncItemStatus(client, rows[0].item_id);
 
@@ -381,7 +471,7 @@ router.patch('/:id/status', authRequired, async (req, res) => {
     }
 
     await client.query('COMMIT');
-    res.json(updated.rows[0]);
+    res.json(publicBooking(updated.rows[0]));
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(400).json({ error: err.message });
@@ -393,6 +483,7 @@ router.patch('/:id/status', authRequired, async (req, res) => {
 router.post('/:id/late-fee', authRequired, async (req, res) => {
   const booking = await getBookingById(req.params.id);
   if (!booking) return res.status(404).json({ error: 'Booking not found' });
+  if (!canDecide(req.user, booking)) return res.status(403).json({ error: 'Only the owner of this item (or staff) can set its late fee.' });
   // Auto-detect overdue days from the booking's end date when the caller does
   // not pass an explicit value, so late fees apply automatically once overdue.
   const days = req.body.overdue_days != null
@@ -403,7 +494,7 @@ router.post('/:id/late-fee', authRequired, async (req, res) => {
     `UPDATE bookings SET late_fee_amount = $2 WHERE id = $1 RETURNING *`,
     [req.params.id, lateFee]
   );
-  res.json({ ...rows[0], overdue_days: days });
+  res.json({ ...publicBooking(rows[0]), overdue_days: days });
 });
 
 // ---------------------------------------------------------------------------
@@ -437,14 +528,45 @@ router.post('/:id/checkout', authRequired, async (req, res) => {
     if (!canDecide(req.user, b.rows[0])) { await client.query('ROLLBACK'); return res.status(403).json({ error: 'Only the owner of this item can check it out' }); }
     if (b.rows[0].status !== 'Approved') { await client.query('ROLLBACK'); return res.status(409).json({ error: 'Booking must be Approved before checkout' }); }
     if (b.rows[0].checked_out_at) { await client.query('ROLLBACK'); return res.status(409).json({ error: 'Already checked out' }); }
+    // Rental protection: the deposit must be in hand, and the renter must be
+    // present and agree to the recorded condition (their one-time code).
+    if (Number(b.rows[0].deposit_amount) > 0 && !req.body.deposit_received) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Confirm you have received the deposit before handing the item over.', reason: 'deposit-not-received' });
+    }
+    const handover = checkHandover({ body: { ...req.body, phase: 'check-out' } }, b.rows[0]);
+    if (handover.error) { await client.query('ROLLBACK'); return res.status(400).json(handover.error); }
     const report = await insertConditionReport(client, req.params.id, 'checkout', req.body, req.user?.id);
-    const upd = await client.query('UPDATE bookings SET checked_out_at = NOW() WHERE id = $1 RETURNING *', [req.params.id]);
+    const upd = await client.query(
+      `UPDATE bookings SET checked_out_at = NOW(), deposit_received_at = COALESCE(deposit_received_at, NOW()),
+              renter_confirmed_checkout_at = CASE WHEN $2 THEN NOW() END, handover_code = $3,
+              handover_note = CONCAT_WS(' | ', handover_note, $4::text)
+        WHERE id = $1 RETURNING *`,
+      [req.params.id, handover.confirmed, handoverCode(), handover.note]);
     await client.query('UPDATE items SET status = $2 WHERE id = $1', [b.rows[0].item_id, 'Rented']);
     await client.query('COMMIT');
-    res.status(201).json({ booking: upd.rows[0], report });
+    res.status(201).json({ booking: publicBooking(upd.rows[0]), report });
   } catch (err) { await client.query('ROLLBACK'); res.status(400).json({ error: err.message }); }
   finally { client.release(); }
 });
+
+// The renter's one-time code proves they were there and agreed. If the renter
+// has no account (a walk-in booked at the counter) there is no code. If they
+// refuse to give it at the return, the owner can still close the rental with a
+// written reason — and the renter can dispute the resulting claim.
+function checkHandover(req, booking) {
+  if (!booking.renter_id) return { confirmed: false, note: null };
+  const typed = String(req.body.handover_code || '').trim();
+  if (typed) {
+    if (typed !== booking.handover_code) {
+      return { error: { error: 'That hand-over code is not right. Ask the renter to open the booking on their phone.', reason: 'bad-handover-code' } };
+    }
+    return { confirmed: true, note: null };
+  }
+  const why = String(req.body.no_code_reason || '').trim();
+  if (why.length >= 10) return { confirmed: false, note: `${req.body.phase || 'handover'} without the renter's code: ${why}` };
+  return { error: { error: 'Enter the renter’s 6-digit hand-over code (they see it on their Bookings page).', reason: 'handover-code-required' } };
+}
 
 // POST /:id/checkin — record checkin condition, compute late fee + penalty,
 // reconcile deposit, complete the booking (F12/F13/F14).
@@ -461,6 +583,8 @@ router.post('/:id/checkin', authRequired, async (req, res) => {
     if (!b.rows[0].checked_out_at) { await client.query('ROLLBACK'); return res.status(409).json({ error: 'Cannot check in before checkout' }); }
     if (b.rows[0].checked_in_at) { await client.query('ROLLBACK'); return res.status(409).json({ error: 'Already checked in' }); }
     const booking = b.rows[0];
+    const handover = checkHandover({ body: { ...req.body, phase: 'return' } }, booking);
+    if (handover.error) { await client.query('ROLLBACK'); return res.status(400).json(handover.error); }
     const report = await insertConditionReport(client, req.params.id, 'checkin', req.body, req.user?.id);
     const lateFee = calculateLateFee(booking.rental_price, overdueDays(booking.end_date));
     const penalty = calculatePenalty({
@@ -476,21 +600,39 @@ router.post('/:id/checkin', authRequired, async (req, res) => {
     const itemStatus = ['Poor', 'Damaged'].includes(req.body.condition_status) ? 'Damaged' : 'Available';
     const upd = await client.query(
       `UPDATE bookings SET checked_in_at = NOW(), status = 'Completed',
-         late_fee_amount = $2, penalty_amount = $3, penalty_notes = $4 WHERE id = $1 RETURNING *`,
-      [req.params.id, lateFee, penalty, req.body.notes || null]);
+         late_fee_amount = $2, penalty_amount = $3, penalty_notes = $4,
+         renter_confirmed_checkin_at = CASE WHEN $5 THEN NOW() END, handover_code = NULL,
+         handover_note = CONCAT_WS(' | ', handover_note, $6::text)
+       WHERE id = $1 RETURNING *`,
+      [req.params.id, lateFee, penalty, req.body.notes || null, handover.confirmed, handover.note]);
+    // Any late fee or damage becomes a claim: paid from the deposit first, the
+    // rest owed; the renter has 48 hours to accept or dispute it.
+    const claim = await openClaim(client, {
+      booking: { ...booking, ...upd.rows[0], item_name: booking.item_name },
+      charges: lateFee + penalty,
+      details: [
+        lateFee > 0 ? `Late fee ${lateFee}` : null,
+        penalty > 0 ? `Damage/missing parts ${penalty} (${req.body.condition_status})` : null,
+        req.body.notes || null,
+        handover.note,
+      ].filter(Boolean).join(' · '),
+    });
     await client.query('UPDATE items SET status = $2 WHERE id = $1', [booking.item_id, itemStatus]);
     // The rental is closed — let the customer know.
     await notify(client, 'customer', {
       ...upd.rows[0], item_name: booking.item_name, owner_id: booking.owner_id,
     }, 'booking_completed');
     await client.query('COMMIT');
-    res.status(201).json({ booking: upd.rows[0], report, bill });
+    res.status(201).json({ booking: publicBooking(upd.rows[0]), report, bill, claim });
   } catch (err) { await client.query('ROLLBACK'); res.status(400).json({ error: err.message }); }
   finally { client.release(); }
 });
 
 // GET /:id/condition-reports — checkout + checkin reports for comparison (F14).
 router.get('/:id/condition-reports', authRequired, async (req, res) => {
+  const booking = await getBookingById(req.params.id);
+  if (!booking) return res.status(404).json({ error: 'Booking not found' });
+  if (!canView(req.user, booking)) return res.status(403).json(NOT_YOURS);
   const { rows } = await query('SELECT * FROM condition_reports WHERE booking_id = $1 ORDER BY phase DESC', [req.params.id]);
   res.json(rows);
 });
@@ -499,26 +641,29 @@ router.get('/:id/condition-reports', authRequired, async (req, res) => {
 router.get('/:id/agreement', authRequired, async (req, res) => {
   const booking = await getBookingById(req.params.id);
   if (!booking) return res.status(404).json({ error: 'Booking not found' });
-  res.json(booking);
+  if (!canView(req.user, booking)) return res.status(403).json(NOT_YOURS);
+  res.json(publicBooking(booking));
 });
 
 // POST /:id/agreement — assign an agreement number the first time it is generated.
 router.post('/:id/agreement', authRequired, async (req, res) => {
   const booking = await getBookingById(req.params.id);
   if (!booking) return res.status(404).json({ error: 'Booking not found' });
+  if (!canView(req.user, booking)) return res.status(403).json(NOT_YOURS);
   const number = booking.agreement_number
     || `RF-${booking.id}-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`;
   const { rows } = await query(
     `UPDATE bookings SET agreement_number = $2,
        agreement_generated_at = COALESCE(agreement_generated_at, NOW()) WHERE id = $1 RETURNING *`,
     [req.params.id, number]);
-  res.json(rows[0]);
+  res.json(publicBooking(rows[0]));
 });
 
 // GET /:id/bill — final settlement breakdown (F14/F15).
 router.get('/:id/bill', authRequired, async (req, res) => {
   const booking = await getBookingById(req.params.id);
   if (!booking) return res.status(404).json({ error: 'Booking not found' });
+  if (!canView(req.user, booking)) return res.status(403).json(NOT_YOURS);
   res.json(buildBill({
     rentalPrice: booking.rental_price, startDate: booking.start_date, endDate: booking.end_date,
     depositAmount: booking.deposit_amount, lateFee: booking.late_fee_amount, penalty: booking.penalty_amount,

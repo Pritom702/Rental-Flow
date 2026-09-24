@@ -30,6 +30,29 @@ async function main() {
   const profile = fs.readFileSync(path.join(__dirname, 'schema_profile.sql'), 'utf8');
   await pool.query(profile);
   console.log('✅ Profile schema created (NID columns, payment_methods)');
+
+  // Identity verification: email codes, NID + face checks, admin review queue.
+  const verification = fs.readFileSync(path.join(__dirname, 'schema_verification.sql'), 'utf8');
+  await pool.query(verification);
+  console.log('✅ Verification schema created (email codes, private files, identity checks)');
+
+  // Product photos kept in the database, so they survive on a serverless host.
+  const images = fs.readFileSync(path.join(__dirname, 'schema_images.sql'), 'utf8');
+  await pool.query(images);
+  console.log('✅ Image storage created (public_images)');
+
+  // Renter <-> lister chat.
+  const messages = fs.readFileSync(path.join(__dirname, 'schema_messages.sql'), 'utf8');
+  await pool.query(messages);
+  console.log('✅ Messaging created (conversations, messages)');
+
+  // Categories added after the first release.
+  await pool.query(fs.readFileSync(path.join(__dirname, 'schema_categories.sql'), 'utf8'));
+
+  // Rental protection: claims, incidents, identity blacklist (a fresh start drops them too).
+  await pool.query('DROP TABLE IF EXISTS damage_claims, incidents, identity_blacklist, system_state CASCADE');
+  await pool.query(fs.readFileSync(path.join(__dirname, 'schema_protection.sql'), 'utf8'));
+  console.log('✅ Rental protection created (claims, incidents, blacklist)');
   await pool.end();
 }
 

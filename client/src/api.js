@@ -3,6 +3,8 @@
 //  GitHub: @___  |  Part: Frontend API client + auth token handling
 // ============================================================
 // Tiny fetch wrapper. Reads JWT from localStorage and attaches it.
+import { play } from './sfx.js';
+
 const TOKEN_KEY = 'rentalflow_token';
 
 export function getToken() {
@@ -33,7 +35,18 @@ async function request(method, path, body) {
       setToken(null);
       if (window.location.pathname !== '/login') window.location.assign('/login');
     }
-    throw new Error(data.error || `Request failed (${res.status})`);
+    // A new member who has not finished identity verification: the server
+    // refuses everything else, so send them to their current step.
+    if (res.status === 403 && data.reason === 'verification-required'
+      && window.location.pathname !== '/verify') {
+      window.location.assign('/verify');
+    }
+    if (method !== 'GET') play('error');   // an action the member took failed
+    const err = new Error(data.error || `Request failed (${res.status})`);
+    err.status = res.status;
+    err.reason = data.reason;
+    err.data = data;
+    throw err;
   }
   return data;
 }
@@ -51,7 +64,7 @@ async function uploadImages(fileList) {
 
   const res = await fetch('/api/uploads', { method: 'POST', headers, body: form });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `Upload failed (${res.status})`);
+  if (!res.ok) { play('error'); throw new Error(data.error || `Upload failed (${res.status})`); }
   return data;
 }
 

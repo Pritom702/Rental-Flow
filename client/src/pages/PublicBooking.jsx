@@ -6,13 +6,13 @@
 // see price + availability + owner. Reads initial search/category from the URL
 // (the landing page links here with query params).
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { celebrate } from '../fx.js';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
 import { Icon } from '../icons.jsx';
-import { StatusBadge, TagList, CardPhoto } from '../components.jsx';
+import ProductCard from '../components/ProductCard.jsx';
 import { useAuth } from '../auth.jsx';
 import { money } from '../money.js';
-import NidForm from '../components/NidForm.jsx';
 
 function toISODate(date) {
   return date.toISOString().slice(0, 10);
@@ -20,6 +20,7 @@ function toISODate(date) {
 
 export default function PublicBooking() {
   const [params, setParams] = useSearchParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -35,6 +36,11 @@ export default function PublicBooking() {
   const [availabilityMessage, setAvailabilityMessage] = useState('');
   // null = not checked yet, true = the one-time NID step must come first.
   const [needsNid, setNeedsNid] = useState(false);
+  // Rental protection: this member's trust level and what renting the open
+  // item takes (deposit, guarantor), from GET /api/protection/quote.
+  const [quote, setQuote] = useState(null);
+  const [guarantor, setGuarantor] = useState({ name: '', phone: '', relation: '' });
+  const isMember = user?.role === 'member';
 
   // An item id in the URL (?item=12) deep-links straight to that item's booking
   // panel — this is how the landing page's "Available now" cards arrive here.
@@ -96,16 +102,30 @@ export default function PublicBooking() {
     setAvailabilityMessage(overlaps ? 'These dates overlap with an existing booking.' : 'These dates are available for booking.');
   }, [selectedItem, bookingAvailability, bookingForm.start_date, bookingForm.end_date]);
 
-  // Damage control: the booking API refuses a request from an account with no
-  // verified NID. We ask the profile up front so the modal can show the
-  // one-time identity step instead of letting the member fill in dates and
-  // only then be rejected.
+  // Damage control: a member's first rental needs the one-time identity check
+  // (NID card + live selfie). Ask up front, so the modal can offer the check
+  // instead of letting the member pick dates and only then be refused.
+  const [idState, setIdState] = useState(null);   // null | 'needed' | 'pending'
   useEffect(() => {
-    if (!user) { setNeedsNid(false); return; }
-    api.get('/profile')
-      .then((p) => setNeedsNid(!p.nid.onFile))
+    if (!user || user.role !== 'member') { setNeedsNid(false); setIdState(null); return; }
+    api.get('/verify/status')
+      .then((s) => {
+        const state = s.step === 'done' ? null : s.status === 'pending_review' ? 'pending' : 'needed';
+        setIdState(state);
+        setNeedsNid(Boolean(state));
+      })
       .catch(() => setNeedsNid(false));
   }, [user]);
+
+  useEffect(() => {
+    setQuote(null);
+    if (!selectedItem || !isMember) return;
+    api.get(`/protection/quote?item_id=${selectedItem.id}`).then(setQuote).catch(() => {});
+  }, [selectedItem, isMember]);
+
+  function startIdCheck() {
+    navigate(`/verify?next=${encodeURIComponent(`/browse?item=${selectedItem.id}`)}`);
+  }
 
   async function submitBooking(e) {
     e.preventDefault();
@@ -119,17 +139,26 @@ export default function PublicBooking() {
         start_date: bookingForm.start_date,
         end_date: bookingForm.end_date,
         notes: bookingForm.notes,
+        ...(quote?.deposit?.needsGuarantor ? { guarantor } : {}),
       });
+      celebrate();
       setBookingSuccess('Booking request created successfully');
       setSelectedItem(null);
       setBookingForm({ customer_name: '', customer_email: '', start_date: '', end_date: '', notes: '' });
+      setGuarantor({ name: '', phone: '', relation: '' });
     } catch (err) {
-      if (err.message && /National ID/i.test(err.message)) setNeedsNid(true);
+      if (err.reason === 'rental-verification-required') {
+        setIdState(err.data?.status === 'pending_review' ? 'pending' : 'needed');
+        setNeedsNid(true);
+      }
       setBookingError(err.message);
     }
   }
 
-  const depositEstimate = useMemo(() => Number(selectedItem?.replacement_cost || 0) * 0.2, [selectedItem]);
+  const depositEstimate = useMemo(
+    () => (quote ? quote.deposit.amount : Number(selectedItem?.replacement_cost || 0) * 0.2),
+    [selectedItem, quote]
+  );
   const lateFeeEstimate = useMemo(() => Number(selectedItem?.rental_price || 0) * 0.1, [selectedItem]);
 
   const calendarDays = useMemo(() => {
@@ -215,18 +244,7 @@ export default function PublicBooking() {
       ) : (
         <div className="grid">
           {items.map((it) => (
-            <div className="card" key={it.id}>
-              <CardPhoto url={it.cover_url} count={it.image_count} />
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                <h3>{it.name}</h3>
-                <StatusBadge status={it.status} />
-              </div>
-              <div className="serial">Listed by <b>{it.owner_name || 'Unknown'}</b></div>
-              <div className="desc">{it.description || 'No description'}</div>
-              <TagList tags={it.tags} />
-              <div className="price" style={{ marginTop: 12 }}>
-                {money(it.rental_price)} <span>/ day</span>
-              </div>
+            <ProductCard item={it} key={it.id}>
               <div className="card-actions">
                 <button
                   className="btn accent small"
@@ -238,7 +256,7 @@ export default function PublicBooking() {
                   {it.status === 'Available' ? 'Request Booking' : 'Unavailable'}
                 </button>
               </div>
-            </div>
+            </ProductCard>
           ))}
         </div>
       )}
@@ -253,7 +271,7 @@ export default function PublicBooking() {
                 <h2>Book {selectedItem.name}</h2>
                 <div className="muted">
                   {needsNid
-                    ? 'One step before your first booking — then you go straight to the dates.'
+                    ? 'One quick step before your first rental — then you go straight to the dates.'
                     : 'Blocked dates are shown below. Deposits and late fees are calculated automatically.'}
                 </div>
               </div>
@@ -270,20 +288,52 @@ export default function PublicBooking() {
               <div className="notice warn">
                 <Icon name="shield" size={18} />
                 <div>
-                  <strong>One-time identity check</strong>
-                  <div className="muted" style={{ fontSize: 13.5 }}>
-                    Before your first booking we need your National ID on file, so damage
-                    and penalty claims can be settled. You will never be asked again.
-                  </div>
+                  {idState === 'pending' ? (
+                    <>
+                      <strong>Your ID is being checked</strong>
+                      <div className="muted" style={{ fontSize: 13.5 }}>
+                        Our team is reviewing your National ID. You can book as soon as it is approved —
+                        we'll notify you.
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <strong>One-time identity check</strong>
+                      <div className="muted" style={{ fontSize: 13.5 }}>
+                        Before your first rental we verify your National ID with a photo and a quick selfie,
+                        so damage claims can be settled fairly. It takes about 2 minutes, and it is saved
+                        on your account — you won't be asked again.
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
-              <NidForm compact onDone={() => { setNeedsNid(false); setBookingError(''); }} />
+              {idState !== 'pending' && (
+                <button className="btn lg" style={{ width: '100%' }} onClick={startIdCheck}>
+                  <Icon name="shield" size={16} /> Verify my identity
+                </button>
+              )}
             </div>
           ) : (
           <>
+          {quote && (
+            <div className="trust-strip">
+              <span className={`trust-badge level-${quote.tier.level}`}><Icon name="shield" size={14} /> {quote.tier.name}</span>
+              <span className="muted">
+                {quote.tier.cap ? <>Rent up to <b>{money(quote.tier.cap)}</b> at a {Math.round(quote.tier.rate * 100)}% deposit</> : <>No limit · {Math.round(quote.tier.rate * 100)}% deposit</>}
+                {quote.tier.nextName && <> · {quote.tier.toNext} more on-time return{quote.tier.toNext === 1 ? '' : 's'} to become a {quote.tier.nextName}</>}
+              </span>
+            </div>
+          )}
+          {quote?.blocks?.length > 0 && (
+            <div className="error"><Icon name="shield" size={16} /> {quote.blocks[0].text} <Link to="/bookings">Open my bookings</Link></div>
+          )}
           <div className="booking-summary">
-            <div>Deposit estimate: <b>{money(depositEstimate)}</b></div>
+            <div>Deposit{quote ? '' : ' estimate'}: <b>{money(depositEstimate)}</b>{quote && <> ({Math.round(quote.deposit.rate * 100)}% of the item’s value, refunded when it comes back safely)</>}</div>
             <div>Late fee estimate: <b>{money(lateFeeEstimate)}</b> per overdue day</div>
+            {quote?.deposit?.overCap && (
+              <div className="muted">This item is worth more than your current limit, so the deposit is its full value. Build trust with on-time returns to rent pricier items at a lower deposit.</div>
+            )}
           </div>
           {bookingError && <div className="error"><Icon name="shield" size={16} /> {bookingError}</div>}
           <div className="calendar-toolbar">
@@ -307,16 +357,42 @@ export default function PublicBooking() {
           </div>
           <div className="muted" style={{ marginTop: 12 }}>{availabilityMessage}</div>
           <form className="form" onSubmit={submitBooking} style={{ padding: 0, border: 'none', boxShadow: 'none', maxWidth: 'none', marginTop: 16 }}>
-            <div className="row">
-              <div className="field">
-                <label>Customer name</label>
-                <input value={bookingForm.customer_name} onChange={(e) => setBookingForm({ ...bookingForm, customer_name: e.target.value })} required />
+            {/* A member always books as themselves (their verified account); only
+                staff at the counter type in a walk-in customer's details. */}
+            {isMember ? (
+              <div className="muted" style={{ marginBottom: 10 }}>Booking as <b>{user.name}</b> ({user.email})</div>
+            ) : (
+              <div className="row">
+                <div className="field">
+                  <label>Customer name</label>
+                  <input value={bookingForm.customer_name} onChange={(e) => setBookingForm({ ...bookingForm, customer_name: e.target.value })} required />
+                </div>
+                <div className="field">
+                  <label>Customer email</label>
+                  <input type="email" value={bookingForm.customer_email} onChange={(e) => setBookingForm({ ...bookingForm, customer_email: e.target.value })} required />
+                </div>
               </div>
-              <div className="field">
-                <label>Customer email</label>
-                <input type="email" value={bookingForm.customer_email} onChange={(e) => setBookingForm({ ...bookingForm, customer_email: e.target.value })} required />
-              </div>
-            </div>
+            )}
+            {quote?.deposit?.needsGuarantor && (
+              <fieldset className="guarantor">
+                <legend><Icon name="users" size={15} /> Guarantor</legend>
+                <p className="muted">For valuable items we ask for someone who can be contacted if the item is not returned — a parent, a relative or your employer.</p>
+                <div className="row">
+                  <div className="field">
+                    <label>Full name</label>
+                    <input value={guarantor.name} onChange={(e) => setGuarantor({ ...guarantor, name: e.target.value })} required />
+                  </div>
+                  <div className="field">
+                    <label>Mobile number</label>
+                    <input type="tel" inputMode="tel" placeholder="01XXXXXXXXX" value={guarantor.phone} onChange={(e) => setGuarantor({ ...guarantor, phone: e.target.value })} required />
+                  </div>
+                </div>
+                <div className="field">
+                  <label>How they know you</label>
+                  <input placeholder="e.g. father, employer" value={guarantor.relation} onChange={(e) => setGuarantor({ ...guarantor, relation: e.target.value })} required />
+                </div>
+              </fieldset>
+            )}
             <div className="row">
               <div className="field">
                 <label>Start date</label>
@@ -332,7 +408,7 @@ export default function PublicBooking() {
               <textarea rows={3} value={bookingForm.notes} onChange={(e) => setBookingForm({ ...bookingForm, notes: e.target.value })} />
             </div>
             <div className="card-actions">
-              <button className="btn" type="submit" disabled={!bookingForm.start_date || !bookingForm.end_date || bookingForm.start_date >= bookingForm.end_date || availabilityMessage.includes('overlap')}>Create booking request</button>
+              <button className="btn" type="submit" disabled={!bookingForm.start_date || !bookingForm.end_date || bookingForm.start_date >= bookingForm.end_date || availabilityMessage.includes('overlap') || quote?.blocks?.length > 0 || quote?.ownItem}>Create booking request</button>
               <button className="btn secondary" type="button" onClick={() => setSelectedItem(null)}>Cancel</button>
             </div>
           </form>

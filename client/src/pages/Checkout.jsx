@@ -4,6 +4,9 @@
 // One form drives both phases. `mode` = 'checkout' | 'checkin'.
 // Check-in additionally captures repair cost / missing charge and, on submit,
 // shows the computed penalty + final bill and offers the return-summary PDF.
+// Rental protection: at check-out the owner confirms the deposit is in hand,
+// and at both hand-overs types in the renter's one-time code (the renter's
+// proof of being there and agreeing to the condition).
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
@@ -25,7 +28,11 @@ export default function Checkout({ mode }) {
   const [photos, setPhotos] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
-  const [result, setResult] = useState(null); // { booking, bill } after check-in
+  const [result, setResult] = useState(null); // { booking, bill, claim } after check-in
+  const [depositReceived, setDepositReceived] = useState(false);
+  const [handoverCode, setHandoverCode] = useState('');
+  const [noCode, setNoCode] = useState(false);
+  const [noCodeReason, setNoCodeReason] = useState('');
 
   useEffect(() => {
     api.get(`/bookings/${id}/agreement`).then(setBooking).catch((e) => setError(e.message));
@@ -46,7 +53,11 @@ export default function Checkout({ mode }) {
     e.preventDefault();
     setError('');
     try {
-      const body = { ...form, photos };
+      const body = {
+        ...form, photos,
+        deposit_received: depositReceived,
+        ...(noCode ? { no_code_reason: noCodeReason } : { handover_code: handoverCode.replace(/\D/g, '') }),
+      };
       const res = await api.post(`/bookings/${id}/${mode}`, body);
       if (isCheckin) {
         setResult(res); // show bill + PDF option, don't navigate yet
@@ -87,6 +98,12 @@ export default function Checkout({ mode }) {
                 <td>Balance due</td><td style={{ textAlign: 'right', color: b.balanceDue > 0 ? 'var(--red)' : 'var(--text)' }}>{money(b.balanceDue)}</td></tr>
             </tbody>
           </table>
+          {result.claim && (
+            <p className="muted" style={{ marginTop: 12 }}>
+              The renter has been sent these charges and has 48 hours to accept or dispute them
+              {Number(result.claim.balance) > 0 ? '; until the balance is paid they cannot rent again.' : '.'}
+            </p>
+          )}
           <div className="card-actions" style={{ marginTop: 16 }}>
             <button className="btn" onClick={downloadReturnSummary}>Download return summary PDF</button>
             <button className="btn secondary" onClick={() => navigate('/bookings')}>Done</button>
@@ -146,8 +163,35 @@ export default function Checkout({ mode }) {
             </div>
           )}
         </div>
+        {/* ---------- rental protection */}
+        {!isCheckin && Number(booking.deposit_amount) > 0 && (
+          <label className="check-line">
+            <input type="checkbox" checked={depositReceived} onChange={(e) => setDepositReceived(e.target.checked)} />
+            I have received the deposit of <b>{money(booking.deposit_amount)}</b>
+          </label>
+        )}
+        {booking.renter_id && !noCode && (
+          <div className="field">
+            <label>Renter’s {isCheckin ? 'return' : 'pick-up'} code</label>
+            <input className="code-input" inputMode="numeric" autoComplete="one-time-code" maxLength={7} placeholder="000 000"
+              value={handoverCode} onChange={(e) => setHandoverCode(e.target.value)} />
+            <div className="fieldhint">
+              The renter sees a 6-digit code on their Bookings page. Typing it in proves they were here and agreed to the condition above.
+              {isCheckin && <> <button type="button" className="link-btn" onClick={() => setNoCode(true)}>Renter won’t give the code?</button></>}
+            </div>
+          </div>
+        )}
+        {noCode && (
+          <div className="field">
+            <label>Why is there no code?</label>
+            <textarea rows={2} value={noCodeReason} onChange={(e) => setNoCodeReason(e.target.value)}
+              placeholder="e.g. the renter dropped the item off and left" />
+            <div className="fieldhint">Recorded with the return. The renter can still dispute any charges.
+              {' '}<button type="button" className="link-btn" onClick={() => setNoCode(false)}>Use the code after all</button></div>
+          </div>
+        )}
         <div className="card-actions">
-          <button className="btn" type="submit" disabled={uploading}>
+          <button className="btn" type="submit" disabled={uploading || (!isCheckin && Number(booking.deposit_amount) > 0 && !depositReceived)}>
             {isCheckin ? 'Complete check-in' : 'Confirm check-out'}
           </button>
           <button className="btn secondary" type="button" onClick={() => navigate('/bookings')}>Cancel</button>

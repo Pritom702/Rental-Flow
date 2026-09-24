@@ -16,7 +16,7 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth.js';
 import itemRoutes from './routes/items.js';
 import categoryRoutes from './routes/categories.js';
-import uploadRoutes, { UPLOAD_DIR } from './routes/uploads.js';
+import uploadRoutes, { UPLOAD_DIR, serveStoredImage } from './routes/uploads.js';
 import bookingRoutes from './routes/bookings.js';
 import scanRoutes from './routes/scan.js';
 import customerRoutes from './routes/customers.js';
@@ -25,20 +25,38 @@ import maintenanceRoutes from './routes/maintenance.js';
 import adminRoutes from './routes/admin.js';
 import notificationRoutes from './routes/notifications.js';
 import profileRoutes from './routes/profile.js';
+import verifyRoutes from './routes/verify.js';
+import fileRoutes from './routes/files.js';
+import handoffRoutes from './routes/handoff.js';
+import messageRoutes from './routes/messages.js';
+import protectionRoutes from './routes/protection.js';
+import { maybeRunEscalation } from './protection.js';
 import { auditLogger } from './middleware/audit.js';
 import { blockSuspended } from './middleware/accountStatus.js';
+import { requireVerified } from './middleware/requireVerified.js';
 import { pool } from './db.js';
 
 dotenv.config();
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+// 4 MB: the NID step sends two card photos in one request. The browser shrinks
+// each to ~300 KB first, and Vercel's own cap is 4.5 MB.
+app.use(express.json({ limit: '4mb' }));
 
 // Sprint 4 (F20): every state-changing call is written to the audit log, and a
 // suspended account is refused before it reaches any route.
 app.use('/api', blockSuspended);
 app.use('/api', auditLogger);
+// A new member cannot reach the platform until their identity is verified.
+app.use('/api', requireVerified);
+// Rental protection: overdue rentals escalate as the site is used (reminders,
+// freezing, missing reports). Bookings and the notification bell are what
+// everyone loads, so they carry the sweep — at most once every few minutes.
+app.use('/api', async (req, _res, next) => {
+  if (req.method === 'GET' && /^\/(notifications|bookings)(\/|$)/.test(req.path)) await maybeRunEscalation();
+  next();
+});
 
 // Health check — also confirms DB connectivity.
 app.get('/api/health', async (_req, res) => {
@@ -52,6 +70,8 @@ app.get('/api/health', async (_req, res) => {
 
 // Serve uploaded product images.
 app.use('/uploads', express.static(UPLOAD_DIR));
+// ...and, when it is not on disk, from the database (always the case on Vercel).
+app.get('/uploads/:name', serveStoredImage);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/items', itemRoutes);
@@ -65,6 +85,11 @@ app.use('/api/maintenance', maintenanceRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/verify', verifyRoutes);
+app.use('/api/files', fileRoutes);
+app.use('/api/handoff', handoffRoutes);
+app.use('/api/messages', messageRoutes);
+app.use('/api/protection', protectionRoutes);
 
 // Unknown /api path → JSON 404 (not the SPA's index.html), so a typo in a fetch
 // surfaces as a clear error instead of "Unexpected token < in JSON".

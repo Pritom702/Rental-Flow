@@ -5,6 +5,8 @@ import { Icon } from '../icons.jsx';
 import { exportAgreementPdf, exportReturnSummaryPdf } from '../pdf.js';
 import { money } from '../money.js';
 import RenterModal from '../components/RenterModal.jsx';
+import BookingProtection from '../components/BookingProtection.jsx';
+import { useAuth } from '../auth.jsx';
 
 const STATUS_OPTIONS = ['Pending', 'Approved', 'Cancelled', 'Completed', 'Rejected'];
 
@@ -17,6 +19,12 @@ export default function Bookings() {
   const [success, setSuccess] = useState('');
   // Which booking's renter identity is open for review, if any.
   const [renterFor, setRenterFor] = useState(null);
+  const { user } = useAuth();
+  // A member's own standing as a renter (trust level, anything blocking them).
+  const [standing, setStanding] = useState(null);
+  useEffect(() => {
+    if (user?.role === 'member') api.get('/protection/standing').then(setStanding).catch(() => {});
+  }, [user, bookings]);
 
   async function load() {
     const params = new URLSearchParams();
@@ -94,6 +102,17 @@ export default function Bookings() {
       {error && <div className="error"><Icon name="shield" size={16} /> {error}</div>}
       {success && <div className="success" style={{ color: 'var(--accent)', marginBottom: 16 }}><Icon name="check" size={16} /> {success}</div>}
 
+      {standing && (
+        <div className="trust-strip standing">
+          <span className={`trust-badge level-${standing.tier.level}`}><Icon name="shield" size={14} /> {standing.tier.name}</span>
+          <span className="muted">
+            {standing.cleanReturns} on-time return{standing.cleanReturns === 1 ? '' : 's'} ·{' '}
+            {standing.tier.cap ? <>rent up to {money(standing.tier.cap)} at a {Math.round(standing.tier.rate * 100)}% deposit</> : <>no limit, {Math.round(standing.tier.rate * 100)}% deposit</>}
+          </span>
+          {standing.blocks.map((x) => <span className="protect-alert stage-4" key={x.code}>{x.text}</span>)}
+        </div>
+      )}
+
       <div className="toolbar">
         <select value={selectedItem} onChange={(e) => setSelectedItem(e.target.value)}>
           <option value="">All items</option>
@@ -123,9 +142,6 @@ export default function Bookings() {
                 )}
               </div>
               <div className="price" style={{ fontSize: 16 }}>
-                Deposit: {money(booking.deposit_amount)}
-              </div>
-              <div className="price" style={{ fontSize: 16 }}>
                 Late fee: {money(booking.late_fee_amount)}
               </div>
               {Number(booking.penalty_amount) > 0 && (
@@ -138,6 +154,16 @@ export default function Bookings() {
                 {booking.checked_out_at && <span className="tag">✔ checked out</span>}
                 {booking.checked_in_at && <span className="tag">✔ checked in</span>}
               </div>
+              <BookingProtection booking={booking} onChange={load}
+                onError={(m) => { setSuccess(''); setError(m); }} onDone={(m) => { setError(''); setSuccess(m); }} />
+              {booking.my_role === 'renter' ? (
+                <div className="card-actions">
+                  <span className={`badge ${booking.status}`}>{booking.status}</span>
+                  {booking.status === 'Pending' && (
+                    <button className="btn secondary small" onClick={() => updateStatus(booking.id, 'Cancelled')}>Cancel request</button>
+                  )}
+                </div>
+              ) : (
               <div className="card-actions">
                 {/* Identity first: on a request still awaiting a decision this is
                     the primary action, so it is not just another grey button. */}
@@ -148,9 +174,11 @@ export default function Bookings() {
                   <Icon name="user" size={14} />
                   {booking.status === 'Pending' ? 'Review renter' : 'Renter details'}
                 </button>
-                <select value={booking.status} onChange={(e) => updateStatus(booking.id, e.target.value)}>
-                  {STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}
-                </select>
+                {booking.status !== 'Missing' && (
+                  <select value={booking.status} onChange={(e) => updateStatus(booking.id, e.target.value)}>
+                    {STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}
+                  </select>
+                )}
                 <button className="btn secondary small" onClick={() => generateAgreement(booking.id)}>Agreement PDF</button>
                 {booking.status === 'Approved' && !booking.checked_out_at && (
                   <Link className="btn small" to={`/bookings/${booking.id}/checkout`}>Check out</Link>
@@ -161,10 +189,11 @@ export default function Bookings() {
                 {booking.checked_in_at && (
                   <button className="btn secondary small" onClick={() => downloadReturnSummary(booking.id)}>Return summary PDF</button>
                 )}
-                {!booking.checked_in_at && (
+                {!booking.checked_in_at && booking.status !== 'Missing' && (
                   <button className="btn secondary small" onClick={() => addLateFee(booking.id)}>Auto-calc late fee</button>
                 )}
               </div>
+              )}
             </div>
           ))}
         </div>
