@@ -23,6 +23,13 @@ export default function Login() {
 
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
+  // Back to wherever the visitor came from; opened directly (no earlier page in
+  // this tab), fall back to the page they were heading for, or the home page.
+  function goBack() {
+    if (window.history.state?.idx > 0) navigate(-1);
+    else navigate(next ? next.split('?')[0] : '/');
+  }
+
   async function submit(e) {
     e.preventDefault();
     setError('');
@@ -58,6 +65,7 @@ export default function Login() {
       <main className="auth-main">
         <div className="auth-wrap">
           <form className="form" onSubmit={submit} style={{ maxWidth: 'none' }}>
+            <button type="button" className="btn ghost small" onClick={goBack} style={{ marginBottom: 12 }}>← Back</button>
             <h2 style={{ fontSize: 26, marginBottom: 4 }}>{mode === 'login' ? 'Welcome back' : 'Join RentalFlow'}</h2>
             <p className="muted" style={{ marginBottom: 22 }}>
               {mode === 'login' ? 'Log in to manage your listings.' : 'Create an account to start listing and renting.'}
