@@ -16,6 +16,7 @@
 // time (MediaRecorder) is only the fallback, because a busy device drops frames
 // and the video stutters.
 import { Muxer, ArrayBufferTarget } from 'mp4-muxer';
+import { highlight, valueLine } from './copywriter.js';
 
 export const W = 720;
 export const H = 1280;
@@ -42,7 +43,7 @@ function roundRect(g, x, y, w, h, r) {
   g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
   g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
 }
-function wrap(g, text, maxW) {
+function wrap(g, text, maxW, max = 3) {
   const words = String(text).split(/\s+/);
   const lines = [];
   let line = '';
@@ -51,7 +52,28 @@ function wrap(g, text, maxW) {
     if (g.measureText(t).width > maxW && line) { lines.push(line); line = w; } else line = t;
   }
   if (line) lines.push(line);
-  return lines.slice(0, 3);
+  if (lines.length > max) {               // too long: keep what fits and end with "…"
+    const kept = lines.slice(0, max);
+    let last = kept[max - 1];
+    while (last && g.measureText(`${last}…`).width > maxW) last = last.replace(/\s*\S+$/, '');
+    kept[max - 1] = `${last}…`;
+    return kept;
+  }
+  return lines;
+}
+// The largest font size (from `size` down) at which `text` fits in `max` lines.
+function fitFont(g, text, weight, size, maxW, max) {
+  for (let s = size; s > 30; s -= 4) {
+    g.font = `${weight} ${s}px Inter, system-ui, sans-serif`;
+    const words = String(text).split(/\s+/);
+    let lines = 1; let line = '';
+    for (const w of words) {
+      const t = line ? `${line} ${w}` : w;
+      if (g.measureText(t).width > maxW && line) { lines += 1; line = w; } else line = t;
+    }
+    if (lines <= max) return s;
+  }
+  return 30;
 }
 function containRect(img, bw, bh) {
   const s = Math.min(bw / img.width, bh / img.height);
@@ -145,13 +167,15 @@ function hookCard(g, st, hook, t) {
   g.save();
   g.globalAlpha = k;
   g.fillStyle = st.ink; g.textAlign = 'center';
-  g.font = '800 84px Inter, system-ui, sans-serif';
-  const lines = wrap(g, hook, W - 120);
-  const y0 = H / 2 - (lines.length - 1) * 50 + (1 - k) * 60;
-  lines.forEach((l, i) => g.fillText(l, W / 2, y0 + i * 100));
+  const size = fitFont(g, hook, 800, 84, W - 120, 4);
+  g.font = `800 ${size}px Inter, system-ui, sans-serif`;
+  const lh = Math.round(size * 1.18);
+  const lines = wrap(g, hook, W - 120, 4);
+  const y0 = H / 2 - ((lines.length - 1) * lh) / 2 + (1 - k) * 60;
+  lines.forEach((l, i) => g.fillText(l, W / 2, y0 + i * lh));
   g.font = '600 30px Inter, system-ui, sans-serif';
   g.globalAlpha = k * 0.8;
-  g.fillText('on RentalFlow', W / 2, y0 + lines.length * 100 + 10);
+  g.fillText('on RentalFlow', W / 2, y0 + (lines.length - 1) * lh + 70);
   g.restore();
 }
 
@@ -159,7 +183,7 @@ function scene(g, st, item, img, local, index, count, slideIn) {
   const x0 = slideIn != null ? (1 - ease(slideIn)) * W : 0;
   g.save(); g.translate(x0, 0);
   // the product, on a card, slowly zooming
-  const box = 600; const cx = W / 2; const cy = 560;
+  const box = 560; const cx = W / 2; const cy = 520;
   g.save();
   g.shadowColor = 'rgba(0,0,0,.35)'; g.shadowBlur = 40; g.shadowOffsetY = 18;
   roundRect(g, cx - box / 2 - 20, cy - box / 2 - 20, box + 40, box + 40, 36);
@@ -173,28 +197,44 @@ function scene(g, st, item, img, local, index, count, slideIn) {
     g.drawImage(img, cx - (w * z) / 2, cy - (h * z) / 2, w * z, h * z);
     g.restore();
   }
-  // the words, rising in
+  // the words, rising in: the name, what this product is good at (its own
+  // line, from its description), then the price and what it costs to buy
   const k = ease((local - 0.2) / 0.5);
+  const k2 = ease((local - 0.45) / 0.5);
   g.globalAlpha = k;
   g.fillStyle = st.ink; g.textAlign = 'left';
-  g.font = '800 52px Inter, system-ui, sans-serif';
-  const lines = wrap(g, item.name, W - 110);
-  const ty = 960 + (1 - k) * 40;
-  lines.forEach((l, i) => g.fillText(l, 52, ty + i * 62));
-  // price chip
+  const nameSize = fitFont(g, item.name, 800, 52, W - 110, 2);
+  g.font = `800 ${nameSize}px Inter, system-ui, sans-serif`;
+  const nameLh = Math.round(nameSize * 1.18);
+  const lines = wrap(g, item.name, W - 110, 2);
+  const ty = 900 + (1 - k) * 40;
+  lines.forEach((l, i) => g.fillText(l, 52, ty + i * nameLh));
+  let y = ty + (lines.length - 1) * nameLh + 50;
+  g.globalAlpha = k2 * 0.86;
+  g.font = '600 30px Inter, system-ui, sans-serif';
+  const about = wrap(g, item.highlight ?? highlight(item), W - 110, 2);
+  about.forEach((l, i) => g.fillText(l, 52, y + i * 40));
+  y += (about.length - 1) * 40 + 30;
+  // price chip, and the price to buy next to it
+  g.globalAlpha = k2;
   g.font = '800 40px Inter, system-ui, sans-serif';
   const price = `${taka(item.rental_price)}/day`;
   const pw = g.measureText(price).width + 44;
-  const py = ty + lines.length * 62 + 12;
+  const py = Math.min(y, H - 150);
   roundRect(g, 52, py, pw, 66, 20);
   g.fillStyle = st.glow ? '#C6F24E' : st.ink; g.fill();
   g.fillStyle = st.glow ? '#0B140F' : st.card === '#FFFFFF' && !st.glow ? st.bg[0] : '#FFFFFF';
   g.textBaseline = 'middle'; g.fillText(price, 74, py + 34);
+  const worth = item.worth ?? valueLine(item);
+  if (worth) {
+    g.font = '600 26px Inter, system-ui, sans-serif'; g.fillStyle = st.ink; g.globalAlpha = k2 * 0.7;
+    g.fillText(worth, 52 + pw + 18, py + 34);
+  }
   g.textBaseline = 'alphabetic';
   // "2 / 3"
   if (count > 1) {
     g.font = '700 26px Inter, system-ui, sans-serif'; g.globalAlpha = k * 0.7; g.fillStyle = st.ink;
-    g.textAlign = 'right'; g.fillText(`${index + 1} / ${count}`, W - 52, 1200);
+    g.textAlign = 'right'; g.fillText(`${index + 1} / ${count}`, W - 48, 100);
   }
   g.restore();
 }
@@ -262,13 +302,18 @@ export async function brandFontsReady() {
   } catch { /* falls back to Georgia */ }
 }
 
+// Each listing's cover photo. A photo that fails or takes over 12 s is left
+// out (the scene still shows the name and price) instead of stalling.
 export async function loadImages(items) {
   return Promise.all(items.map(async (i) => {
     if (!i.cover_url) return null;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 12000);
     try {
-      const res = await fetch(i.cover_url);
+      const res = await fetch(i.cover_url, { signal: ctrl.signal });
+      if (!res.ok) return null;
       return await createImageBitmap(await res.blob());
-    } catch { return null; }
+    } catch { return null; } finally { clearTimeout(timer); }
   }));
 }
 
@@ -303,47 +348,66 @@ function beat(ac, dest, seconds, bpm = 104) {
   }
 }
 
-function pickMime() {
-  const options = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
+// A recording format this browser supports. With no beat there is no audio
+// track, and asking for an audio codec anyway makes Firefox stall.
+function pickMime(withAudio) {
+  const options = withAudio
+    ? ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/mp4', 'video/webm']
+    : ['video/mp4;codecs=avc1.42E01E', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/mp4', 'video/webm'];
   return options.find((m) => window.MediaRecorder?.isTypeSupported?.(m)) || '';
 }
+
+// Next frame: the screen's own rhythm when the tab is visible, a timer when it
+// is in the background (browsers pause requestAnimationFrame there).
+const nextFrame = (fn) => (document.hidden ? setTimeout(fn, 1000 / FPS) : requestAnimationFrame(fn));
 
 // Record the whole video in real time. onProgress(0..1). → File
 export async function recordVideo(canvas, spec, { music = true, onProgress } = {}) {
   await brandFontsReady();
-  const mime = pickMime();
-  if (!mime) throw new Error('This browser cannot record video. Try Chrome, Edge or Safari.');
+  if (!window.MediaRecorder || !canvas.captureStream) throw new Error('This browser cannot make videos. Try Chrome, Edge, Firefox or Safari.');
+  const mime = pickMime(music);
+  if (!mime) throw new Error('This browser cannot make videos. Try Chrome, Edge, Firefox or Safari.');
   const g = canvas.getContext('2d');
   const seconds = durationFor(spec.items.length);
+  drawFrame(g, spec, 0);
   const stream = canvas.captureStream(FPS);
   let ac = null;
-  if (music) {
-    ac = new (window.AudioContext || window.webkitAudioContext)();
-    const dest = ac.createMediaStreamDestination();
-    beat(ac, dest, seconds);
-    dest.stream.getAudioTracks().forEach((tr) => stream.addTrack(tr));
+  try {
+    if (music) {
+      ac = new (window.AudioContext || window.webkitAudioContext)();
+      await ac.resume().catch(() => {});
+      const dest = ac.createMediaStreamDestination();
+      beat(ac, dest, seconds);
+      dest.stream.getAudioTracks().forEach((tr) => stream.addTrack(tr));
+    }
+    const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 2_500_000 });
+    const chunks = [];
+    rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+    const done = new Promise((resolve, reject) => {
+      rec.onstop = resolve;
+      rec.onerror = (e) => reject(e.error || new Error('The recording stopped unexpectedly.'));
+    });
+    rec.start(250);
+    const t0 = performance.now();
+    await new Promise((resolve) => {
+      const tick = () => {
+        const t = (performance.now() - t0) / 1000;
+        drawFrame(g, spec, Math.min(t, seconds));
+        onProgress?.(Math.min(1, t / seconds));
+        if (t < seconds) nextFrame(tick); else resolve();
+      };
+      nextFrame(tick);
+    });
+    if (rec.state !== 'inactive') rec.stop();
+    // Never wait forever: a recorder that does not finish is an error.
+    await Promise.race([done, new Promise((_, reject) => setTimeout(() => reject(new Error('The video took too long to finish. Please try again.')), 15000))]);
+    if (!chunks.length) throw new Error('The video came out empty. Please try again.');
+    const type = mime.split(';')[0];
+    return new File(chunks, `rentalflow-${Date.now()}.${type === 'video/mp4' ? 'mp4' : 'webm'}`, { type });
+  } finally {
+    stream.getTracks().forEach((tr) => tr.stop());
+    ac?.close().catch(() => {});
   }
-  const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 2_500_000 });
-  const chunks = [];
-  rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
-  const done = new Promise((resolve) => { rec.onstop = resolve; });
-  rec.start(250);
-  const t0 = performance.now();
-  await new Promise((resolve) => {
-    const tick = () => {
-      const t = (performance.now() - t0) / 1000;
-      drawFrame(g, spec, Math.min(t, seconds));
-      onProgress?.(Math.min(1, t / seconds));
-      if (t < seconds) requestAnimationFrame(tick); else resolve();
-    };
-    requestAnimationFrame(tick);
-  });
-  rec.stop();
-  await done;
-  stream.getTracks().forEach((tr) => tr.stop());
-  ac?.close();
-  const type = mime.split(';')[0];
-  return new File(chunks, `rentalflow-${Date.now()}.${type === 'video/mp4' ? 'mp4' : 'webm'}`, { type });
 }
 
 // ---------------------------------------------------------------- frame-perfect encoding
@@ -359,8 +423,12 @@ async function renderBeatBuffer(seconds) {
 
 async function pickVideoConfig() {
   if (!window.VideoEncoder) return null;
-  for (const codec of ['avc1.4d002a', 'avc1.42002a', 'avc1.640028']) {
-    const cfg = { codec, width: W, height: H, bitrate: 3_500_000, framerate: FPS };
+  // Baseline first: no reordered (B-)frames, so every encoder hands frames back
+  // in order. Firefox's Main-profile output arrives reordered and shifted.
+  for (const codec of ['avc1.42002a', 'avc1.4d002a', 'avc1.640028']) {
+    // format 'avc': length-prefixed NAL units plus the codec header, which the
+    // MP4 file needs. Firefox defaults to Annex B and sends no header at all.
+    const cfg = { codec, width: W, height: H, bitrate: 3_500_000, framerate: FPS, avc: { format: 'avc' } };
     try { if ((await VideoEncoder.isConfigSupported(cfg)).supported) return cfg; } catch { /* next */ }
   }
   return null;
@@ -378,6 +446,22 @@ export async function canEncodeFramePerfect() {
   return Boolean(await pickVideoConfig());
 }
 
+// The codec header comes with the first frame. Firefox empties that object as
+// soon as the callback returns, and the MP4 is only written at the end — so
+// keep our own copy (the header bytes included).
+function ownMeta(meta) {
+  const dc = meta?.decoderConfig;
+  if (!dc) return meta;
+  let description = dc.description;
+  if (description) {
+    const bytes = ArrayBuffer.isView(description)
+      ? new Uint8Array(description.buffer, description.byteOffset, description.byteLength)
+      : new Uint8Array(description);
+    description = bytes.slice().buffer;
+  }
+  return { ...meta, decoderConfig: { ...dc, description, ...(dc.colorSpace && { colorSpace: { ...dc.colorSpace } }) } };
+}
+
 // → File (video/mp4), every frame exactly 1/30 s apart.
 export async function encodeVideo(spec, { music = true, onProgress } = {}) {
   await brandFontsReady();
@@ -392,9 +476,13 @@ export async function encodeVideo(spec, { music = true, onProgress } = {}) {
     video: { codec: 'avc', width: W, height: H },
     ...(audio ? { audio: { codec: audio.box, numberOfChannels: 2, sampleRate: RATE } } : {}),
     fastStart: 'in-memory',
+    firstTimestampBehavior: 'offset',   // some encoders start the clock at one frame, not zero
   });
   let failure = null;
-  const venc = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: (e) => { failure = e; } });
+  // A problem inside the output callback would otherwise vanish silently and
+  // leave a broken file; keep it, so the Studio falls back to recording.
+  const guard = (add) => (chunk, meta) => { try { add(chunk, ownMeta(meta)); } catch (e) { failure ||= e; } };
+  const venc = new VideoEncoder({ output: guard((c, m) => muxer.addVideoChunk(c, m)), error: (e) => { failure ||= e; } });
   venc.configure(vcfg);
 
   const canvas = document.createElement('canvas');
@@ -412,10 +500,11 @@ export async function encodeVideo(spec, { music = true, onProgress } = {}) {
   }
   await venc.flush();
   venc.close();
+  if (failure) throw failure;
 
   if (audio) {
     const buffer = await renderBeatBuffer(seconds);
-    const aenc = new AudioEncoder({ output: (chunk, meta) => muxer.addAudioChunk(chunk, meta), error: (e) => { failure = e; } });
+    const aenc = new AudioEncoder({ output: guard((c, m) => muxer.addAudioChunk(c, m)), error: (e) => { failure ||= e; } });
     aenc.configure(audio.cfg);
     const L = buffer.getChannelData(0);
     const R = buffer.getChannelData(1);

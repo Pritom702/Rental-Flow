@@ -36,7 +36,7 @@ export default function Studio() {
   const [music, setMusic] = useState(true);
   const [variant, setVariant] = useState(0);
   const [caption, setCaption] = useState('');
-  const [images, setImages] = useState([]);
+  const [photos, setPhotos] = useState(() => new Map());   // listing id → its cover, decoded
   const [phase, setPhase] = useState('edit');     // edit | recording | uploading | done
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState(null);     // { file, url, post }
@@ -57,7 +57,19 @@ export default function Studio() {
   const copies = useMemo(() => writeCopy(chosen), [chosen]);
   const hook = copies[variant % Math.max(1, copies.length)]?.hook || '';
   useEffect(() => { setCaption(copies[variant % Math.max(1, copies.length)]?.caption || ''); }, [copies, variant]);
-  useEffect(() => { let alive = true; loadImages(chosen).then((imgs) => alive && setImages(imgs)); return () => { alive = false; }; }, [chosen]);
+  // Photos are kept per listing, so a scene can never show another listing's
+  // photo while a new pick is still loading.
+  useEffect(() => {
+    const missing = chosen.filter((i) => !photos.has(i.id));
+    if (!missing.length) return undefined;
+    let alive = true;
+    loadImages(missing).then((imgs) => {
+      if (!alive) return;
+      setPhotos((prev) => { const next = new Map(prev); missing.forEach((i, n) => next.set(i.id, imgs[n])); return next; });
+    });
+    return () => { alive = false; };
+  }, [chosen, photos]);
+  const images = useMemo(() => chosen.map((i) => photos.get(i.id) ?? null), [chosen, photos]);
 
   // Live preview: loop the video on the canvas while editing.
   useEffect(() => {
@@ -97,32 +109,49 @@ export default function Studio() {
     return { frames, poster: new File([poster], 'cover.jpg', { type: 'image/jpeg' }), duration: Math.round(total) };
   }
 
+  // Each step has a time limit, so a stalled network or encoder ends in a
+  // clear message instead of a spinner that never stops.
+  const [stage, setStage] = useState('');
+  const step = (name, promise, seconds, message) => {
+    setStage(name);
+    return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error(message)), seconds * 1000))]);
+  };
+
   async function create() {
-    const spec = { items: chosen, images, style, hook };
+    if (phase !== 'edit' || !chosen.length) return;
     setPhase('recording'); setProgress(0);
     try {
-      const file = await makeVideo(canvas.current, spec, { music, onProgress: setProgress });
+      // every photo in place before the first frame is drawn
+      const missing = chosen.filter((i) => !photos.get(i.id));
+      const fresh = missing.length ? await step('photos', loadImages(missing), 20, 'The listing photos did not load. Check your connection and try again.') : [];
+      const photoOf = (i) => photos.get(i.id) || fresh[missing.indexOf(i)] || null;
+      const spec = { items: chosen, images: chosen.map(photoOf), style, hook };
+      const seconds = durationFor(chosen.length);
+      const file = await step('making', makeVideo(canvas.current, spec, { music, onProgress: setProgress }), seconds * 6 + 60,
+        'Making the video took too long on this device. Close other tabs and try again.');
       setPhase('uploading'); setProgress(0);
-      const { frames, poster, duration } = await stills(spec);
-      const posterUp = await uploadFile(poster);
-      const url = await uploadVideo(file, frames, (p) => setProgress(p));
+      const { frames, poster, duration } = await step('stills', stills(spec), 20, 'The video cover could not be made. Please try again.');
+      const posterUp = await step('cover', uploadFile(poster), 60, 'Uploading took too long. Check your connection and try again.');
+      const url = await step('upload', uploadVideo(file, frames, (p) => setProgress(p)), 240, 'Uploading took too long. Check your connection and try again.');
       const community = slugOf(chosen[0].category_name) || 'cameras';
-      const post = await api.post('/community/posts', {
+      const post = await step('post', api.post('/community/posts', {
         community, kind: 'showcase', body: caption, item_id: chosen[0].id,
         attachments: [{ type: 'video', url, poster: posterUp.url, duration, w: W, h: H, color: null }],
-      });
+      }), 90, 'Posting took too long. Please try again.');
+      setStage('');
       setResult({ file, url, post, preview: URL.createObjectURL(file) });
       setPhase('done');
       celebrate();
       say('Your video is live in the feed and in Flows', 'clapper');
     } catch (e) {
-      say(e.message, 'warn');
+      say(e?.message || 'The video could not be made. Please try again.', 'warn');
       setPhase('edit');
+      setStage('');
     }
   }
 
   return (
-    <div className="container studio">
+    <div className="container studio" data-stage={stage || undefined}>
       <div className="studio-head">
         <div>
           <h1><Glyph name="clapper" size={30} /> Video Studio</h1>
@@ -168,7 +197,7 @@ export default function Studio() {
           <div className="studio-step"><span>3</span><b>Caption</b>
             <button type="button" className="btn ghost small" disabled={!copies.length} onClick={() => { setVariant((v) => v + 1); play('pop'); }}><Glyph name="sparkle" size={14} /> Write another</button>
           </div>
-          <textarea className="studio-caption" rows={4} maxLength={600} value={caption} onChange={(e) => setCaption(e.target.value)} placeholder="Pick listings and the Studio writes this for you" />
+          <textarea className="studio-caption" rows={4} maxLength={500} value={caption} onChange={(e) => setCaption(e.target.value)} placeholder="Pick listings and the Studio writes this for you" />
           {chosen.length > 0 && <div className="muted small">Hook on screen: <b>{hook}</b> · {Math.round(durationFor(chosen.length))} s · total {money(totalPerDay(chosen))}/day</div>}
         </section>
 

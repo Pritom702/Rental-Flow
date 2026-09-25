@@ -26,4 +26,12 @@ export default defineConfig({
       '/uploads': 'http://localhost:4000',
     },
   },
+  // `npm run preview` serves the production build the same way, for testing it locally.
+  preview: {
+    port: 4173,
+    proxy: {
+      '/api': 'http://localhost:4000',
+      '/uploads': 'http://localhost:4000',
+    },
+  },
 });
