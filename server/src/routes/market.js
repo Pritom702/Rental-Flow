@@ -201,15 +201,20 @@ router.post('/deals', authRequired, async (req, res) => {
   const c = await convoFor(req.user.id, Number(req.body.conversation_id));
   if (!c?.post_id) throw httpError(404, 'Offers are made in a chat about something for sale.');
   if (c.renter_id !== req.user.id) throw httpError(403, 'Only the buyer makes an offer.');
-  const price = Math.round(Number(req.body.price));
+  // "Buy now" is an offer at the asking price, taken from the post itself.
+  const buyNow = Boolean(req.body.buy_now);
+  const { rows: [post] } = await query(`SELECT sale FROM posts WHERE id = $1 AND status <> 'removed'`, [c.post_id]);
+  if (!post?.sale || post.sale.sold) throw httpError(409, 'That item is no longer for sale.');
+  const price = buyNow ? Math.round(Number(post.sale.price)) : Math.round(Number(req.body.price));
   if (!(price > 0)) throw httpError(400, 'Enter your offer.');
   const { rows: [open] } = await query(`SELECT id FROM sale_deals WHERE conversation_id = $1 AND status IN ('offered', 'accepted')`, [c.id]);
   if (open) throw httpError(409, 'There is already an offer in this chat.');
   const { rows: [d] } = await query(
     `INSERT INTO sale_deals (conversation_id, post_id, buyer_id, seller_id, price, platform_fee) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
     [c.id, c.post_id, req.user.id, c.owner_id, price, saleFee(price)]);
-  await systemLine(c.id, req.user.id, `Offer: ৳${price.toLocaleString('en-IN')}`);
-  await notify(c.owner_id, 'deal', 'You have an offer', `৳${price.toLocaleString('en-IN')} for your item.`, `/messages/${c.id}`);
+  await systemLine(c.id, req.user.id, buyNow ? `Buy now at the asking price: ৳${price.toLocaleString('en-IN')}` : `Offer: ৳${price.toLocaleString('en-IN')}`);
+  await notify(c.owner_id, 'deal', buyNow ? 'Someone wants to buy it' : 'You have an offer',
+    buyNow ? `৳${price.toLocaleString('en-IN')}, your asking price — accept it in the chat.` : `৳${price.toLocaleString('en-IN')} for your item.`, `/messages/${c.id}`);
   res.status(201).json(d);
 });
 

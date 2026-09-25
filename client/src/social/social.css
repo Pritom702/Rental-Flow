@@ -868,3 +868,4 @@ input[type='checkbox']:checked { animation: react-pop .35s var(--spring); }
 .pc-edit textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .pc-edit-bar { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
 .pc-edit-bar .cs-count { position: static; margin-right: auto; }
+.sale-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
