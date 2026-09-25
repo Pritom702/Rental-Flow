@@ -302,3 +302,15 @@ html[data-theme='dark'] .rev-legend .k-l::before, html[data-theme='dark'] .rev-d
   .tn-brand .wordmark { font-size: 16px; }
 }
 @media (max-width: 360px) { .tn-brand .wordmark { display: none; } }
+
+/* phone slide-out menu: the illustrated button icons, on small dark tiles */
+.side-link.has-bi .b-icon, .side-ic { width: 32px; height: 32px; border-radius: 10px; padding: 4px; background: rgba(255, 255, 255, .06); box-sizing: border-box; flex: none; display: grid; place-items: center; }
+.side-link.has-bi .b-icon { object-fit: contain; filter: none; }
+.side-link.active.has-bi .b-icon { box-shadow: 0 0 0 1.5px var(--neon), var(--neon-glow); background: #0F1C15; }
+.side-link { gap: 12px; }
+.side-link:hover .b-icon { transform: rotate(-8deg) scale(1.08); transition: transform .3s var(--spring); }
+
+/* phone tab bar: each illustrated icon on a small dark tile, so the lime pops */
+.tabbar a .b-icon { width: 32px; height: 32px; padding: 4px; box-sizing: border-box; border-radius: 10px; background: #0F1C15; opacity: 1; filter: none; }
+.tabbar a:not(.active) .b-icon { opacity: 1; filter: none; }
+.tabbar a.active .b-icon { box-shadow: 0 0 0 2px var(--neon), 0 6px 14px -4px rgba(141, 196, 30, .7); }

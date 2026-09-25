@@ -21,7 +21,7 @@ const OCCASIONS = [
   { k: ['phone', 'computer', 'laptop'], moment: 'project', emoji: '💻', tag: 'tech', verb: 'work' },
   { k: ['sport', 'fitness'], moment: 'match day', emoji: '⚽', tag: 'fitness', verb: 'train' },
 ];
-const DEFAULT = { moment: 'weekend', emoji: '✨', tag: 'rentdontbuy', verb: 'try' };
+const DEFAULT = { moment: 'plans', emoji: '✨', tag: 'rentdontbuy', verb: 'try' };
 
 // The occasion, when every listing points to the same one; otherwise a
 // neutral "weekend" (a mixer and a camera are not one "shoot").
@@ -77,7 +77,7 @@ const TEMPLATES = [
 const HOOKS = [
   (c) => `${c.when} ${c.moment} sorted`,
   (c) => `Why buy? Rent it.`,
-  (c) => `Your ${c.moment} kit`,
+  (c) => `Your ${c.moment}, sorted`,
   (c) => `${c.moment[0].toUpperCase()}${c.moment.slice(1)}, upgraded`,
   (c) => `Rent it tonight`,
 ];

@@ -87,25 +87,26 @@ const NAV_GROUPS = [
   {
     label: 'Community',
     links: [
-      { to: '/feed', icon: 'sparkles', label: 'Feed' },
-      { to: '/communities', icon: 'users', label: 'Communities' },
+      { to: '/feed', icon: 'sparkles', bi: 'feed', label: 'Feed' },
+      { to: '/flows', icon: 'bolt', bi: 'flows', label: 'Flows', phoneOnly: true },
+      { to: '/communities', icon: 'users', bi: 'communities', label: 'Communities' },
     ],
   },
   {
     label: 'Marketplace',
     links: [
-      { to: '/browse', icon: 'search', label: 'Browse' },
-      { to: '/sell', icon: 'tag', label: 'Sell something' },
-      { to: '/studio', icon: 'sparkles', label: 'Video Studio' },
-      { to: '/limes', icon: 'wallet', label: 'Limes' },
-      { to: '/messages', icon: 'chat', label: 'Messages', badge: 'unread' },
+      { to: '/browse', icon: 'search', bi: 'rent', label: 'Browse' },
+      { to: '/sell', icon: 'tag', bi: 'sell', label: 'Sell something' },
+      { to: '/studio', icon: 'sparkles', bi: 'studio', label: 'Video Studio' },
+      { to: '/limes', icon: 'wallet', bi: 'limes', label: 'Limes' },
+      { to: '/messages', icon: 'chat', bi: 'messages', label: 'Messages', badge: 'unread' },
       { to: '/dashboard', icon: 'package', label: 'My Listings', adminLabel: 'All Listings' },
     ],
   },
   {
     label: 'Operations',
     links: [
-      { to: '/bookings', icon: 'calendar', label: 'Bookings' },
+      { to: '/bookings', icon: 'calendar', bi: 'bookings', label: 'Bookings' },
       { to: '/customers', icon: 'users', label: 'Customers' },
       { to: '/maintenance', icon: 'tool', label: 'Maintenance' },
     ],
@@ -141,7 +142,7 @@ const TOP_NAV = [
   { to: '/bookings', icon: 'bookings', label: 'Bookings', sub: true },
 ];
 const MORE_NAV = NAV_GROUPS.flatMap((g) => g.links)
-  .filter((l) => !TOP_NAV.some((t) => t.to === l.to) && l.to !== '/sell');
+  .filter((l) => !TOP_NAV.some((t) => t.to === l.to) && l.to !== '/sell' && !l.phoneOnly);
 
 function useOutside(ref, open, close) {
   useEffect(() => {
@@ -206,8 +207,8 @@ function AppShell({ children }) {
               <div className="side-group" key={group.label}>
                 <div className="side-group-label">{group.label}</div>
                 {links.map((l) => (
-                  <NavLink key={l.to} to={l.to} end={l.to === '/admin'} className="side-link">
-                    <Icon name={l.icon} size={17} />
+                  <NavLink key={l.to} to={l.to} end={l.to === '/admin'} className={`side-link${l.bi ? ' has-bi' : ''}`}>
+                    {l.bi ? <BrandIcon name={l.bi} size={24} /> : <span className="side-ic"><Icon name={l.icon} size={17} /></span>}
                     {user?.role === 'admin' && l.adminLabel ? l.adminLabel : l.label}
                     {l.badge === 'unread' && unread > 0 && <span className="side-badge">{unread}</span>}
                   </NavLink>
