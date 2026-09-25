@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { Icon } from '../icons.jsx';
 import { money } from '../money.js';
+import Portal from './Portal.jsx';
 
 const dateOf = (iso) => (iso
   ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
@@ -38,7 +39,7 @@ export default function RenterModal({ bookingId, onClose, onDecide }) {
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <Portal><div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="panel-head">
           <div>
@@ -234,6 +235,6 @@ export default function RenterModal({ bookingId, onClose, onDecide }) {
           </>
         )}
       </div>
-    </div>
+    </div></Portal>
   );
 }

@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { api } from '../api.js';
 import { Icon } from '../icons.jsx';
+import Portal from './Portal.jsx';
 
 export default function QrModal({ item, onClose }) {
   const [dataUrl, setDataUrl] = useState('');
@@ -32,7 +33,7 @@ export default function QrModal({ item, onClose }) {
   }, [item.id]);
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <Portal><div className="modal-backdrop" onClick={onClose}>
       <div className="modal narrow" style={{ maxWidth: 360, textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
         <h3>QR — {item.name}</h3>
         <div className="muted" style={{ fontSize: 13, marginBottom: 12 }}>
@@ -48,6 +49,6 @@ export default function QrModal({ item, onClose }) {
           <button className="btn small" onClick={onClose}>Close</button>
         </div>
       </div>
-    </div>
+    </div></Portal>
   );
 }

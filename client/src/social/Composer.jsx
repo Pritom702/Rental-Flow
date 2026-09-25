@@ -12,12 +12,13 @@ import { useAuth } from '../auth.jsx';
 import { Icon } from '../icons.jsx';
 import { money } from '../money.js';
 import { play } from '../sfx.js';
-import { CONDITIONS, KINDS, Avatar } from './util.jsx';
+import { CONDITIONS, KINDS, POST_MAX, Avatar } from './util.jsx';
 import { fileSize, readVideo, shrinkImage, uploadFile, uploadVideo, duration as fmt } from './media.js';
 import { loadMe, setMe, useMe } from './store.js';
 import { Glyph } from './glyphs.jsx';
 import { say } from './toast.js';
 import SellerGate, { useSellerGate } from './SellerGate.jsx';
+import Portal from '../components/Portal.jsx';
 
 const DRAFT_KEY = 'rentalflow_post_draft';
 const URL_RE = /https?:\/\/[^\s<]+[^\s<.,:;"')\]!?]/;
@@ -226,7 +227,7 @@ export default function Composer({ open, onClose, onCreated, community: fixedCom
   }[kind];
 
   return (
-    <div className="modal-backdrop composer-backdrop" onClick={onClose}>
+    <Portal><div className="modal-backdrop composer-backdrop" onClick={onClose}>
       <div className="modal composer-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Create a post">
         <div className="cs-head">
           <Avatar id={user?.id} name={user?.name} src={me?.avatar_url} size={38} />
@@ -263,7 +264,7 @@ export default function Composer({ open, onClose, onCreated, community: fixedCom
             </div>
 
             <div className="cs-text">
-              <textarea ref={textRef} value={body} onChange={onType} placeholder={placeholder} rows={3} maxLength={5000} />
+              <textarea ref={textRef} value={body} onChange={onType} placeholder={placeholder} rows={3} maxLength={POST_MAX} />
               {mention?.results?.length > 0 && (
                 <div className="mention-list">
                   {mention.results.map((u) => (
@@ -271,7 +272,7 @@ export default function Composer({ open, onClose, onCreated, community: fixedCom
                   ))}
                 </div>
               )}
-              {body.length > 4500 && <div className="cs-count">{5000 - body.length}</div>}
+              {body.length > 0 && <div className={`cs-count${body.length > POST_MAX - 50 ? ' near' : ''}`}>{body.length}/{POST_MAX}</div>}
             </div>
 
             {kind === 'poll' && (
@@ -377,6 +378,6 @@ export default function Composer({ open, onClose, onCreated, community: fixedCom
           </>
         )}
       </div>
-    </div>
+    </div></Portal>
   );
 }

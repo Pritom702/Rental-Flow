@@ -18,6 +18,7 @@ import { celebrate } from '../fx.js';
 import { applyReward, loadMe, useMe } from './store.js';
 import { api } from '../api.js';
 import { Glyph, Medallion } from './glyphs.jsx';
+import Portal from '../components/Portal.jsx';
 
 // Where the last tap happened, so "+10 XP" can rise from right there.
 let lastPoint = null;
@@ -123,7 +124,7 @@ export default function RewardLayer() {
         ))}
       </div>
       {notice && (
-        <div className="modal-backdrop" role="alertdialog" aria-label="Community rules">
+        <Portal><div className="modal-backdrop" role="alertdialog" aria-label="Community rules">
           <div className="modal narrow mod-notice">
             <div className={`mod-icon ${notice.reason === 'adult-warning' ? 'warn' : 'ban'}`}><Glyph name={notice.reason === 'adult-warning' ? 'warn' : 'ban'} size={48} /></div>
             <h2>{notice.reason === 'adult-warning' ? 'This is your one warning' : 'Your account is banned'}</h2>
@@ -137,7 +138,7 @@ export default function RewardLayer() {
               <button type="button" className="btn secondary lg block" onClick={() => { setNotice(null); logout(); }}>Sign out</button>
             )}
           </div>
-        </div>
+        </div></Portal>
       )}
       {levelUp && (
         <div className="levelup" onClick={() => setLevelUp(null)} role="dialog" aria-label={`Level ${levelUp.level}`}>

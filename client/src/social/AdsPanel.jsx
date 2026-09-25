@@ -13,6 +13,7 @@ import { celebrate } from '../fx.js';
 import { Glyph } from './glyphs.jsx';
 import { setMe } from './store.js';
 import { say } from './toast.js';
+import Portal from '../components/Portal.jsx';
 
 const BUDGETS = [20, 50, 100, 250];
 
@@ -36,7 +37,7 @@ export function PromoteDialog({ post, onClose }) {
     }
   }
   return (
-    <div className="modal-backdrop" onClick={() => onClose(false)}>
+    <Portal><div className="modal-backdrop" onClick={() => onClose(false)}>
       <div className="modal narrow promote" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Promote this post">
         <div className="promote-head"><span className="sg-badge"><Glyph name="megaphone" size={28} /></span><div><h2>Promote this post</h2><p className="muted">It shows between posts in the feed{post.attachments?.some((a) => a.type === 'video') ? ' and between videos in Flows' : ''}, marked Sponsored.</p></div></div>
         <label className="promote-label">Budget</label>
@@ -55,7 +56,7 @@ export function PromoteDialog({ post, onClose }) {
           <button type="button" className="btn secondary" onClick={() => onClose(false)}>Cancel</button>
         </div>
       </div>
-    </div>
+    </div></Portal>
   );
 }
 

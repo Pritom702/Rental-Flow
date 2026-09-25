@@ -20,6 +20,7 @@ import { Avatar, VerifiedTick, compact } from '../social/util.jsx';
 import { say } from '../social/toast.js';
 import { PostSkeleton } from './Feed.jsx';
 import { Glyph, Medallion } from '../social/glyphs.jsx';
+import Portal from '../components/Portal.jsx';
 
 export default function UserProfile() {
   const { who } = useParams();
@@ -207,7 +208,7 @@ function EditProfile({ p, onClose, onSaved }) {
     } catch (err) { setError(err.message); } finally { setBusy(false); }
   }
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <Portal><div className="modal-backdrop" onClick={onClose}>
       <form className="modal narrow" onClick={(e) => e.stopPropagation()} onSubmit={save}>
         <div className="panel-head"><h2>Edit profile</h2><button type="button" className="icon-btn" onClick={onClose} aria-label="Close"><Icon name="close" size={18} /></button></div>
         <div className="field"><label>Handle</label><div className="handle-input"><span>@</span><input value={handle} onChange={(e) => setHandle(e.target.value)} maxLength={20} /></div><div className="fieldhint">3–20 letters, numbers or underscores. People mention you with it.</div></div>
@@ -215,6 +216,6 @@ function EditProfile({ p, onClose, onSaved }) {
         {error && <div className="error">{error}</div>}
         <div className="card-actions"><button type="submit" className="btn" disabled={busy}>Save</button><button type="button" className="btn secondary" onClick={onClose}>Cancel</button></div>
       </form>
-    </div>
+    </div></Portal>
   );
 }

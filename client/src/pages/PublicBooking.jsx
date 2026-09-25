@@ -15,6 +15,7 @@ import { useAuth } from '../auth.jsx';
 import { money } from '../money.js';
 import { rentalDays, rentalFees } from '../social/fees.js';
 import { Glyph } from '../social/glyphs.jsx';
+import Portal from '../components/Portal.jsx';
 
 function toISODate(date) {
   return date.toISOString().slice(0, 10);
@@ -299,7 +300,7 @@ export default function PublicBooking() {
       {/* The booking form is a modal: previously it rendered below the item grid,
           so clicking "Request Booking" appeared to do nothing on a short page. */}
       {selectedItem && user && (
-        <div className="modal-backdrop" onClick={() => setSelectedItem(null)}>
+        <Portal><div className="modal-backdrop" onClick={() => setSelectedItem(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="panel-head">
               <div>
@@ -474,7 +475,7 @@ export default function PublicBooking() {
           </>
           )}
           </div>
-        </div>
+        </div></Portal>
       )}
     </div>
   );

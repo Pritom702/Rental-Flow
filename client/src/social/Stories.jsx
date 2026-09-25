@@ -16,6 +16,7 @@ import { shrinkImage, uploadFile } from './media.js';
 import { say } from './toast.js';
 import { Glyph } from './glyphs.jsx';
 import { useMe } from './store.js';
+import Portal from '../components/Portal.jsx';
 
 const STORY_MS = 5000;
 
@@ -144,7 +145,7 @@ function StoryViewer({ groups, start, onClose }) {
   }
 
   return (
-    <div
+    <Portal><div
       className="story-viewer"
       style={{ background: story.color || '#0c1511' }}
       onPointerDown={() => setPaused(true)}
@@ -176,6 +177,6 @@ function StoryViewer({ groups, start, onClose }) {
       )}
       <button type="button" className="sv-tap left" onClick={(e) => { e.stopPropagation(); prev(); }} aria-label="Previous" data-sfx="none" />
       <button type="button" className="sv-tap right" onClick={(e) => { e.stopPropagation(); next(); }} aria-label="Next" data-sfx="none" />
-    </div>
+    </div></Portal>
   );
 }

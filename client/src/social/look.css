@@ -162,9 +162,23 @@
 
 /* narrower screens: icons first, then the phone layout */
 /* words stay as long as they fit: the main places keep theirs longest */
-@media (max-width: 1520px) { .tn-sub:not(.active) .tn-label { display: none; } .tn-sub:not(.active) { padding: 0 6px; } }
-@media (max-width: 1240px) { .tn-btn:not(.active) .tn-label { display: none; } .tn-btn:not(.active) { padding: 0 6px; } }
-@media (max-width: 1100px) { .tn-toggles .sound-toggle { display: none; } }
+@media (max-width: 1640px) { .tn-sub:not(.active) .tn-label { display: none; } .tn-sub:not(.active) { padding: 0 6px; } }
+@media (max-width: 1500px) { .tn-btn:not(.active) .tn-label { display: none; } .tn-btn:not(.active) { padding: 0 6px; } }
+/* Narrow laptops: Limes and XP step aside (both are in the menu), Create is an icon. */
+@media (max-width: 1100px) {
+  .tn-right .limes-chip, .tn-right .xp-ring-btn { display: none; }
+  .tn-create-btn > span { display: none; }
+  .tn-create-btn { padding: 0 10px; }
+}
+@media (max-width: 1000px) { .tn-btn .tn-label { display: none; } .tn-btn { padding: 0 6px; } }
+/* Mid-size screens: sound moves into the account menu, and the language
+   switch shows just the language you can switch to. */
+@media (max-width: 1240px) {
+  .tn-toggles .sound-toggle { display: none; }
+  .me-pop .me-toggles { display: flex !important; }
+  .tn-toggles .lang-toggle span:not(.on) { display: none; }
+  .tn-toggles .lang-toggle span.on { background: none; color: var(--text); }
+}
 @media (max-width: 900px) {
   .tn-nav, .tn-create, .tn-toggles { display: none; }
   .tn-menu { display: inline-flex; }

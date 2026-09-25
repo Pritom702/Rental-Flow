@@ -9,6 +9,7 @@ import { Icon } from '../icons.jsx';
 import { StatTile } from '../components/Charts.jsx';
 
 import { money } from '../money.js';
+import Portal from '../components/Portal.jsx';
 
 export default function Customers() {
   const [customers, setCustomers] = useState([]);
@@ -112,7 +113,7 @@ export default function Customers() {
       )}
 
       {selected && (
-        <div className="modal-backdrop" onClick={() => setSelected(null)}>
+        <Portal><div className="modal-backdrop" onClick={() => setSelected(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="panel-head">
               <div>
@@ -164,7 +165,7 @@ export default function Customers() {
               </table>
             </div>
           </div>
-        </div>
+        </div></Portal>
       )}
     </div>
   );

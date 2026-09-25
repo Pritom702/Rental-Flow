@@ -8,6 +8,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { Icon } from '../icons.jsx';
+import Portal from './Portal.jsx';
 
 const dateOf = (iso) => (iso
   ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
@@ -24,7 +25,7 @@ export default function AdminIdentityModal({ userId, onClose }) {
   }, [userId]);
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <Portal><div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="panel-head">
           <div>
@@ -92,6 +93,6 @@ export default function AdminIdentityModal({ userId, onClose }) {
           </>
         )}
       </div>
-    </div>
+    </div></Portal>
   );
 }
