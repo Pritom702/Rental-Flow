@@ -581,6 +581,15 @@ router.post('/posts', authRequired, async (req, res) => {
   res.status(201).json(await loadPost(created.id, me));
 });
 
+// GET /api/community/can-post — can this member post right now? Asked before
+// something slow (making a video), so they hear about the daily limit first.
+router.get('/can-post', authRequired, async (req, res) => {
+  const { rows: [u] } = await query('SELECT community_rules_at FROM users WHERE id = $1', [req.user.id]);
+  if (!u?.community_rules_at) throw httpError(428, 'Please read and accept the community rules first.', { reason: 'rules-required' });
+  await rateLimit(req.user.id, 'posts', 25, 3);
+  res.json({ ok: true });
+});
+
 router.patch('/posts/:id', authRequired, async (req, res) => {
   const body = String(req.body.body || '').trim();
   if (body.length > POST_MAX) throw httpError(400, `Posts can be up to ${POST_MAX} characters.`);

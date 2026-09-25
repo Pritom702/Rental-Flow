@@ -702,4 +702,23 @@ export default {
   'A photo of yours was removed': 'আপনার একটি ছবি সরানো হয়েছে',
   'Warning from the RentalFlow team': 'RentalFlow টিমের সতর্কবার্তা',
   'Your account is active again': 'আপনার অ্যাকাউন্ট আবার সক্রিয়',
+
+  // Buy now
+  'Buy now': 'এখনই কিনুন',
+  'Sent — the seller confirms in your chat': 'পাঠানো হয়েছে — বিক্রেতা চ্যাটে নিশ্চিত করবেন',
+  'Someone wants to buy it': 'কেউ এটি কিনতে চান',
+
+  // Video Studio, two steps
+  'Make a video ad': 'ভিডিও বিজ্ঞাপন বানান',
+  "You haven't listed anything yet": 'আপনি এখনও কিছু লিস্ট করেননি',
+  'A video ad shows off things you rent out. List something you own — a camera, a console, a car — then come back and turn it into a video in one tap.': 'ভিডিও বিজ্ঞাপনে আপনার ভাড়া দেওয়া জিনিস দেখানো হয়। নিজের কিছু লিস্ট করুন — ক্যামেরা, কনসোল, গাড়ি — তারপর ফিরে এসে এক ট্যাপে ভিডিও বানান।',
+  'Create a listing': 'লিস্টিং তৈরি করুন',
+  'Add a photo to use it': 'ব্যবহার করতে একটি ছবি যোগ করুন',
+  'Next: make the video': 'পরের ধাপ: ভিডিও বানান',
+  '← Change listings': '← লিস্টিং বদলান',
+  'Make your video': 'আপনার ভিডিও বানান',
+  'On screen first:': 'স্ক্রিনে প্রথমে:',
+  'The Studio writes this for you': 'স্টুডিও আপনার হয়ে এটি লিখে দেবে',
+  // The Studio's rules pop-up (looked up with its line breaks folded into spaces).
+  'Before your first post, please agree to the community rules: • Be kind — no abuse, hate or harassment. • No adult content — porn and nudity get one warning, then a permanent ban. • No scams — never ask for payment outside RentalFlow. • Keep it real — honest photos and prices, no spam. Do you agree?': 'প্রথম পোস্টের আগে কমিউনিটির নিয়মে সম্মত হন:\n\n• সদয় থাকুন — কোনো গালাগালি, ঘৃণা বা হয়রানি নয়।\n• কোনো প্রাপ্তবয়স্ক কনটেন্ট নয় — পর্নোগ্রাফি ও নগ্নতায় একবার সতর্কতা, তারপর স্থায়ী নিষেধাজ্ঞা।\n• কোনো প্রতারণা নয় — RentalFlow-এর বাইরে কখনো টাকা চাইবেন না।\n• সত্যি থাকুন — সৎ ছবি ও দাম, কোনো স্প্যাম নয়।\n\nআপনি কি সম্মত?',
 };

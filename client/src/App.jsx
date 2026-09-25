@@ -40,6 +40,7 @@ const Moderation = lazy(() => import('./pages/Moderation.jsx'));
 const Limes = lazy(() => import('./pages/Limes.jsx'));
 const TestCheckout = lazy(() => import('./pages/TestCheckout.jsx'));
 const Studio = lazy(() => import('./pages/Studio.jsx'));
+const StudioPick = lazy(() => import('./pages/StudioPick.jsx'));
 const Revenue = lazy(() => import('./pages/Revenue.jsx'));
 import { api } from './api.js';
 import ThemeToggle from './components/ThemeToggle.jsx';
@@ -412,7 +413,8 @@ export default function App() {
         <Route path="/admin/revenue" element={<RequireAdmin><Revenue /></RequireAdmin>} />
         <Route path="/limes" element={<RequireAuth><Limes /></RequireAuth>} />
         <Route path="/checkout/:tran" element={<RequireAuth><TestCheckout /></RequireAuth>} />
-        <Route path="/studio" element={<RequireAuth><Studio /></RequireAuth>} />
+        <Route path="/studio" element={<RequireAuth><StudioPick /></RequireAuth>} />
+        <Route path="/studio/make" element={<RequireAuth><Studio /></RequireAuth>} />
         <Route path="/join/:code" element={<JoinWithInvite />} />
         <Route path="/messages" element={<RequireAuth><Messages /></RequireAuth>} />
         <Route path="/messages/:id" element={<RequireAuth><Messages /></RequireAuth>} />

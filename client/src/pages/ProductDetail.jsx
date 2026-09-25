@@ -122,8 +122,8 @@ export default function ProductDetail() {
             {mine && (
               <button type="button" className="btn secondary lg" onClick={feature}><Glyph name="star" size={16} /> Feature on Browse · 40 Limes</button>
             )}
-            {user && (
-              <Link to={`/studio?items=${item.id}`} className="btn secondary lg make-video"><Glyph name="clapper" size={16} /> Make a video</Link>
+            {mine && images.length > 0 && (
+              <Link to={`/studio/make?items=${item.id}`} className="btn secondary lg make-video"><Glyph name="clapper" size={16} /> Make a video ad</Link>
             )}
           </div>
           {error && <div className="error">{error}</div>}
