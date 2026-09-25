@@ -41,6 +41,7 @@ const Limes = lazy(() => import('./pages/Limes.jsx'));
 const TestCheckout = lazy(() => import('./pages/TestCheckout.jsx'));
 const Studio = lazy(() => import('./pages/Studio.jsx'));
 const StudioPick = lazy(() => import('./pages/StudioPick.jsx'));
+const Pay = lazy(() => import('./pages/Pay.jsx'));
 const Revenue = lazy(() => import('./pages/Revenue.jsx'));
 import { api } from './api.js';
 import ThemeToggle from './components/ThemeToggle.jsx';
@@ -145,13 +146,16 @@ const TOP_NAV = [
 const MORE_NAV = NAV_GROUPS.flatMap((g) => g.links)
   .filter((l) => !TOP_NAV.some((t) => t.to === l.to) && l.to !== '/sell' && !l.phoneOnly);
 
-function useOutside(ref, open, close) {
+// Close a menu when you press anywhere outside it. `refs` can list several
+// parts that belong to the same menu (the Create button and its phone sheet).
+function useOutside(refs, open, close) {
   useEffect(() => {
     if (!open) return undefined;
-    const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) close(); };
+    const parts = Array.isArray(refs) ? refs : [refs];
+    const onDown = (e) => { if (!parts.some((r) => r.current?.contains(e.target))) close(); };
     document.addEventListener('pointerdown', onDown);
     return () => document.removeEventListener('pointerdown', onDown);
-  }, [ref, open, close]);
+  }, [refs, open, close]);
 }
 
 function AppShell({ children }) {
@@ -165,9 +169,10 @@ function AppShell({ children }) {
   const moreRef = useRef(null);
   const meRef = useRef(null);
   const createRef = useRef(null);
+  const sheetRef = useRef(null);
   useOutside(moreRef, more, () => setMore(false));
   useOutside(meRef, me, () => setMeMenu(false));
-  useOutside(createRef, creating, () => setCreating(false));
+  useOutside([createRef, sheetRef], creating, () => setCreating(false));
 
   // Close every menu whenever the route changes.
   useEffect(() => { setOpen(false); setCreating(false); setMore(false); setMeMenu(false); }, [pathname]);
@@ -293,7 +298,7 @@ function AppShell({ children }) {
       {/* Phones: the + button's choices, as a sheet from the bottom. */}
       {creating && (
         <div className="create-sheet-backdrop only-phone" onClick={() => setCreating(false)}>
-          <div className="create-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Create">
+          <div className="create-sheet" ref={sheetRef} onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Create">
             <b className="create-title">What do you want to do?</b>
             {createChoices}
           </div>
@@ -412,6 +417,7 @@ export default function App() {
         <Route path="/admin/moderation" element={<RequireAdmin><Moderation /></RequireAdmin>} />
         <Route path="/admin/revenue" element={<RequireAdmin><Revenue /></RequireAdmin>} />
         <Route path="/limes" element={<RequireAuth><Limes /></RequireAuth>} />
+        <Route path="/pay/:tran" element={<RequireLogin><Pay /></RequireLogin>} />
         <Route path="/checkout/:tran" element={<RequireAuth><TestCheckout /></RequireAuth>} />
         <Route path="/studio" element={<RequireAuth><StudioPick /></RequireAuth>} />
         <Route path="/studio/make" element={<RequireAuth><Studio /></RequireAuth>} />
