@@ -4,5 +4,5 @@
 -- ============================================================
 -- Raw SQL, safe to run repeatedly (npm run db:migrate): a category that is
 -- already there is left alone.
-INSERT INTO categories (name) VALUES ('Phones'), ('Home Appliances')
+INSERT INTO categories (name) VALUES ('Phones'), ('Home Appliances'), ('Vehicles')
 ON CONFLICT (name) DO NOTHING;

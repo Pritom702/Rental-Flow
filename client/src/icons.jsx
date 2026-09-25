@@ -23,6 +23,8 @@ export function Icon({ name, size = 20, className = '' }) {
       return <svg {...p}><path d="M12 2 3 7v10l9 5 9-5V7z" /><path d="M3 7l9 5 9-5" /><path d="M12 12v10" /></svg>;
     case 'shield':
       return <svg {...p}><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" /><path d="m9 12 2 2 4-4" /></svg>;
+    case 'car':
+      return <svg {...p}><path d="M5 16H3.5v-3.5L5.5 8a2 2 0 0 1 1.8-1.2h9.4A2 2 0 0 1 18.5 8l2 4.5V16H19" /><path d="M3.5 12.5h17" /><circle cx="7.5" cy="16.5" r="1.8" /><circle cx="16.5" cy="16.5" r="1.8" /><path d="M9.3 16.5h5.4" /></svg>;
     case 'bolt':
       return <svg {...p}><path d="M13 2 4 14h7l-1 8 9-12h-7z" /></svg>;
     case 'plus':
@@ -92,5 +94,6 @@ export function categoryIcon(name = '') {
   if (n.includes('game') || n.includes('console')) return 'grid';
   if (n.includes('music')) return 'sparkles';
   if (n.includes('garden')) return 'tool';
+  if (n.includes('vehicle') || n.includes('car') || n.includes('bike')) return 'car';
   return 'package';
 }
