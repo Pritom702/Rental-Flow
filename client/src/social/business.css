@@ -190,7 +190,6 @@ html[data-theme='dark'] .rev-legend .k-l::before, html[data-theme='dark'] .rev-d
 .studio-head h1 { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
 .studio-head .glyph { --g-line: currentColor; }
 .studio-grid { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 22px; align-items: start; margin-top: 12px; }
-@media (max-width: 960px) { .studio-grid { grid-template-columns: 1fr; } .studio-stage { order: -1; } }
 .studio-panel { padding: 18px; border-radius: 24px; background: var(--surface); border: 1px solid var(--border); }
 .studio-step { display: flex; align-items: center; gap: 10px; margin: 16px 0 10px; }
 .studio-step:first-child { margin-top: 0; }
@@ -226,6 +225,16 @@ html[data-theme='dark'] .rev-legend .k-l::before, html[data-theme='dark'] .rev-d
 .studio-go { box-shadow: var(--neon-glow); }
 .studio-done { padding: 14px; border-radius: 18px; background: var(--accent-soft); display: flex; flex-direction: column; gap: 8px; }
 .studio-done b { display: flex; align-items: center; gap: 6px; }
+/* Keep the whole preview on screen on shorter desktop windows. */
+.studio-stage .phone-frame { width: min(100%, calc((100vh - 190px) * 9 / 16)); align-self: center; }
+/* Narrow screens: pick first, then a smaller preview that scrolls with the page
+   (a sticky full-width 9:16 frame used to cover the listing picker). */
+@media (max-width: 960px) {
+  .studio-grid { grid-template-columns: 1fr; }
+  .studio-stage { position: static; align-items: center; }
+  .studio-stage .phone-frame { width: min(300px, 78vw); }
+  .studio-stage .studio-go, .studio-stage .studio-done { width: 100%; }
+}
 .make-video { box-shadow: 0 0 0 1px var(--neon); }
 
 /* ================================================================ the logo and illustrated button icons */
