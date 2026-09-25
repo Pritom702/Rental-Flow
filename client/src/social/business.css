@@ -314,3 +314,9 @@ html[data-theme='dark'] .rev-legend .k-l::before, html[data-theme='dark'] .rev-d
 .tabbar a .b-icon { width: 32px; height: 32px; padding: 4px; box-sizing: border-box; border-radius: 10px; background: #0F1C15; opacity: 1; filter: none; }
 .tabbar a:not(.active) .b-icon { opacity: 1; filter: none; }
 .tabbar a.active .b-icon { box-shadow: 0 0 0 2px var(--neon), 0 6px 14px -4px rgba(141, 196, 30, .7); }
+
+/* ================================================================ booking: verify to lower the deposit */
+.verify-nudge { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; padding: 10px 12px; border-radius: 14px; background: var(--night); color: #F3EFE5; font-size: 13.5px; line-height: 1.45; }
+.verify-nudge > svg { color: var(--neon); flex: none; }
+.verify-nudge span { flex: 1 1 220px; }
+.verify-nudge b { color: var(--neon); }

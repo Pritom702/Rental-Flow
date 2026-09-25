@@ -383,6 +383,13 @@ export default function PublicBooking() {
           <div className="booking-summary">
             <div>Deposit{quote ? '' : ' estimate'}: <b>{money(depositEstimate)}</b>{quote && <> ({Math.round(quote.deposit.rate * 100)}% of the item’s value, refunded when it comes back safely)</>}</div>
             <div>Late fee estimate: <b>{money(lateFeeEstimate)}</b> per overdue day</div>
+            {quote?.deposit?.unverified && !quote.deposit.overCap && (
+              <div className="verify-nudge">
+                <Icon name="shield" size={16} />
+                <span>You haven’t verified your ID, so the deposit is the item’s full value — it all comes back when you return it. Verify once (NID + selfie, about 2 minutes) and it drops to <b>{money(Number(selectedItem?.replacement_cost || 0) * quote.tier.rate)}</b>.</span>
+                <Link to="/verify" className="btn small">Verify &amp; save</Link>
+              </div>
+            )}
             {quote?.deposit?.overCap && (
               <div className="muted">This item is worth more than your current limit, so the deposit is its full value. Build trust with on-time returns to rent pricier items at a lower deposit.</div>
             )}

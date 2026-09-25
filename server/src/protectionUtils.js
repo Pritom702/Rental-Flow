@@ -10,6 +10,10 @@
 //   Deposits       New renters leave more. Renting above your level is allowed,
 //                  but only with a deposit of the item's FULL value — so a
 //                  renter who disappears has already paid for it.
+//   Unverified     Renters never HAVE to verify their ID — but one who has not
+//                  leaves the item's full value as deposit. Walking off with it
+//                  then gains nothing, and verifying (NID + selfie, once) is
+//                  what unlocks the lower trust-level deposits.
 //   Guarantor      Anything worth ৳50,000 or more, rented by someone who is not
 //                  yet a top renter, needs a guarantor (a named person to contact).
 //   Escalation     A rental that is not returned moves through stages:
@@ -39,15 +43,17 @@ export function trustTier({ cleanReturns = 0, lateReturns = 0 } = {}) {
 }
 
 // The deposit for renting an item of this value at this trust level.
-export function depositFor({ replacementCost, tier }) {
+export function depositFor({ replacementCost, tier, verified = true }) {
   const value = Math.max(0, Number(replacementCost) || 0);
   const overCap = value > tier.cap;
-  const rate = overCap ? 1 : tier.rate;
+  const rate = overCap || !verified ? 1 : tier.rate;
   return {
     rate,
     amount: Number((value * rate).toFixed(2)),
     overCap,
-    needsGuarantor: value >= GUARANTOR_FROM && tier.level < TIERS.length - 1,
+    unverified: !verified,
+    // a full-value deposit already covers the item, so no guarantor is needed
+    needsGuarantor: verified && value >= GUARANTOR_FROM && tier.level < TIERS.length - 1,
   };
 }
 

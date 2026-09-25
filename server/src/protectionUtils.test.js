@@ -17,7 +17,7 @@ test('trust grows with clean returns and late returns hold it back', () => {
 });
 
 test('deposit: new renters leave half, top renters a fifth', () => {
-  assert.deepEqual(depositFor({ replacementCost: 20000, tier: trustTier({}) }), { rate: 0.5, amount: 10000, overCap: false, needsGuarantor: false });
+  assert.deepEqual(depositFor({ replacementCost: 20000, tier: trustTier({}) }), { rate: 0.5, amount: 10000, overCap: false, unverified: false, needsGuarantor: false });
   assert.equal(depositFor({ replacementCost: 20000, tier: trustTier({ cleanReturns: 6 }) }).amount, 4000);
 });
 
@@ -28,6 +28,14 @@ test('renting above your level needs the full value as deposit', () => {
   assert.equal(d.amount, 380000);
   // a top renter has no cap
   assert.equal(depositFor({ replacementCost: 380000, tier: trustTier({ cleanReturns: 5 }) }).overCap, false);
+});
+
+test('a renter who has not verified their ID leaves the full value', () => {
+  const d = depositFor({ replacementCost: 20000, tier: trustTier({ cleanReturns: 6 }), verified: false });
+  assert.equal(d.rate, 1);
+  assert.equal(d.amount, 20000);
+  assert.equal(d.unverified, true);
+  assert.equal(depositFor({ replacementCost: 200000, tier: trustTier({}), verified: false }).needsGuarantor, false);
 });
 
 test('valuable items need a guarantor unless the renter is a top renter', () => {

@@ -8,6 +8,7 @@
 //   runEscalation(now)    move unreturned rentals through their stages (idempotent)
 //   maybeRunEscalation()  the same, at most once every few minutes (called as people use the site)
 import { query, pool } from './db.js';
+import { identityVerified } from './middleware/requireVerified.js';
 import {
   trustTier, depositFor, renterBlocks, escalationStage, hoursLate, settle,
   CLAIM_RESPONSE_HOURS, BLOCK_TEXT,
@@ -49,11 +50,13 @@ export async function standingFor(userId, db = { query }) {
       WHERE renter_id = $1 AND ((status = 'Approved' AND checked_out_at IS NOT NULL AND checked_in_at IS NULL) OR status = 'Missing')`,
     [userId]
   );
+  const { rows: [me] } = await db.query('SELECT role, verification_status, nid_number FROM users WHERE id = $1', [userId]);
   const tier = trustTier({ cleanReturns: hist.rows[0].clean, lateReturns: hist.rows[0].late });
   const blocks = renterBlocks({ claims, activeRentals: active });
   return {
     tier: { level: tier.level, name: tier.name, cap: Number.isFinite(tier.cap) ? tier.cap : null, rate: tier.rate, toNext: tier.toNext, nextName: tier.nextName },
     cleanReturns: hist.rows[0].clean,
+    verified: identityVerified(me),
     blocks: blocks.map((code) => ({ code, text: BLOCK_TEXT[code] })),
     _tier: tier,
   };
@@ -61,7 +64,7 @@ export async function standingFor(userId, db = { query }) {
 
 // What renting this item would take: deposit, whether a guarantor is needed.
 export function quoteFor(standing, item) {
-  return depositFor({ replacementCost: item.replacement_cost, tier: standing._tier });
+  return depositFor({ replacementCost: item.replacement_cost, tier: standing._tier, verified: standing.verified });
 }
 
 // ---------------------------------------------------------------- claims
