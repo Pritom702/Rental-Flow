@@ -23,6 +23,7 @@ import { LevelCard } from '../social/RewardLayer.jsx';
 import { loadMe, useMe } from '../social/store.js';
 import { Avatar, CONDITIONS, compact } from '../social/util.jsx';
 import { say } from '../social/toast.js';
+import { useBuyNow } from '../social/buyNow.js';
 import { Glyph, Medallion } from '../social/glyphs.jsx';
 
 const NEW_POLL_MS = 45000;
@@ -448,17 +449,23 @@ function TrendingRail() {
 }
 
 function SaleTile({ post }) {
+  const { user } = useAuth();
+  const buy = useBuyNow();
   const cover = (post.attachments || []).find((a) => a.type === 'image') || (post.attachments || []).find((a) => a.type === 'video');
+  const canBuy = !post.sale?.sold && user?.id !== post.author_id;
   return (
-    <Link to={`/post/${post.id}`} className={`sale-tile${post.sale?.sold ? ' sold' : ''}`}>
-      <span className="st-photo" style={{ background: cover?.color || 'var(--surface-2)' }}>
-        {cover && <img src={cover.type === 'video' ? cover.poster : cover.url} alt="" loading="lazy" />}
-        {post.sale?.sold && <span className="st-sold">Sold</span>}
-      </span>
-      <b className="st-price">{money(post.sale?.price)}</b>
-      <span className="st-title">{post.body || 'For sale'}</span>
-      <span className="st-meta">{CONDITIONS[post.sale?.condition] || 'Good'}{post.sale?.negotiable ? ' · Negotiable' : ''}</span>
-    </Link>
+    <div className={`sale-tile${post.sale?.sold ? ' sold' : ''}`}>
+      <Link to={`/post/${post.id}`} className="st-link">
+        <span className="st-photo" style={{ background: cover?.color || 'var(--surface-2)' }}>
+          {cover && <img src={cover.type === 'video' ? cover.poster : cover.url} alt="" loading="lazy" />}
+          {post.sale?.sold && <span className="st-sold">Sold</span>}
+        </span>
+        <b className="st-price">{money(post.sale?.price)}</b>
+        <span className="st-title" translate="no">{post.body || 'For sale'}</span>
+        <span className="st-meta">{CONDITIONS[post.sale?.condition] || 'Good'}{post.sale?.negotiable ? ' · Negotiable' : ''}</span>
+      </Link>
+      {canBuy && <button type="button" className="btn accent small st-buy" onClick={() => buy(post)}><Glyph name="coin" size={14} /> Buy now</button>}
+    </div>
   );
 }
 

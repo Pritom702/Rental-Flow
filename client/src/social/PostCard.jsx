@@ -26,25 +26,16 @@ import { say } from './toast.js';
 import { PromoteDialog } from './AdsPanel.jsx';
 import { adEvent, watchAd } from './adTrack.js';
 import { setMe } from './store.js';
+import { useBuyNow, useGuestGuard } from './buyNow.js';
 import Portal from '../components/Portal.jsx';
 
 const HOLD_MS = 380;
-
-function useGuestGuard() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const { pathname, search } = useLocation();
-  return () => {
-    if (user) return false;
-    navigate(`/login?mode=signup&next=${encodeURIComponent(pathname + search)}`);
-    return true;
-  };
-}
 
 function PostCard({ post, onChange, onRemove, full = false }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const guest = useGuestGuard();
+  const buy = useBuyNow();
   const [expanded, setExpanded] = useState(full);
   const [menu, setMenu] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -197,23 +188,6 @@ function PostCard({ post, onChange, onRemove, full = false }) {
       navigate(`/messages/${id}`);
     } catch (e) { say(e.message, 'warn'); }
   }
-  // Buy now: an offer at the asking price, sent in a chat with the seller.
-  // The seller accepts there; the deal stays on RentalFlow (and protected).
-  async function buyNow() {
-    if (guest()) return;
-    if (!window.confirm(`Buy this for ${money(post.sale.price)}? The seller confirms in your chat, then you arrange the hand-over. Pay only when you have the item.`)) return;
-    try {
-      const { id } = await api.post('/messages/conversations', { post_id: post.id });
-      try {
-        await api.post('/market/deals', { conversation_id: id, buy_now: true });
-      } catch (e) {
-        if (!/already an offer/i.test(e.message)) throw e;
-      }
-      play('success');
-      say('Sent — the seller confirms in your chat', 'coin');
-      navigate(`/messages/${id}`);
-    } catch (e) { say(e.message, 'warn'); }
-  }
   async function markSold() {
     const sold = !post.sale.sold;
     update({ sale: { ...post.sale, sold } });
@@ -326,7 +300,7 @@ function PostCard({ post, onChange, onRemove, full = false }) {
               ? <button type="button" className="btn secondary small" onClick={markSold}>{post.sale.sold ? 'Mark as available' : 'Mark as sold'}</button>
               : !post.sale.sold && (
                 <>
-                  <button type="button" className="btn accent small buy-now" onClick={buyNow}><Glyph name="coin" size={15} /> Buy now</button>
+                  <button type="button" className="btn accent small buy-now" onClick={() => buy(post)}><Glyph name="coin" size={15} /> Buy now</button>
                   <button type="button" className="btn secondary small" onClick={messageSeller}><Icon name="chat" size={15} /> Message seller</button>
                 </>
               )}

@@ -869,3 +869,5 @@ input[type='checkbox']:checked { animation: react-pop .35s var(--spring); }
 .pc-edit-bar { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
 .pc-edit-bar .cs-count { position: static; margin-right: auto; }
 .sale-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.st-link { display: flex; flex-direction: column; gap: 3px; color: inherit; text-decoration: none; }
+.st-buy { margin-top: 6px; width: 100%; justify-content: center; }
