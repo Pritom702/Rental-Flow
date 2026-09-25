@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
 import { Icon } from '../icons.jsx';
 import { exportAgreementPdf, exportReturnSummaryPdf } from '../pdf.js';
@@ -11,6 +11,7 @@ import { useAuth } from '../auth.jsx';
 const STATUS_OPTIONS = ['Pending', 'Approved', 'Cancelled', 'Completed', 'Rejected'];
 
 export default function Bookings() {
+  const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
   const [items, setItems] = useState([]);
   const [selectedItem, setSelectedItem] = useState('');
@@ -41,6 +42,14 @@ export default function Bookings() {
   useEffect(() => {
     load().catch((err) => setError(err.message));
   }, [selectedItem, statusFilter]);
+
+  // Pay for my own booking request (RentalFlow Pay, a demo).
+  async function payBooking(id) {
+    try {
+      const { pay } = await api.post('/payments/booking', { booking_id: id });
+      navigate(pay);
+    } catch (e) { setError(e.message); }
+  }
 
   async function updateStatus(id, status) {
     try {
@@ -159,6 +168,10 @@ export default function Bookings() {
               {booking.my_role === 'renter' ? (
                 <div className="card-actions">
                   <span className={`badge ${booking.status}`}>{booking.status}</span>
+                  {booking.paid_at && <span className="badge paid">Paid</span>}
+                  {!booking.paid_at && ['Pending', 'Approved'].includes(booking.status) && (
+                    <button className="btn accent small" onClick={() => payBooking(booking.id)}>Pay now</button>
+                  )}
                   {booking.status === 'Pending' && (
                     <button className="btn secondary small" onClick={() => updateStatus(booking.id, 'Cancelled')}>Cancel request</button>
                   )}

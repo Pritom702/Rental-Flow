@@ -228,6 +228,7 @@ function Thread({ id, onActivity }) {
 // A sale in the chat: the buyer makes an offer, the seller accepts or declines.
 // Accepting marks the item sold, unlocks the chat and records the deal.
 function DealBox({ convo, me, onChange }) {
+  const navigate = useNavigate();
   const [price, setPrice] = useState(convo.sale?.price || '');
   const [busy, setBusy] = useState(false);
   const d = convo.deal;
@@ -244,8 +245,23 @@ function DealBox({ convo, me, onChange }) {
       onChange();
     } catch (e) { say(e.message, 'warn'); } finally { setBusy(false); }
   }
+  async function payNow() {
+    setBusy(true);
+    try { const { pay } = await api.post('/payments/sale', { conversation_id: convo.id }); navigate(pay); }
+    catch (e) { say(e.message, 'warn'); setBusy(false); }
+  }
+  if (d && ['accepted', 'completed'].includes(d.status) && d.paid_at) {
+    return <div className="deal-box done"><Glyph name="check" size={18} /><b>{`Paid ${money(d.price)} through RentalFlow Pay`}</b><span>RentalFlow holds it until the hand-over. Arrange it here.</span></div>;
+  }
   if (d && ['accepted', 'completed'].includes(d.status)) {
-    return <div className="deal-box done"><Glyph name="coin" size={18} /><b>Deal agreed at {money(d.price)}</b><span>Arrange the hand-over here — check the item before you pay.</span></div>;
+    return (
+      <div className="deal-box done">
+        <Glyph name="coin" size={18} /><b>Deal agreed at {money(d.price)}</b>
+        {buyer
+          ? <span className="deal-actions"><button type="button" className="btn accent small" disabled={busy} onClick={payNow}>{`Pay ${money(d.price)}`}</button></span>
+          : <span>{`Waiting for ${convo.other_name} to pay through RentalFlow.`}</span>}
+      </div>
+    );
   }
   if (d && d.status === 'offered') {
     return (

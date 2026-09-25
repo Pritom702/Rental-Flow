@@ -70,6 +70,11 @@ async function main() {
   await pool.query('DROP TABLE IF EXISTS moderation_actions, photo_reviews CASCADE');
   await pool.query(fs.readFileSync(path.join(__dirname, 'schema_moderation.sql'), 'utf8'));
   console.log('✅ Moderation tables created (actions, photo reviews)');
+
+  // Payments: the demo checkout for Buy now and bookings.
+  await pool.query('DROP TABLE IF EXISTS payments CASCADE');
+  await pool.query(fs.readFileSync(path.join(__dirname, 'schema_payments.sql'), 'utf8'));
+  console.log('✅ Payments table created');
   await pool.end();
 }
 

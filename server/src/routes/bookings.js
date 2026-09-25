@@ -7,6 +7,7 @@ import { buildProfile } from '../customerUtils.js';
 import { signFileUrl } from './files.js';
 import { identityVerified } from '../middleware/requireVerified.js';
 import { standingFor, quoteFor, openClaim } from '../protection.js';
+import { refundBooking } from './payments.js';
 import { checkGuarantor, handoverCode, escalationStage, hoursLate } from '../protectionUtils.js';
 
 const router = Router();
@@ -469,6 +470,9 @@ router.patch('/:id/status', authRequired, async (req, res) => {
         owner_id: rows[0].owner_id,
       }, event);
     }
+
+    // A paid request that does not go ahead is refunded (demo payments).
+    if (['Rejected', 'Cancelled'].includes(status) && status !== rows[0].status) await refundBooking(client, rows[0].id);
 
     await client.query('COMMIT');
     res.json(publicBooking(updated.rows[0]));

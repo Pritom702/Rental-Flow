@@ -14,7 +14,7 @@ import { fileURLToPath } from 'url';
 import { pool } from './db.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ADDITIVE = ['schema_profile.sql', 'schema_verification.sql', 'schema_images.sql', 'schema_messages.sql', 'schema_categories.sql', 'schema_protection.sql', 'schema_social.sql', 'schema_market.sql', 'schema_moderation.sql'];
+const ADDITIVE = ['schema_profile.sql', 'schema_verification.sql', 'schema_images.sql', 'schema_messages.sql', 'schema_categories.sql', 'schema_protection.sql', 'schema_social.sql', 'schema_market.sql', 'schema_moderation.sql', 'schema_payments.sql'];
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 const MIME = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.gif': 'image/gif', '.svg': 'image/svg+xml' };
 

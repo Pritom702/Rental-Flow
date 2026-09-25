@@ -152,7 +152,7 @@ export default function PublicBooking() {
     setBookingError('');
     setBookingSuccess('');
     try {
-      await api.post('/bookings', {
+      const created = await api.post('/bookings', {
         item_id: selectedItem.id,
         customer_name: bookingForm.customer_name || user?.name || 'Guest',
         customer_email: bookingForm.customer_email || user?.email || '',
@@ -162,6 +162,13 @@ export default function PublicBooking() {
         ...(quote?.deposit?.needsGuarantor ? { guarantor } : {}),
         protection,
       });
+      // Members pay for the request straight away (RentalFlow Pay, a demo);
+      // it is refunded if the owner turns it down.
+      if (user && created?.id) {
+        const { pay } = await api.post('/payments/booking', { booking_id: created.id, protection });
+        navigate(pay);
+        return;
+      }
       celebrate();
       setBookingSuccess('Booking request created successfully');
       setSelectedItem(null);
