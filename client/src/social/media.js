@@ -92,6 +92,7 @@ function frameOf(video, maxSide, quality) {
 
 // → { poster: File, frames: Blob[], duration, w, h }
 export async function readVideo(file) {
+  preloadUploader();
   if (!['video/mp4', 'video/webm', 'video/quicktime'].includes(file.type)) throw new Error('Share videos as MP4, WebM or MOV.');
   if (file.size > MAX_VIDEO_MB * 1024 * 1024) throw new Error(`Videos can be up to ${MAX_VIDEO_MB} MB.`);
   const url = URL.createObjectURL(file);
@@ -121,6 +122,18 @@ export async function readVideo(file) {
   }
 }
 
+// The upload library is fetched ahead of time (when the Studio opens or a
+// video is picked). Fetching it only at upload time broke when a new version
+// was deployed while the tab was open: the old file name no longer exists.
+let uploader = null;
+export function preloadUploader() {
+  if (!uploader) {
+    uploader = import('@vercel/blob/client');
+    uploader.catch(() => { uploader = null; });
+  }
+  return uploader;
+}
+
 // Check → token → straight to the Blob store. onProgress(0..1).
 export async function uploadVideo(file, frames, onProgress) {
   const { api } = await import('../api.js');
@@ -138,7 +151,12 @@ export async function uploadVideo(file, frames, onProgress) {
     throw new Error(data.error || 'This video could not be checked.');
   }
   const { token: uploadToken, pathname } = await api.post('/community/video/token', { clearance: data.clearance, type: file.type, size: file.size });
-  const { put } = await import('@vercel/blob/client');
+  let put;
+  try {
+    ({ put } = await preloadUploader());
+  } catch {
+    throw new Error('RentalFlow was just updated. Refresh the page and try again.');
+  }
   const blob = await put(pathname, file, {
     access: 'public',
     token: uploadToken,

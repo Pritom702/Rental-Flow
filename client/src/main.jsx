@@ -15,6 +15,18 @@ import './social/business.css';
 import { installClickSounds } from './sfx.js';
 import { installMagnetic, installRipples } from './fx.js';
 
+// A new version was deployed while this tab was open, so the old page files
+// are gone. Reload once to pick up the new build (at most every 30 s).
+window.addEventListener('vite:preloadError', (event) => {
+  try {
+    const last = Number(sessionStorage.getItem('rf-reloaded-at') || 0);
+    if (Date.now() - last < 30000) return;
+    sessionStorage.setItem('rf-reloaded-at', String(Date.now()));
+  } catch { /* storage blocked: still reload */ }
+  event.preventDefault();
+  window.location.reload();
+});
+
 installClickSounds();
 installRipples();
 installMagnetic();

@@ -16,7 +16,7 @@ import { Glyph } from '../social/glyphs.jsx';
 import { say } from '../social/toast.js';
 import { writeCopy, totalPerDay } from '../social/copywriter.js';
 import { W, H, STYLES, drawFrame, durationFor, loadImages, makeVideo, brandFontsReady } from '../social/studioEngine.js';
-import { uploadFile, uploadVideo } from '../social/media.js';
+import { preloadUploader, uploadFile, uploadVideo } from '../social/media.js';
 import { PromoteDialog } from '../social/AdsPanel.jsx';
 
 const MAX = 4;
@@ -43,7 +43,7 @@ export default function Studio() {
   const [promote, setPromote] = useState(false);
   const canvas = useRef(null);
 
-  useEffect(() => { brandFontsReady(); }, []);
+  useEffect(() => { brandFontsReady(); preloadUploader().catch(() => {}); }, []);
   useEffect(() => {
     api.get(scope === 'mine' ? `/items?owner_id=${user.id}` : '/items')
       .then((rows) => setItems(rows.filter((r) => r.cover_url))).catch(() => setItems([]));
