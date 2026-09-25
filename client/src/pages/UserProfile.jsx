@@ -87,11 +87,11 @@ export default function UserProfile() {
         <div className="pf-handle">@{p.handle} · joined {joined}</div>
         {p.bio && <p className="pf-bio">{p.bio}</p>}
         <div className="pf-stats">
-          <span><b>{compact(p.posts)}</b> post{p.posts === 1 ? '' : 's'}</span>
-          <span><b>{compact(p.followers)}</b> follower{p.followers === 1 ? '' : 's'}</span>
+          <span><b>{compact(p.posts)}</b> {p.posts === 1 ? 'post' : 'posts'}</span>
+          <span><b>{compact(p.followers)}</b> {p.followers === 1 ? 'follower' : 'followers'}</span>
           <span><b>{compact(p.following)}</b> following</span>
-          <span><b>{compact(p.karma)}</b> spark{p.karma === 1 ? '' : 's'} received</span>
-          {p.rentals_hosted > 0 && <span><b>{p.rentals_hosted}</b> rental{p.rentals_hosted === 1 ? '' : 's'} hosted</span>}
+          <span><b>{compact(p.karma)}</b> {p.karma === 1 ? 'spark received' : 'sparks received'}</span>
+          {p.rentals_hosted > 0 && <span><b>{p.rentals_hosted}</b> {p.rentals_hosted === 1 ? 'rental hosted' : 'rentals hosted'}</span>}
         </div>
         <div className="pf-level">
           <div className="pf-level-num"><small>Level</small><b>{p.level.level}</b></div>

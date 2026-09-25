@@ -121,5 +121,6 @@ export function RichText({ text = '' }) {
     last = m.index + m[0].length;
   }
   if (last < text.length) out.push(<Fragment key={key++}>{text.slice(last)}</Fragment>);
-  return out;
+  // What people write stays in their own words when the site is in বাংলা.
+  return <span translate="no">{out}</span>;
 }

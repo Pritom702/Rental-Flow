@@ -218,7 +218,7 @@ function AppShell({ children }) {
           })}
         </nav>
         <div className="side-foot">
-          <div className="me-toggles drawer-toggles"><span>Sound &amp; theme</span><ThemeToggle /></div>
+          <div className="me-toggles drawer-toggles"><span>Sound, theme &amp; language</span><ThemeToggle /></div>
           <button className="side-logout" onClick={logout}><Icon name="logout" size={15} /> Sign out</button>
         </div>
       </aside>
@@ -273,7 +273,7 @@ function AppShell({ children }) {
               <div className="tn-pop me-pop">
                 <div className="me-head"><b>{user?.name}</b><span>{user?.email}</span></div>
                 {/* Sound and light/dark live here too — on phones the top bar has no room for them. */}
-                <div className="me-toggles"><span>Sound &amp; theme</span><ThemeToggle /></div>
+                <div className="me-toggles"><span>Sound, theme &amp; language</span><ThemeToggle /></div>
                 <Link to="/u/me" className="tn-pop-link"><Glyph name="sparkle" size={16} /> My profile & badges</Link>
                 <Link to="/profile" className="tn-pop-link"><Icon name="settings" size={16} /> Account settings</Link>
                 <Link to="/dashboard" className="tn-pop-link"><Icon name="package" size={16} /> {user?.role === 'admin' ? 'All listings' : 'My listings'}</Link>

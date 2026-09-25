@@ -14,6 +14,7 @@ import './social/look.css';
 import './social/business.css';
 import { installClickSounds } from './sfx.js';
 import { installMagnetic, installRipples } from './fx.js';
+import { installLanguage } from './i18n.js';
 
 // A new version was deployed while this tab was open, so the old page files
 // are gone. Reload once to pick up the new build (at most every 30 s).
@@ -27,6 +28,8 @@ window.addEventListener('vite:preloadError', (event) => {
   window.location.reload();
 });
 
+// English or বাংলা, picked with the language button next to the theme toggle.
+installLanguage();
 installClickSounds();
 installRipples();
 installMagnetic();

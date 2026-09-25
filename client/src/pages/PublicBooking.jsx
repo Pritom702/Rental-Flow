@@ -256,7 +256,7 @@ export default function PublicBooking() {
             <Icon name="close" size={14} /> Clear filters
           </button>
         )}
-        <span className="muted">{items.length} result{items.length === 1 ? '' : 's'}</span>
+        <span className="muted">{items.length} {items.length === 1 ? 'result' : 'results'}</span>
       </div>
 
       {loading ? (
@@ -356,7 +356,7 @@ export default function PublicBooking() {
               <span className={`trust-badge level-${quote.tier.level}`}><Icon name="shield" size={14} /> {quote.tier.name}</span>
               <span className="muted">
                 {quote.tier.cap ? <>Rent up to <b>{money(quote.tier.cap)}</b> at a {Math.round(quote.tier.rate * 100)}% deposit</> : <>No limit · {Math.round(quote.tier.rate * 100)}% deposit</>}
-                {quote.tier.nextName && <> · {quote.tier.toNext} more on-time return{quote.tier.toNext === 1 ? '' : 's'} to become a {quote.tier.nextName}</>}
+                {quote.tier.nextName && <> · {quote.tier.toNext} {quote.tier.toNext === 1 ? 'more on-time return to become a' : 'more on-time returns to become a'} {quote.tier.nextName}</>}
               </span>
             </div>
           )}
@@ -368,7 +368,7 @@ export default function PublicBooking() {
             const f = rentalFees(selectedItem.rental_price, days, protection);
             return (
               <div className="fee-box">
-                <div><span>{money(selectedItem.rental_price)} × {days} day{days === 1 ? '' : 's'}</span><b>{money(f.total)}</b></div>
+                <div><span>{money(selectedItem.rental_price)} × {days} {days === 1 ? 'day' : 'days'}</span><b>{money(f.total)}</b></div>
                 <div><span>Service fee <small>keeps your booking protected</small></span><b>{money(f.service)}</b></div>
                 <label className="fee-protect">
                   <input type="checkbox" checked={protection} onChange={(e) => setProtection(e.target.checked)} />

@@ -106,7 +106,7 @@ export default function Bookings() {
         <div className="trust-strip standing">
           <span className={`trust-badge level-${standing.tier.level}`}><Icon name="shield" size={14} /> {standing.tier.name}</span>
           <span className="muted">
-            {standing.cleanReturns} on-time return{standing.cleanReturns === 1 ? '' : 's'} ·{' '}
+            {standing.cleanReturns} {standing.cleanReturns === 1 ? 'on-time return' : 'on-time returns'} ·{' '}
             {standing.tier.cap ? <>rent up to {money(standing.tier.cap)} at a {Math.round(standing.tier.rate * 100)}% deposit</> : <>no limit, {Math.round(standing.tier.rate * 100)}% deposit</>}
           </span>
           {standing.blocks.map((x) => <span className="protect-alert stage-4" key={x.code}>{x.text}</span>)}

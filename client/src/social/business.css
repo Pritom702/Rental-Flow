@@ -320,3 +320,4 @@ html[data-theme='dark'] .rev-legend .k-l::before, html[data-theme='dark'] .rev-d
 .verify-nudge > svg { color: var(--neon); flex: none; }
 .verify-nudge span { flex: 1 1 220px; }
 .verify-nudge b { color: var(--neon); }
+.me-toggles .lang-toggle { background: rgba(255, 255, 255, .06); border-color: rgba(255, 255, 255, .12); color: var(--night-muted); }

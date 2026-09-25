@@ -12,6 +12,7 @@ import { api } from '../api.js';
 import { useAuth } from '../auth.jsx';
 import { Icon, categoryIcon } from '../icons.jsx';
 import { money } from '../money.js';
+import { t, useLang } from '../i18n.js';
 
 // Reveal elements as they scroll into view.
 function useReveal(ref, deps) {
@@ -48,8 +49,11 @@ function CountUp({ to, suffix = '' }) {
 }
 
 // Split a line into words so each can rise in on its own beat.
+// Split word by word for the entrance animation, so the words are put into
+// the chosen language first (the page-wide translator only sees whole phrases).
 function Words({ text, from = 0 }) {
-  return text.split(' ').map((w, i) => (
+  useLang();
+  return t(text).split(' ').map((w, i) => (
     <span className="word" key={`${w}-${i}`} style={{ '--w': from + i }}>{w}&nbsp;</span>
   ));
 }
@@ -338,7 +342,7 @@ export default function Landing() {
                 <span className="cat-icon"><Icon name={categoryIcon(c.name)} size={20} /></span>
                 <div>
                   <div className="cat-name">{c.name}</div>
-                  <div className="cat-count">{c.item_count} item{c.item_count === 1 ? '' : 's'}</div>
+                  <div className="cat-count">{c.item_count} {c.item_count === 1 ? 'item' : 'items'}</div>
                 </div>
               </button>
             ))}

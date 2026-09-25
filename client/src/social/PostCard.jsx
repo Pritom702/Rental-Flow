@@ -307,7 +307,7 @@ function PostCard({ post, onChange, onRemove, full = false }) {
               <button type="button" key={o} className="poll-row" onClick={() => vote(i)}>{o}</button>
             );
           })}
-          <div className="poll-foot muted">{compact(totalVotes)} vote{totalVotes === 1 ? '' : 's'} · {pollClosed ? 'Final results' : `closes ${new Date(post.poll.closes_at).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}`}</div>
+          <div className="poll-foot muted">{compact(totalVotes)} {totalVotes === 1 ? 'vote' : 'votes'} · {pollClosed ? 'Final results' : `closes ${new Date(post.poll.closes_at).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}`}</div>
         </div>
       )}
 

@@ -168,7 +168,7 @@ export default function Profile() {
           <Link to="/bookings" className="btn secondary small">My bookings</Link>
           {activity.bookingsReceived.pending > 0 && (
             <Link to="/bookings" className="btn small">
-              Review {activity.bookingsReceived.pending} pending request{activity.bookingsReceived.pending === 1 ? '' : 's'}
+              Review {activity.bookingsReceived.pending} {activity.bookingsReceived.pending === 1 ? 'pending request' : 'pending requests'}
             </Link>
           )}
         </div>

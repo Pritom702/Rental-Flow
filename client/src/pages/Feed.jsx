@@ -224,7 +224,7 @@ export default function Feed() {
 
           {fresh > 0 && (
             <button type="button" className="new-pill" onClick={() => { load(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
-              ↑ {fresh} new post{fresh === 1 ? '' : 's'}
+              ↑ {fresh} {fresh === 1 ? 'new post' : 'new posts'}
             </button>
           )}
 
@@ -306,7 +306,7 @@ function CommunityHeader({ c, onJoin }) {
           <h1>{c.name}</h1>
           <p>{c.description}</p>
           <div className="c-stats">
-            <span><b>{compact(c.member_count)}</b> member{c.member_count === 1 ? '' : 's'}</span>
+            <span><b>{compact(c.member_count)}</b> {c.member_count === 1 ? 'member' : 'members'}</span>
             <span><b>{compact(c.post_count)}</b> posts</span>
             {c.category_id && <Link to={`/browse?category_id=${c.category_id}`}><b>{c.listings}</b> for rent ›</Link>}
           </div>
@@ -403,7 +403,7 @@ function TrendingRail() {
           <div className="trend-tags">
             {t.tags.map((x, i) => (
               <Link key={x.tag} to={`/feed?tag=${x.tag}`} className="trend-tag">
-                <span className="muted">{i + 1}</span> #{x.tag} <small>{x.n} post{x.n === 1 ? '' : 's'}</small>
+                <span className="muted">{i + 1}</span> #{x.tag} <small>{x.n} {x.n === 1 ? 'post' : 'posts'}</small>
               </Link>
             ))}
           </div>

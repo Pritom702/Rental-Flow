@@ -234,7 +234,7 @@ export function LevelCard() {
           <span className="muted">{me.xp} XP · {me.level.next - me.xp} to next</span>
         </div>
         <div className={`lc-streak${me.activeToday ? '' : ' cold'}`}>
-          <Glyph name="flame" size={26} /><b>{me.streak}</b><small>day{me.streak === 1 ? '' : 's'}</small>
+          <Glyph name="flame" size={26} /><b>{me.streak}</b><small>{me.streak === 1 ? 'day' : 'days'}</small>
         </div>
       </div>
       <div className="lc-bar"><i style={{ width: `${pct}%` }} /></div>

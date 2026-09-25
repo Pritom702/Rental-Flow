@@ -198,7 +198,7 @@ function Thread({ id, onActivity }) {
           <div key={m.id} className="chat-system"><Glyph name="sparkle" size={14} />{m.body}</div>
         ) : (
           <div key={m.id} className={`bubble${m.sender_id === user.id ? ' me' : ''}${m.guard_flags?.length && !convo.unlocked ? ' guarded' : ''}`}>
-            <p>{m.body}</p>
+            <p translate="no">{m.body}</p>
             <span>
               {m.guard_flags?.length > 0 && !convo.unlocked && <em className="guard-tag"><Glyph name="shield" size={12} /> details hidden</em>}
               {when(m.created_at)}{m.sender_id === user.id && (m.read_at || m.id <= seenUpTo) ? ' · Seen' : ''}
