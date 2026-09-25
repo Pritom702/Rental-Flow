@@ -31,6 +31,7 @@ import handoffRoutes from './routes/handoff.js';
 import messageRoutes from './routes/messages.js';
 import protectionRoutes from './routes/protection.js';
 import communityRoutes from './routes/community.js';
+import moderationRoutes from './routes/moderation.js';
 import marketRoutes from './routes/market.js';
 import { rewardMiddleware } from './rewards.js';
 import { maybeRunEscalation } from './protection.js';
@@ -97,6 +98,7 @@ app.use('/api/handoff', handoffRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/protection', protectionRoutes);
 app.use('/api/community', communityRoutes);
+app.use('/api/moderation', moderationRoutes);
 app.use('/api/market', marketRoutes);
 
 // Unknown /api path → JSON 404 (not the SPA's index.html), so a typo in a fetch

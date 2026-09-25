@@ -65,6 +65,11 @@ async function main() {
     booking_fees, ad_campaigns, ad_events CASCADE`);
   await pool.query(fs.readFileSync(path.join(__dirname, 'schema_market.sql'), 'utf8'));
   console.log('✅ Business tables created (credits, fees, deals, ads)');
+
+  // Moderation: admin actions (what the moderation model learns from), photo reviews.
+  await pool.query('DROP TABLE IF EXISTS moderation_actions, photo_reviews CASCADE');
+  await pool.query(fs.readFileSync(path.join(__dirname, 'schema_moderation.sql'), 'utf8'));
+  console.log('✅ Moderation tables created (actions, photo reviews)');
   await pool.end();
 }
 

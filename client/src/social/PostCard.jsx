@@ -17,7 +17,7 @@ import { money } from '../money.js';
 import { play } from '../sfx.js';
 import { burst } from '../fx.js';
 import {
-  Avatar, CONDITIONS, CommunityChip, KINDS, REACTIONS, RichText, VerifiedTick, compact, reactionLabel, timeAgo,
+  Avatar, CONDITIONS, CommunityChip, KINDS, POST_MAX, REACTIONS, RichText, VerifiedTick, compact, reactionLabel, timeAgo,
 } from './util.jsx';
 import { Glyph } from './glyphs.jsx';
 import { fileSize } from './media.js';
@@ -26,6 +26,7 @@ import { say } from './toast.js';
 import { PromoteDialog } from './AdsPanel.jsx';
 import { adEvent, watchAd } from './adTrack.js';
 import { setMe } from './store.js';
+import Portal from '../components/Portal.jsx';
 
 const HOLD_MS = 380;
 
@@ -46,6 +47,17 @@ function PostCard({ post, onChange, onRemove, full = false }) {
   const guest = useGuestGuard();
   const [expanded, setExpanded] = useState(full);
   const [menu, setMenu] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+  const menuRef = useRef(null);
+  // The ⋯ menu stays open until you tap somewhere else.
+  useEffect(() => {
+    if (!menu) return undefined;
+    const close = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenu(false); };
+    document.addEventListener('pointerdown', close);
+    return () => document.removeEventListener('pointerdown', close);
+  }, [menu]);
   const [lightbox, setLightbox] = useState(null);
   const [promoting, setPromoting] = useState(false);
   const cardRef = useRef(null);
@@ -112,10 +124,46 @@ function PostCard({ post, onChange, onRemove, full = false }) {
   }
   async function remove() {
     setMenu(false);
-    if (!window.confirm('Delete this post? This cannot be undone.')) return;
-    await api.del(`/community/posts/${post.id}`);
-    say('Post deleted', 'trash');
-    onRemove?.(post.id);
+    if (!window.confirm(mine ? 'Delete this post? This cannot be undone.' : `Delete this post by ${post.author_name}? They will be told it broke the rules.`)) return;
+    try {
+      await api.del(`/community/posts/${post.id}`);
+      say('Post deleted', 'trash');
+      onRemove?.(post.id);
+    } catch (e) { say(e.message, 'warn'); }
+  }
+  function startEdit() {
+    setMenu(false);
+    setDraft(post.body || '');
+    setEditing(true);
+  }
+  async function saveEdit() {
+    setSavingEdit(true);
+    try {
+      const r = await api.patch(`/community/posts/${post.id}`, { body: draft });
+      update(r);
+      setEditing(false);
+      say('Post updated', 'check');
+    } catch (e) { say(e.message, 'warn'); }
+    setSavingEdit(false);
+  }
+  // Admin: act on the author of someone else's post.
+  async function warnAuthor() {
+    setMenu(false);
+    const reason = window.prompt(`Warning to ${post.author_name} — what should they fix?`, 'This post breaks the community rules.');
+    if (!reason) return;
+    try {
+      await api.post(`/moderation/users/${post.author_id}/warn`, { reason });
+      say(`${post.author_name} was warned`, 'shield');
+    } catch (e) { say(e.message, 'warn'); }
+  }
+  async function banAuthor() {
+    setMenu(false);
+    const reason = window.prompt(`Ban ${post.author_name}? They will be signed out and blocked. Reason:`, 'Repeatedly broke the community rules.');
+    if (!reason) return;
+    try {
+      await api.post(`/moderation/users/${post.author_id}/ban`, { reason });
+      say(`${post.author_name} was banned`, 'shield');
+    } catch (e) { say(e.message, 'warn'); }
   }
   async function boost() {
     setMenu(false);
@@ -195,12 +243,13 @@ function PostCard({ post, onChange, onRemove, full = false }) {
             <Link to={postUrl} className="pc-time">{timeAgo(post.created_at)}{post.edited_at ? ' · edited' : ''}</Link>
           </div>
         </div>
-        <div className="pc-menu-wrap">
-          <button type="button" className="icon-btn" aria-label="More" onClick={() => setMenu((v) => !v)}>
+        <div className="pc-menu-wrap" ref={menuRef}>
+          <button type="button" className="icon-btn" aria-label="More" aria-expanded={menu} onClick={() => setMenu((v) => !v)}>
             <Glyph name="more" size={18} />
           </button>
           {menu && (
-            <div className="pc-menu" onMouseLeave={() => setMenu(false)}>
+            <div className="pc-menu">
+              {mine && post.status !== 'removed' && <button type="button" onClick={startEdit}><Glyph name="edit" size={16} />Edit</button>}
               <button type="button" onClick={toggleSave}><Glyph name={post.saved ? 'keep-on' : 'keep'} size={16} />{post.saved ? 'Remove from Kept' : 'Keep'}</button>
               <button type="button" onClick={() => { setMenu(false); share(); }}><Glyph name="link" size={16} />Copy link</button>
               {mine && post.status === 'visible' && (
@@ -210,6 +259,12 @@ function PostCard({ post, onChange, onRemove, full = false }) {
                 </>
               )}
               {(mine || user?.role === 'admin') && <button type="button" className="danger" onClick={remove}><Glyph name="trash" size={16} />Delete</button>}
+              {!mine && user?.role === 'admin' && (
+                <>
+                  <button type="button" onClick={warnAuthor}><Glyph name="warn" size={16} />Warn author</button>
+                  <button type="button" className="danger" onClick={banAuthor}><Glyph name="ban" size={16} />Ban author</button>
+                </>
+              )}
               {!mine && (
                 <details>
                   <summary><Glyph name="flag" size={16} />Report</summary>
@@ -225,12 +280,21 @@ function PostCard({ post, onChange, onRemove, full = false }) {
 
       {post.status !== 'visible' && <div className="pc-hidden-note"><Glyph name="shield" size={14} /> Hidden while our team reviews reports. Only you can see it.</div>}
 
-      {post.body && (
+      {editing ? (
+        <div className="pc-edit">
+          <textarea value={draft} onChange={(e) => setDraft(e.target.value)} maxLength={POST_MAX} rows={4} autoFocus aria-label="Edit your post" />
+          <div className="pc-edit-bar">
+            <span className={`cs-count${draft.length > POST_MAX - 50 ? ' near' : ''}`}>{draft.length}/{POST_MAX}</span>
+            <button type="button" className="btn ghost small" onClick={() => setEditing(false)} disabled={savingEdit}>Cancel</button>
+            <button type="button" className="btn accent small" onClick={saveEdit} disabled={savingEdit || draft.trim() === (post.body || '').trim()}>{savingEdit ? 'Saving…' : 'Save'}</button>
+          </div>
+        </div>
+      ) : post.body && (
         <div className={`pc-body${long && !expanded ? ' clamped' : ''}`}>
           <RichText text={post.body} />
         </div>
       )}
-      {long && !expanded && <button type="button" className="pc-more" onClick={() => setExpanded(true)}>See more</button>}
+      {!editing && long && !expanded && <button type="button" className="pc-more" onClick={() => setExpanded(true)}>See more</button>}
 
       {post.sale && (
         <div className={`sale-box${post.sale.sold ? ' sold' : ''}`}>
@@ -395,7 +459,7 @@ function Lightbox({ images, start, onClose }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [images.length, onClose]);
   return (
-    <div className="lightbox" onClick={onClose} role="dialog" aria-label="Photo">
+    <Portal><div className="lightbox" onClick={onClose} role="dialog" aria-label="Photo">
       <img src={images[i].url} alt="" onClick={(e) => e.stopPropagation()} />
       {images.length > 1 && (
         <>
@@ -405,7 +469,7 @@ function Lightbox({ images, start, onClose }) {
         </>
       )}
       <button type="button" className="lb-close" onClick={onClose} aria-label="Close"><Icon name="close" size={20} /></button>
-    </div>
+    </div></Portal>
   );
 }
 

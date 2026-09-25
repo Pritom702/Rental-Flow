@@ -153,7 +153,8 @@ export function setLang(next) {
 function wrapDialogs() {
   for (const name of ['alert', 'confirm', 'prompt']) {
     const original = window[name].bind(window);
-    window[name] = (message, ...rest) => original(t(String(message ?? '')), ...rest);
+    // (a prompt's suggested answer is translated too, so it reads naturally)
+    window[name] = (message, ...rest) => original(t(String(message ?? '')), ...rest.map((r) => (typeof r === 'string' ? t(r) : r)));
   }
 }
 

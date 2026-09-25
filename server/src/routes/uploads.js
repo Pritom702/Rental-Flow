@@ -12,7 +12,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { authRequired } from '../middleware/auth.js';
 import { query } from '../db.js';
-import { assertCleanImage } from '../moderation.js';
+import { assertCleanImage, queuePhotoReview } from '../moderation.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Older photos (and the seeded demo images) may still live in this folder;
@@ -61,12 +61,14 @@ router.post('/', authRequired, (req, res) => {
     }
     try {
       // No adult content anywhere: every photo is checked before any is saved.
-      for (const f of req.files) await assertCleanImage(f.buffer, f.mimetype, req.user.id, 'a listing photo');
+      const checks = [];
+      for (const f of req.files) checks.push(await assertCleanImage(f.buffer, f.mimetype, req.user, 'a listing photo'));
       const urls = [];
-      for (const f of req.files) {
+      for (const [i, f] of req.files.entries()) {
         const name = uniqueName(f.originalname);
         await query('INSERT INTO public_images (name, mime, data) VALUES ($1, $2, $3)', [name, f.mimetype, f.buffer]);
         urls.push(`/uploads/${name}`);
+        await queuePhotoReview(req.user.id, `/uploads/${name}`, 'listing photo', checks[i]);
       }
       res.status(201).json({ urls });
     } catch (e) {

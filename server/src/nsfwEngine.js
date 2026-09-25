@@ -2,13 +2,18 @@
 //  RentalFlow  |  Community  |  Owner: M2 - Tawheed Bin Hamid (Pritom)
 //  GitHub: @pritom702  |  Part: adult-content check for every shared photo
 // ============================================================
-// Runs the open-source NSFWJS classifier (MobileNetV2, ~3.5 MB) on the
+// Runs the open-source NSFWJS classifier (MobileNetV2 "mid", ~5.6 MB) on the
 // server, with the same TensorFlow WASM backend the face check uses, so it
 // cannot be skipped by a modified app. It sorts a picture into Neutral,
 // Drawing, Sexy, Porn or Hentai.
 //
-//   adult       Porn + Hentai ≥ 0.60      → refused, and a strike (moderation.js)
-//   revealing   Sexy ≥ 0.90               → refused, no strike
+// The smaller model we started with raised false alarms on everyday photos
+// (a car seat scored 0.71 "sexy"), so a strike now needs a confident verdict:
+//
+//   adult     Porn + Hentai ≥ 0.85            → refused, and a strike (moderation.js)
+//   unsure    Porn + Hentai ≥ 0.45, or Sexy ≥ 0.85
+//                                             → allowed, and queued for an admin to look at
+//   ok        anything else
 //
 // JPEG (what our app always uploads) and PNG can be read. Loading takes a few
 // seconds once per server instance; after that a photo takes ~0.1–0.3 s.
@@ -17,8 +22,9 @@ import jpeg from 'jpeg-js';
 import { PNG } from 'pngjs';
 
 const require = createRequire(import.meta.url);
-const ADULT = 0.6;
-const REVEALING = 0.9;
+const ADULT = 0.85;
+const UNSURE_ADULT = 0.45;
+const UNSURE_SEXY = 0.85;
 const MAX_SIDE = 512;    // the model looks at 224 px; decoding more is wasted time
 
 let ready = null;
@@ -32,10 +38,10 @@ function load() {
       require('@tensorflow/tfjs-backend-wasm');
       if (tf.getBackend() !== 'wasm') await tf.setBackend('wasm');
       await tf.ready();
-      // Only the small model is loaded (and bundled): 3.5 MB instead of 38 MB.
+      // Only the "mid" model is loaded (and bundled): 5.6 MB instead of 29 MB.
       const { load: loadModel } = require('nsfwjs/core');
-      const { MobileNetV2Model } = require('nsfwjs/models/mobilenet_v2');
-      model = await loadModel('MobileNetV2', { modelDefinitions: [MobileNetV2Model] });
+      const { MobileNetV2MidModel } = require('nsfwjs/models/mobilenet_v2_mid');
+      model = await loadModel('MobileNetV2Mid', { modelDefinitions: [MobileNetV2MidModel] });
     })().catch((err) => { ready = null; throw err; });
   }
   return ready;
@@ -73,7 +79,7 @@ function decode(buffer, mime) {
   throw Object.assign(new Error('Photos must be JPEG or PNG.'), { status: 400 });
 }
 
-// → { verdict: 'ok' | 'adult' | 'revealing', scores: { Porn, Hentai, Sexy, ... } }
+// → { verdict: 'ok' | 'unsure' | 'adult', scores: { Porn, Hentai, Sexy, ... } }
 export async function screenImage(buffer, mime) {
   let pixels;
   try { pixels = decode(buffer, mime); } catch (e) {
@@ -84,7 +90,13 @@ export async function screenImage(buffer, mime) {
   let preds;
   try { preds = await model.classify(input); } finally { input.dispose(); }
   const scores = Object.fromEntries(preds.map((p) => [p.className, p.probability]));
+  return { verdict: verdictFor(scores), scores };
+}
+
+// Pure, so the thresholds are unit tested.
+export function verdictFor(scores = {}) {
   const adult = (scores.Porn || 0) + (scores.Hentai || 0);
-  const verdict = adult >= ADULT ? 'adult' : (scores.Sexy || 0) >= REVEALING ? 'revealing' : 'ok';
-  return { verdict, scores };
+  if (adult >= ADULT) return 'adult';
+  if (adult >= UNSURE_ADULT || (scores.Sexy || 0) >= UNSURE_SEXY) return 'unsure';
+  return 'ok';
 }

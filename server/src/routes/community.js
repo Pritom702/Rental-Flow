@@ -13,10 +13,11 @@ import { Router } from 'express';
 import multer from 'multer';
 import jwt from 'jsonwebtoken';
 import { pool, query } from '../db.js';
-import { authRequired, requireRole } from '../middleware/auth.js';
+import { authRequired } from '../middleware/auth.js';
 import { grant, award } from '../rewards.js';
 import { fetchPreview } from '../linkPreview.js';
-import { assertCleanImage, recordAdultStrike, adultError } from '../moderation.js';
+import { assertCleanImage, recordAdultStrike, adultError, queuePhotoReview, trusted } from '../moderation.js';
+import { recordDecision } from '../moderationCases.js';
 import { screenImage } from '../nsfwEngine.js';
 import { generateClientTokenFromReadWriteToken } from '@vercel/blob/client';
 import { head } from '@vercel/blob';
@@ -33,6 +34,8 @@ import {
 const router = Router();
 
 const KINDS = ['post', 'showcase', 'question', 'guide', 'wanted', 'poll', 'sell'];
+// Posts are kept short, like a status: 500 characters.
+export const POST_MAX = 500;
 // RentalFlow's own reactions, and how a notification says each one.
 const REACTIONS = {
   spark: 'sparked', want: 'wants what you posted in', genius: 'found genius', wow: 'was wowed by', lol: 'laughed at', adore: 'adores',
@@ -488,7 +491,8 @@ router.post('/posts', authRequired, async (req, res) => {
   await rateLimit(me, 'posts', 25, 3);
 
   const kind = KINDS.includes(req.body.kind) ? req.body.kind : 'post';
-  const body = String(req.body.body || '').trim().slice(0, 5000);
+  const body = String(req.body.body || '').trim();
+  if (body.length > POST_MAX) throw httpError(400, `Posts can be up to ${POST_MAX} characters.`);
   const bad = policyCheck(body);
   if (bad) throw httpError(400, bad);
 
@@ -578,9 +582,14 @@ router.post('/posts', authRequired, async (req, res) => {
 });
 
 router.patch('/posts/:id', authRequired, async (req, res) => {
-  const body = String(req.body.body || '').trim().slice(0, 5000);
+  const body = String(req.body.body || '').trim();
+  if (body.length > POST_MAX) throw httpError(400, `Posts can be up to ${POST_MAX} characters.`);
   const bad = policyCheck(body);
   if (bad) throw httpError(400, bad);
+  const { rows: [cur] } = await query('SELECT author_id, attachments, poll, link FROM posts WHERE id = $1', [req.params.id]);
+  if (cur && cur.author_id === req.user.id && !body && !(cur.attachments || []).length && !cur.poll && !cur.link) {
+    throw httpError(400, 'A post needs some text, a photo, a poll or a link.');
+  }
   const { rowCount } = await query(
     `UPDATE posts SET body = $3, hashtags = $4, edited_at = NOW() WHERE id = $1 AND author_id = $2 AND status <> 'removed'`,
     [req.params.id, req.user.id, body, parseHashtags(body)]
@@ -604,6 +613,11 @@ router.delete('/posts/:id', authRequired, async (req, res) => {
   const { rows: [p] } = await query('SELECT author_id, community_id, status FROM posts WHERE id = $1', [req.params.id]);
   if (!p || p.status === 'removed') throw httpError(404, 'Post not found.');
   if (p.author_id !== req.user.id && req.user.role !== 'admin') throw httpError(403, 'You can only delete your own posts.');
+  if (p.author_id !== req.user.id) {
+    // An admin removing someone else's post: logged, the author is told, and the moderation model learns from it.
+    await recordDecision({ adminId: req.user.id, type: 'post', id: Number(req.params.id), action: 'remove', reason: req.body?.reason || 'Removed by an admin' });
+    await notify(p.author_id, null, 'social_moderation', null, 'Your post was removed', 'An admin removed it because it broke the community rules.');
+  }
   await query(`UPDATE posts SET status = 'removed' WHERE id = $1`, [req.params.id]);
   await query('UPDATE communities SET post_count = GREATEST(0, post_count - 1) WHERE id = $1', [p.community_id]);
   res.json({ ok: true });
@@ -752,6 +766,10 @@ router.delete('/comments/:id', authRequired, async (req, res) => {
   const { rows: [c] } = await query('SELECT author_id, post_id, status FROM comments WHERE id = $1', [req.params.id]);
   if (!c || c.status === 'removed') throw httpError(404, 'Comment not found.');
   if (c.author_id !== req.user.id && req.user.role !== 'admin') throw httpError(403, 'You can only delete your own comments.');
+  if (c.author_id !== req.user.id) {
+    await recordDecision({ adminId: req.user.id, type: 'comment', id: Number(req.params.id), action: 'remove', reason: 'Removed by an admin' });
+    await notify(c.author_id, null, 'social_moderation', null, 'Your comment was removed', 'An admin removed it because it broke the community rules.');
+  }
   await query(`UPDATE comments SET status = 'removed' WHERE id = $1`, [req.params.id]);
   await query('UPDATE posts SET comment_count = GREATEST(0, comment_count - 1) WHERE id = $1', [c.post_id]);
   res.json({ ok: true });
@@ -801,51 +819,7 @@ router.post('/report', authRequired, async (req, res) => {
   res.json({ ok: true });
 });
 
-router.get('/moderation', authRequired, requireRole('admin'), async (_req, res) => {
-  const { rows: posts } = await query(
-    `SELECT p.id, p.body, p.attachments, p.link, p.status, p.report_count, p.created_at, u.name AS author_name, c.slug AS community_slug,
-            (SELECT COALESCE(json_agg(json_build_object('reason', r.reason, 'note', r.note)), '[]')
-               FROM content_reports r WHERE r.post_id = p.id AND r.resolved_at IS NULL) AS reports
-       FROM posts p JOIN users u ON u.id = p.author_id JOIN communities c ON c.id = p.community_id
-      WHERE p.status = 'hidden' OR EXISTS (SELECT 1 FROM content_reports r WHERE r.post_id = p.id AND r.resolved_at IS NULL)
-      ORDER BY p.report_count DESC, p.created_at DESC LIMIT 100`);
-  const { rows: comments } = await query(
-    `SELECT cm.id, cm.post_id, cm.body, cm.status, cm.report_count, cm.created_at, u.name AS author_name,
-            (SELECT COALESCE(json_agg(json_build_object('reason', r.reason, 'note', r.note)), '[]')
-               FROM content_reports r WHERE r.comment_id = cm.id AND r.resolved_at IS NULL) AS reports
-       FROM comments cm JOIN users u ON u.id = cm.author_id
-      WHERE cm.status = 'hidden' OR EXISTS (SELECT 1 FROM content_reports r WHERE r.comment_id = cm.id AND r.resolved_at IS NULL)
-      ORDER BY cm.report_count DESC, cm.created_at DESC LIMIT 100`);
-  res.json({ posts, comments });
-});
-
-// POST /api/community/moderation/:type/:id  { action: 'restore' | 'remove' | 'dismiss' }
-router.post('/moderation/:type/:id', authRequired, requireRole('admin'), async (req, res) => {
-  const table = req.params.type === 'post' ? 'posts' : req.params.type === 'comment' ? 'comments' : null;
-  const { action } = req.body;
-  if (!table || !['restore', 'remove', 'dismiss'].includes(action)) throw httpError(400, 'Unknown moderation action.');
-  const col = table === 'posts' ? 'post_id' : 'comment_id';
-  const status = action === 'remove' ? 'removed' : 'visible';
-  const { rows: [row] } = await query(
-    `UPDATE ${table} SET status = $2, report_count = CASE WHEN $3 THEN report_count ELSE 0 END WHERE id = $1
-     RETURNING author_id, body${table === 'comments' ? ', post_id' : ''}`,
-    [req.params.id, status, action === 'remove']);
-  if (!row) throw httpError(404, 'Not found.');
-  await query(`UPDATE content_reports SET resolved_at = NOW() WHERE ${col} = $1 AND resolved_at IS NULL`, [req.params.id]);
-  if (action === 'remove') {
-    if (table === 'posts') {
-      await query('UPDATE communities SET post_count = GREATEST(0, post_count - 1) WHERE id = (SELECT community_id FROM posts WHERE id = $1)', [req.params.id]);
-    } else {
-      await query('UPDATE posts SET comment_count = GREATEST(0, comment_count - 1) WHERE id = $1', [row.post_id]);
-    }
-    await notify(row.author_id, null, 'social_moderation', null,
-      `Your ${table === 'posts' ? 'post' : 'comment'} was removed`,
-      `It broke the community rules: "${snippet(row.body, 60)}"`);
-    // Adult content confirmed by an admin counts as a strike (warning, then ban).
-    if (req.body.adult) await recordAdultStrike(row.author_id, 'reported content');
-  }
-  res.json({ ok: true });
-});
+// The admin queue and decisions live in routes/moderation.js (/api/moderation).
 
 // ---------------------------------------------------------------- files
 // Photos arrive already shrunk to WebP by the browser; documents as they are.
@@ -861,9 +835,10 @@ router.post('/upload', authRequired, (req, res, next) => {
       if (kind.error) throw httpError(400, kind.error);
       if (req.query.images === '1' && kind.type !== 'image') throw httpError(400, 'Moments must be a photo.');
       // No adult content: every photo is checked before it is stored.
-      if (kind.type === 'image') await assertCleanImage(req.file.buffer, kind.mime, req.user.id, 'a community photo');
+      const check = kind.type === 'image' ? await assertCleanImage(req.file.buffer, kind.mime, req.user, 'a community photo') : null;
       const name = `s-${Date.now()}-${Math.round(Math.random() * 1e9)}.${kind.ext}`;
       await query('INSERT INTO public_images (name, mime, data) VALUES ($1, $2, $3)', [name, kind.mime, req.file.buffer]);
+      await queuePhotoReview(req.user.id, `/api/community/files/${name}`, 'community photo', check);
       res.status(201).json({
         url: `/api/community/files/${name}`, type: kind.type, mime: kind.mime,
         name: String(req.file.originalname || name).slice(0, 120), size: req.file.size,
@@ -905,7 +880,7 @@ router.post('/avatar', authRequired, (req, res, next) => {
       if (err || !req.file) throw httpError(400, 'Choose a photo of yourself.');
       const kind = sniffFile(req.file.buffer, req.file.originalname);
       if (kind.ext !== 'jpg') throw httpError(400, 'Profile photos must be JPEG.');
-      await assertCleanImage(req.file.buffer, 'image/jpeg', req.user.id, 'a profile photo');
+      const check = await assertCleanImage(req.file.buffer, 'image/jpeg', req.user, 'a profile photo');
 
       let rgba;
       try { rgba = decodeJpeg(req.file.buffer); } catch { throw httpError(400, 'That photo could not be read.'); }
@@ -933,6 +908,7 @@ router.post('/avatar', authRequired, (req, res, next) => {
       if (old?.avatar_url?.startsWith('/api/community/files/s-av-')) {
         query('DELETE FROM public_images WHERE name = $1', [old.avatar_url.split('/').pop()]).catch(() => {});
       }
+      await queuePhotoReview(req.user.id, url, 'profile photo', check);
       res.status(201).json({ avatar_url: url, matched: known });
     } catch (e) { next(e); }
   });
@@ -963,10 +939,21 @@ router.post('/video/check', authRequired, (req, res, next) => {
       if (err) throw httpError(400, 'Those video frames could not be read.');
       if (!req.files?.length) throw httpError(400, 'No frames were sent.');
       if (!process.env.BLOB_READ_WRITE_TOKEN) throw httpError(503, 'Video uploads are not switched on for this server yet.');
-      for (const f of req.files) {
-        const { verdict } = await screenImage(f.buffer, 'image/jpeg');
-        if (verdict === 'adult') throw adultError(await recordAdultStrike(req.user.id, 'a video'));
-        if (verdict === 'revealing') throw httpError(400, 'This video is too revealing for RentalFlow.', { reason: 'revealing' });
+      // Admins and staff are not checked. Otherwise: a confident adult verdict on
+      // any frame refuses the video (and gives a strike); an unsure frame lets it
+      // through and puts that frame in front of an admin.
+      if (!trusted(req.user.role)) {
+        let unsure = null;
+        for (const f of req.files) {
+          const result = await screenImage(f.buffer, 'image/jpeg');
+          if (result.verdict === 'adult') throw adultError(await recordAdultStrike(req.user.id, 'a video'));
+          if (result.verdict === 'unsure' && !unsure) unsure = { f, result };
+        }
+        if (unsure) {
+          const name = `s-vf-${req.user.id}-${Date.now()}.jpg`;
+          await query('INSERT INTO public_images (name, mime, data) VALUES ($1, $2, $3)', [name, 'image/jpeg', unsure.f.buffer]);
+          await queuePhotoReview(req.user.id, `/api/community/files/${name}`, 'video frame', unsure.result);
+        }
       }
       const clearance = jwt.sign({ id: req.user.id, purpose: 'video' }, process.env.JWT_SECRET, { expiresIn: '30m' });
       res.json({ clearance });

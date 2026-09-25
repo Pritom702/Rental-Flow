@@ -27,6 +27,9 @@ export const KINDS = {
   poll:     { label: 'Poll',     glyph: 'poll',     hint: 'Let people vote' },
   sell:     { label: 'Sell',     glyph: 'sell',     hint: 'Sell something you own' },
 };
+// Posts are kept short, like a status (the server enforces the same limit).
+export const POST_MAX = 500;
+
 export const CONDITIONS = { new: 'Brand new', like_new: 'Like new', good: 'Good', fair: 'Fair', for_parts: 'For parts' };
 
 export function timeAgo(iso) {

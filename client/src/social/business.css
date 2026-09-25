@@ -330,3 +330,51 @@ html[data-theme='dark'] .rev-legend .k-l::before, html[data-theme='dark'] .rev-d
 .verify-nudge span { flex: 1 1 220px; }
 .verify-nudge b { color: var(--neon); }
 .me-toggles .lang-toggle { background: rgba(255, 255, 255, .06); border-color: rgba(255, 255, 255, .12); color: var(--night-muted); }
+
+/* ---------- Admin console (Moderation) ---------- */
+.admin-tabs { margin: 4px 0 18px; flex-wrap: wrap; }
+.admin-tabs button { display: inline-flex; align-items: center; gap: 6px; }
+.mod-guess { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 6px 0 8px; font-size: 13px; color: var(--text-2); }
+.mod-guess b { color: var(--text); }
+.mod-meter { width: 90px; height: 7px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
+.mod-meter i { display: block; height: 100%; border-radius: 4px; background: var(--amber, #d89b16); }
+.mod-guess.high .mod-meter i { background: var(--red); }
+.mod-guess.low .mod-meter i { background: var(--accent-fill); }
+.mod-why { display: flex; flex-wrap: wrap; gap: 6px; }
+.mod-why em { font-style: normal; font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); }
+.mod-why em.up { color: var(--red); }
+.mod-why em.down { color: var(--accent); }
+.admin-search { width: 100%; max-width: 520px; padding: 11px 14px; border-radius: 14px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); font: 15px var(--font-ui); margin-bottom: 14px; }
+.member-list { display: flex; flex-direction: column; gap: 8px; }
+.member-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px; background: var(--surface); border: 1px solid var(--border); }
+.member-row.banned { border-color: color-mix(in srgb, var(--red) 45%, transparent); }
+.member-who { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.member-who > * { overflow: hidden; text-overflow: ellipsis; }
+.member-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+.member-tags .tag { font-style: normal; font-size: 11.5px; padding: 1px 8px; }
+.tag.red { color: var(--red); border-color: color-mix(in srgb, var(--red) 40%, transparent); }
+.tag.amber { color: #b57a00; }
+.member-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.member-history { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); }
+@media (max-width: 640px) {
+  .member-row { grid-template-columns: auto minmax(0, 1fr); }
+  .member-actions { grid-column: 1 / -1; justify-content: flex-start; }
+}
+.admin-two { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; align-items: start; }
+.admin-two .card { padding: 18px; }
+.admin-two h3 { margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+.admin-form { display: flex; flex-direction: column; gap: 8px; }
+.admin-form textarea { padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); font: 14.5px/1.5 var(--font-ui); resize: vertical; }
+.admin-communities { display: flex; flex-direction: column; gap: 4px; max-height: 420px; overflow-y: auto; }
+.admin-community { display: flex; justify-content: space-between; gap: 10px; padding: 8px 10px; border-radius: 10px; color: var(--text); }
+.admin-community:hover { background: var(--surface-2); }
+.mod-report > * + * { margin-top: 16px; }
+.report-advice { padding: 18px; border-left: 4px solid var(--accent-fill); }
+.report-advice h3 { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.report-advice ul, .report-lessons { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.report-weights { margin-top: 12px; }
+.report-weights summary { cursor: pointer; color: var(--text-2); font-size: 13px; }
+.report-weights td.up { color: var(--red); font-weight: 600; }
+.report-weights td.down { color: var(--accent); font-weight: 600; }
+.report-watch { display: flex; flex-direction: column; gap: 6px; }
+.report-watch > div { display: flex; justify-content: space-between; gap: 10px; }

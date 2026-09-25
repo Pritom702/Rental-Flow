@@ -16,6 +16,8 @@ import { screenImage, canScreen } from './nsfwEngine.js';
 export const STRIKES_TO_BAN = 2;
 
 export async function recordAdultStrike(userId, where) {
+  const { rows: [who] } = await query('SELECT role FROM users WHERE id = $1', [userId]);
+  if (who && (who.role === 'admin' || who.role === 'staff')) return { strikes: 0, banned: false };
   const { rows: [u] } = await query(
     `UPDATE users SET content_strikes = content_strikes + 1 WHERE id = $1 RETURNING content_strikes, role`, [userId]);
   if (!u) return { strikes: 0, banned: false };
@@ -45,14 +47,29 @@ export function adultError({ banned }) {
   });
 }
 
-// Check a photo before it is stored. Throws the right error when refused.
-export async function assertCleanImage(buffer, mime, userId, where) {
+// Admin and staff accounts run the platform; their uploads are never checked
+// or given strikes (a false alarm on an admin's photo must not warn them).
+export const trusted = (role) => role === 'admin' || role === 'staff';
+
+// Check a photo before it is stored. Throws the right error when refused;
+// otherwise returns { verdict, scores } — 'unsure' photos are stored and then
+// queued for an admin with queuePhotoReview().
+export async function assertCleanImage(buffer, mime, user, where) {
   if (!canScreen(mime)) {
     throw Object.assign(new Error('Photos must be JPEG or PNG.'), { status: 400 });
   }
-  const { verdict } = await screenImage(buffer, mime);
-  if (verdict === 'adult') throw adultError(await recordAdultStrike(userId, where));
-  if (verdict === 'revealing') {
-    throw Object.assign(new Error('This photo is too revealing for RentalFlow. Please choose another.'), { status: 400, reason: 'revealing' });
-  }
+  const { id: userId, role } = typeof user === 'object' ? user : { id: user };
+  if (trusted(role)) return { verdict: 'ok', scores: null };
+  const result = await screenImage(buffer, mime);
+  if (result.verdict === 'adult') throw adultError(await recordAdultStrike(userId, where));
+  return result;
+}
+
+// A photo the check was not sure about: it stays up, and an admin decides.
+// Their decisions teach the moderation model (moderationModel.js).
+export async function queuePhotoReview(userId, url, place, result) {
+  if (result?.verdict !== 'unsure') return;
+  await query(
+    `INSERT INTO photo_reviews (user_id, url, place, scores) VALUES ($1, $2, $3, $4)`,
+    [userId, url, place, JSON.stringify(result.scores || {})]).catch(() => {});
 }

@@ -493,6 +493,7 @@ export default {
   'Kitchen Appliances': 'রান্নাঘরের যন্ত্রপাতি',
   'Computers & Laptops': 'কম্পিউটার ও ল্যাপটপ',
   'Tripods & Supports': 'ট্রাইপড ও স্ট্যান্ড',
+  'Vehicles': 'যানবাহন',
 
   // Labels the server sends: tiers, levels, badges, Limes history, statuses
   'VIP': 'ভিআইপি',

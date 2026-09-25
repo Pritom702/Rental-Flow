@@ -861,3 +861,10 @@ input[type='checkbox']:checked { animation: react-pop .35s var(--spring); }
 .create-opt.sell > span { background: var(--accent-grad); }
 .create-opt div { display: flex; flex-direction: column; }
 .create-opt small { color: var(--muted); font-size: 12.5px; }
+.cs-count.near { color: var(--red); font-weight: 600; }
+/* Editing a post in place */
+.pc-edit { margin: 4px 0 10px; }
+.pc-edit textarea { width: 100%; min-height: 96px; padding: 12px; border-radius: 14px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); font: 15px/1.5 var(--font-ui); resize: vertical; }
+.pc-edit textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.pc-edit-bar { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.pc-edit-bar .cs-count { position: static; margin-right: auto; }
