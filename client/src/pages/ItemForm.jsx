@@ -11,6 +11,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api.js';
 import SellerGate, { useSellerGate } from '../social/SellerGate.jsx';
 import { useAuth } from '../auth.jsx';
+import { DESCRIPTION_MAX, NAME_MAX } from '../social/util.jsx';
 import { Icon } from '../icons.jsx';
 
 const STATUSES = ['Available', 'Rented', 'Damaged', 'Under Maintenance', 'Retired'];
@@ -196,12 +197,12 @@ export default function ItemForm() {
       )}
       <form className="form" onSubmit={submit}>
         <div className="field">
-          <label>Name *</label>
-          <input value={form.name} onChange={set('name')} required />
+          <label>Name * <span className={`field-count${form.name.length > NAME_MAX - 5 ? ' near' : ''}`}>{form.name.length}/{NAME_MAX}</span></label>
+          <input value={form.name} onChange={set('name')} maxLength={NAME_MAX} required />
         </div>
         <div className="field">
-          <label>Description</label>
-          <textarea rows={3} value={form.description} onChange={set('description')} />
+          <label>Description <span className={`field-count${(form.description || '').length > DESCRIPTION_MAX - 50 ? ' near' : ''}`}>{(form.description || '').length}/{DESCRIPTION_MAX}</span></label>
+          <textarea rows={4} value={form.description} onChange={set('description')} maxLength={DESCRIPTION_MAX} />
         </div>
         <div className="row">
           <div className="field">

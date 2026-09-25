@@ -28,14 +28,12 @@ import { findFaces, faceDistance } from '../faceEngine.js';
 import { decodeJpeg } from '../imageUtils.js';
 import {
   HOT_SQL, parseHashtags, parseMentions, handleFromName, policyCheck, sniffFile,
-  levelFor, BADGES, badgeInfo,
+  levelFor, BADGES, badgeInfo, bodyMaxFor, cooldownLeft, cooldownMessage, burstSince, BURST_POSTS, COOLDOWN_MINUTES,
 } from '../socialUtils.js';
 
 const router = Router();
 
 const KINDS = ['post', 'showcase', 'question', 'guide', 'wanted', 'poll', 'sell'];
-// Posts are kept short, like a status: 500 characters.
-export const POST_MAX = 500;
 // RentalFlow's own reactions, and how a notification says each one.
 const REACTIONS = {
   spark: 'sparked', want: 'wants what you posted in', genius: 'found genius', wow: 'was wowed by', lol: 'laughed at', adore: 'adores',
@@ -419,6 +417,29 @@ router.get('/posts/:id', async (req, res) => {
 });
 
 // ---------------------------------------------------------------- create a post
+// Post text: 500 characters, a sale's description 1000.
+function checkBodyLength(body, kind) {
+  const max = bodyMaxFor(kind);
+  if (body.length > max) {
+    throw httpError(400, kind === 'sell' ? `A sale description can be up to ${max} characters.` : `Posts can be up to ${max} characters.`);
+  }
+}
+
+// Up to 10 posts in a row, then a 30-minute break (socialUtils.js).
+async function checkPostCooldown(userId) {
+  const { rows: [u] } = await query('SELECT post_cooldown_until FROM users WHERE id = $1', [userId]);
+  const left = cooldownLeft(u?.post_cooldown_until);
+  if (left) throw httpError(429, cooldownMessage(left), { reason: 'post-cooldown', minutes: left });
+}
+async function noteBurst(userId) {
+  const { rows: [u] } = await query('SELECT post_cooldown_until FROM users WHERE id = $1', [userId]);
+  const { rows: [{ n }] } = await query(
+    'SELECT COUNT(*)::int AS n FROM posts WHERE author_id = $1 AND created_at > $2', [userId, burstSince(u?.post_cooldown_until)]);
+  if (n >= BURST_POSTS) {
+    await query(`UPDATE users SET post_cooldown_until = NOW() + make_interval(mins => $2) WHERE id = $1`, [userId, COOLDOWN_MINUTES]);
+  }
+}
+
 async function rateLimit(userId, table, perDay, newAccountPerDay) {
   const { rows: [u] } = await query(
     `SELECT (created_at > NOW() - INTERVAL '1 day') AS brand_new,
@@ -488,11 +509,11 @@ router.post('/posts', authRequired, async (req, res) => {
   const me = req.user.id;
   const { rows: [u] } = await query('SELECT community_rules_at FROM users WHERE id = $1', [me]);
   if (!u?.community_rules_at) throw httpError(428, 'Please read and accept the community rules first.', { reason: 'rules-required' });
-  await rateLimit(me, 'posts', 25, 3);
+  await checkPostCooldown(me);
 
   const kind = KINDS.includes(req.body.kind) ? req.body.kind : 'post';
   const body = String(req.body.body || '').trim();
-  if (body.length > POST_MAX) throw httpError(400, `Posts can be up to ${POST_MAX} characters.`);
+  checkBodyLength(body, kind);
   const bad = policyCheck(body);
   if (bad) throw httpError(400, bad);
 
@@ -576,6 +597,7 @@ router.post('/posts', authRequired, async (req, res) => {
     }
   }
 
+  await noteBurst(me);
   grant(res, 'post', ...(poll ? ['poll'] : []));
   noteInterestLater(me, { communityId: community.id }, 'post');
   res.status(201).json(await loadPost(created.id, me));
@@ -586,16 +608,16 @@ router.post('/posts', authRequired, async (req, res) => {
 router.get('/can-post', authRequired, async (req, res) => {
   const { rows: [u] } = await query('SELECT community_rules_at FROM users WHERE id = $1', [req.user.id]);
   if (!u?.community_rules_at) throw httpError(428, 'Please read and accept the community rules first.', { reason: 'rules-required' });
-  await rateLimit(req.user.id, 'posts', 25, 3);
+  await checkPostCooldown(req.user.id);
   res.json({ ok: true });
 });
 
 router.patch('/posts/:id', authRequired, async (req, res) => {
   const body = String(req.body.body || '').trim();
-  if (body.length > POST_MAX) throw httpError(400, `Posts can be up to ${POST_MAX} characters.`);
   const bad = policyCheck(body);
   if (bad) throw httpError(400, bad);
-  const { rows: [cur] } = await query('SELECT author_id, attachments, poll, link FROM posts WHERE id = $1', [req.params.id]);
+  const { rows: [cur] } = await query('SELECT author_id, kind, attachments, poll, link FROM posts WHERE id = $1', [req.params.id]);
+  checkBodyLength(body, cur?.kind);
   if (cur && cur.author_id === req.user.id && !body && !(cur.attachments || []).length && !cur.poll && !cur.link) {
     throw httpError(400, 'A post needs some text, a photo, a poll or a link.');
   }

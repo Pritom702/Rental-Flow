@@ -46,4 +46,5 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS warning_count INTEGER NOT NULL DEFAUL
 -- Communities an admin made that are not tied to a category.
 ALTER TABLE communities ADD COLUMN IF NOT EXISTS created_by INTEGER REFERENCES users(id) ON DELETE SET NULL;
 
--- Posts are kept short: 500 characters (older, longer posts stay as they were).
+-- Posting in bursts: after 10 posts in a row, a 30-minute break until this time.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS post_cooldown_until TIMESTAMPTZ;

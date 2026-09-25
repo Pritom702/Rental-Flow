@@ -12,7 +12,7 @@ import { useAuth } from '../auth.jsx';
 import { Icon } from '../icons.jsx';
 import { money } from '../money.js';
 import { play } from '../sfx.js';
-import { CONDITIONS, KINDS, POST_MAX, Avatar } from './util.jsx';
+import { CONDITIONS, KINDS, bodyMaxFor, Avatar } from './util.jsx';
 import { fileSize, readVideo, shrinkImage, uploadFile, uploadVideo, duration as fmt } from './media.js';
 import { loadMe, setMe, useMe } from './store.js';
 import { Glyph } from './glyphs.jsx';
@@ -264,7 +264,7 @@ export default function Composer({ open, onClose, onCreated, community: fixedCom
             </div>
 
             <div className="cs-text">
-              <textarea ref={textRef} value={body} onChange={onType} placeholder={placeholder} rows={3} maxLength={POST_MAX} />
+              <textarea ref={textRef} value={body} onChange={onType} placeholder={placeholder} rows={3} maxLength={bodyMaxFor(kind)} />
               {mention?.results?.length > 0 && (
                 <div className="mention-list">
                   {mention.results.map((u) => (
@@ -272,7 +272,7 @@ export default function Composer({ open, onClose, onCreated, community: fixedCom
                   ))}
                 </div>
               )}
-              {body.length > 0 && <div className={`cs-count${body.length > POST_MAX - 50 ? ' near' : ''}`}>{body.length}/{POST_MAX}</div>}
+              {body.length > 0 && <div className={`cs-count${body.length > bodyMaxFor(kind) - 50 ? ' near' : ''}`}>{body.length}/{bodyMaxFor(kind)}</div>}
             </div>
 
             {kind === 'poll' && (

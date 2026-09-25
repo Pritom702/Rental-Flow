@@ -27,8 +27,13 @@ export const KINDS = {
   poll:     { label: 'Poll',     glyph: 'poll',     hint: 'Let people vote' },
   sell:     { label: 'Sell',     glyph: 'sell',     hint: 'Sell something you own' },
 };
-// Posts are kept short, like a status (the server enforces the same limit).
+// Posts are kept short, like a status; a sale describes the item in up to
+// 1000 characters, and so does a listing. Product names: 50. (The server
+// enforces the same limits.)
 export const POST_MAX = 500;
+export const DESCRIPTION_MAX = 1000;
+export const NAME_MAX = 50;
+export const bodyMaxFor = (kind) => (kind === 'sell' ? DESCRIPTION_MAX : POST_MAX);
 
 export const CONDITIONS = { new: 'Brand new', like_new: 'Like new', good: 'Good', fair: 'Fair', for_parts: 'For parts' };
 

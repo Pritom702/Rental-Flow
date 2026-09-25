@@ -17,7 +17,7 @@ import { money } from '../money.js';
 import { play } from '../sfx.js';
 import { burst } from '../fx.js';
 import {
-  Avatar, CONDITIONS, CommunityChip, KINDS, POST_MAX, REACTIONS, RichText, VerifiedTick, compact, reactionLabel, timeAgo,
+  Avatar, CONDITIONS, CommunityChip, KINDS, bodyMaxFor, REACTIONS, RichText, VerifiedTick, compact, reactionLabel, timeAgo,
 } from './util.jsx';
 import { Glyph } from './glyphs.jsx';
 import { fileSize } from './media.js';
@@ -273,9 +273,9 @@ function PostCard({ post, onChange, onRemove, full = false }) {
 
       {editing ? (
         <div className="pc-edit">
-          <textarea value={draft} onChange={(e) => setDraft(e.target.value)} maxLength={POST_MAX} rows={4} autoFocus aria-label="Edit your post" />
+          <textarea value={draft} onChange={(e) => setDraft(e.target.value)} maxLength={bodyMaxFor(post.kind)} rows={4} autoFocus aria-label="Edit your post" />
           <div className="pc-edit-bar">
-            <span className={`cs-count${draft.length > POST_MAX - 50 ? ' near' : ''}`}>{draft.length}/{POST_MAX}</span>
+            <span className={`cs-count${draft.length > bodyMaxFor(post.kind) - 50 ? ' near' : ''}`}>{draft.length}/{bodyMaxFor(post.kind)}</span>
             <button type="button" className="btn ghost small" onClick={() => setEditing(false)} disabled={savingEdit}>Cancel</button>
             <button type="button" className="btn accent small" onClick={saveEdit} disabled={savingEdit || draft.trim() === (post.body || '').trim()}>{savingEdit ? 'Saving…' : 'Save'}</button>
           </div>

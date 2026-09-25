@@ -361,3 +361,35 @@ function decodeEntities(s) {
     .replace(/&quot;/g, '"').replace(/&#39;|&#x27;/g, "'")
     .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)));
 }
+
+// ---------------------------------------------------------------- limits
+// Posts are short (500 characters); a listing or a sale describes the item
+// in up to 1000. Product names are at most 50 characters.
+export const POST_MAX = 500;
+export const DESCRIPTION_MAX = 1000;
+export const NAME_MAX = 50;
+export const bodyMaxFor = (kind) => (kind === 'sell' ? DESCRIPTION_MAX : POST_MAX);
+
+// Posting in bursts: up to 10 posts in a row, then a 30-minute break.
+// A "row" is the posts made since the last break ended, within the last 30
+// minutes — someone posting now and then never hits it; a flood does.
+export const BURST_POSTS = 10;
+export const COOLDOWN_MINUTES = 30;
+
+// → minutes left in a cooldown (0 = none).
+export function cooldownLeft(until, now = new Date()) {
+  if (!until) return 0;
+  const ms = new Date(until).getTime() - new Date(now).getTime();
+  return ms > 0 ? Math.ceil(ms / 60000) : 0;
+}
+
+export function cooldownMessage(minutes) {
+  return `You've posted ${BURST_POSTS} times in a row, so posting is paused for a ${COOLDOWN_MINUTES}-minute break. You can post again in ${minutes} minute${minutes === 1 ? '' : 's'}.`;
+}
+
+// Where the current row of posts starts counting from.
+export function burstSince(cooldownUntil, now = new Date()) {
+  const window = new Date(new Date(now).getTime() - COOLDOWN_MINUTES * 60000);
+  const lastBreak = cooldownUntil ? new Date(cooldownUntil) : null;
+  return lastBreak && lastBreak > window ? lastBreak : window;
+}

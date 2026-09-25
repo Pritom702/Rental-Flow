@@ -9,6 +9,7 @@
 import { Router } from 'express';
 import { randomUUID } from 'crypto';
 import { query, pool } from '../db.js';
+import { NAME_MAX, DESCRIPTION_MAX } from '../socialUtils.js';
 import { authRequired } from '../middleware/auth.js';
 
 const router = Router();
@@ -137,6 +138,13 @@ router.get('/:id', async (req, res) => {
 
 // POST /api/items  — any authenticated member (or admin) can list an item.
 // The listing is owned by the current user.
+// A product name up to 50 characters, a description up to 1000.
+function lengthProblem(name, description) {
+  if (name != null && String(name).trim().length > NAME_MAX) return `A product name can be up to ${NAME_MAX} characters.`;
+  if (description != null && String(description).length > DESCRIPTION_MAX) return `A description can be up to ${DESCRIPTION_MAX} characters.`;
+  return null;
+}
+
 router.post('/', authRequired, async (req, res) => {
   const {
     name, description, serial_number, rental_price, replacement_cost,
@@ -144,6 +152,8 @@ router.post('/', authRequired, async (req, res) => {
   } = req.body;
 
   if (!name) return res.status(400).json({ error: 'name is required' });
+  const tooLong = lengthProblem(name, description);
+  if (tooLong) return res.status(400).json({ error: tooLong });
   if (status && !VALID_STATUSES.includes(status)) {
     return res.status(400).json({ error: `status must be one of: ${VALID_STATUSES.join(', ')}` });
   }
@@ -194,6 +204,8 @@ router.put('/:id', authRequired, requireOwnerOrAdmin, async (req, res) => {
     status, category_id, tags, accessories, images,
   } = req.body;
 
+  const tooLong = lengthProblem(name, description);
+  if (tooLong) return res.status(400).json({ error: tooLong });
   if (status && !VALID_STATUSES.includes(status)) {
     return res.status(400).json({ error: `status must be one of: ${VALID_STATUSES.join(', ')}` });
   }

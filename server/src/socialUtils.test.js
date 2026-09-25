@@ -5,6 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  bodyMaxFor, cooldownLeft, cooldownMessage, burstSince, POST_MAX, DESCRIPTION_MAX, NAME_MAX,
   slugify, parseHashtags, parseMentions, handleFromName, hotScore,
   xpForLevel, levelFor, nextStreak, applyRewards, policyCheck,
   sniffFile, checkLinkUrl, isPrivateAddress, youtubeId, parseMeta,
@@ -131,4 +132,30 @@ test('youtube ids and page previews', () => {
   assert.equal(meta.title, 'Sony A7 III review & tips');
   assert.equal(meta.description, 'Everything you need');
   assert.equal(meta.image, 'https://site.com/img/a.jpg');
+});
+
+// ---------------------------------------------------------------- limits
+test('limits: posts 500, sale descriptions 1000, names 50', () => {
+  assert.equal(bodyMaxFor('post'), POST_MAX);
+  assert.equal(bodyMaxFor('sell'), DESCRIPTION_MAX);
+  assert.equal(POST_MAX, 500);
+  assert.equal(DESCRIPTION_MAX, 1000);
+  assert.equal(NAME_MAX, 50);
+});
+
+test('cooldown: minutes left, rounded up, zero when over', () => {
+  const now = new Date('2026-09-26T10:00:00Z');
+  assert.equal(cooldownLeft(null, now), 0);
+  assert.equal(cooldownLeft('2026-09-26T09:59:00Z', now), 0);
+  assert.equal(cooldownLeft('2026-09-26T10:00:30Z', now), 1);
+  assert.equal(cooldownLeft('2026-09-26T10:30:00Z', now), 30);
+  assert.match(cooldownMessage(12), /10 times in a row.*30-minute break.*12 minutes/);
+  assert.match(cooldownMessage(1), /1 minute\.$/);
+});
+
+test('cooldown: a row counts from the last 30 minutes, or from the end of a recent break', () => {
+  const now = new Date('2026-09-26T10:00:00Z');
+  assert.equal(burstSince(null, now).toISOString(), '2026-09-26T09:30:00.000Z');
+  assert.equal(burstSince('2026-09-26T09:50:00Z', now).toISOString(), '2026-09-26T09:50:00.000Z');
+  assert.equal(burstSince('2026-09-26T08:00:00Z', now).toISOString(), '2026-09-26T09:30:00.000Z');
 });
