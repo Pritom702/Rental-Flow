@@ -31,6 +31,8 @@ export function loadMe() {
 // Fold a reward from the server into the numbers already on screen.
 export function applyReward(r) {
   if (!state || !r) return;
+  if (r.limes) state = { ...state, limes: (state.limes ?? 0) + r.limes };
+  if (!r.level) { emit(); return; }
   const unlocked = new Set((r.badges || []).map((b) => b.id));
   setMe({
     ...state,

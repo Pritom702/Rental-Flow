@@ -12,6 +12,7 @@
     "@vercel/blob": "^2.8.0",
     "@vladmandic/face-api": "^1.7.15",
     "jspdf": "^4.2.1",
+    "mp4-muxer": "^5.2.2",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

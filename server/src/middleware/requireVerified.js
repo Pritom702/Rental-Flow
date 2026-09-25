@@ -7,10 +7,13 @@
 //   1. A new account must confirm its email before using the platform.
 //      → 403 reason 'verification-required'; the app opens the email step.
 //
-//   2. Only an identity-verified member may request a rental. The NID and live
-//      selfie check happens the first time someone rents, and is then saved on
-//      the account for good; browsing, listing and chat need only the email.
-//      → 403 reason 'rental-verification-required' on POST /api/bookings.
+//   2. Only an identity-verified member may OFFER something: list an item for
+//      rent, or post something for sale. Owners and sellers are the ones who
+//      can scam or hand over a damaged item; a renter risks little, so renting,
+//      browsing and chatting need only the email. The NID and live selfie check
+//      happens once, before the first listing or sale, and is saved for good.
+//      → 403 reason 'seller-verification-required' on POST /api/items and on
+//        POST /api/community/posts with kind 'sell'.
 //
 // Enforced here, on the server, so it cannot be skipped by typing a URL or
 // calling the API directly. Admin and staff accounts are created by an admin
@@ -43,10 +46,11 @@ export async function requireVerified(req, res, next) {
   }
   if (payload.role !== 'member') return next();
 
-  const requestingRental = req.method === 'POST' && req.path === '/bookings';
+  const offering = req.method === 'POST'
+    && (req.path === '/items' || (req.path === '/community/posts' && req.body?.kind === 'sell'));
   const open = OPEN_PREFIXES.some((p) => req.path.startsWith(p))
     || (req.method === 'GET' && OPEN_READS.some((p) => req.path.startsWith(p)));
-  if (open && !requestingRental) return next();
+  if (open && !offering) return next();
 
   const { rows } = await query(
     'SELECT role, verification_status, email_verified_at, nid_number FROM users WHERE id = $1',
@@ -61,12 +65,12 @@ export async function requireVerified(req, res, next) {
       reason: 'verification-required',
     });
   }
-  if (requestingRental && !identityVerified(u)) {
+  if (offering && !identityVerified(u)) {
     return res.status(403).json({
       error: u.verification_status === 'pending_review'
-        ? 'Your ID is being checked by our team. You can book as soon as it is approved.'
-        : 'Verify your identity before your first rental. It takes about 2 minutes, and only once.',
-      reason: 'rental-verification-required',
+        ? 'Your ID is being checked by our team. You can list and sell as soon as it is approved.'
+        : 'Verify your identity before you list or sell. It takes about 2 minutes, and only once — renters never need to.',
+      reason: 'seller-verification-required',
       status: u.verification_status,
     });
   }

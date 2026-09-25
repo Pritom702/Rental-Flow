@@ -11,6 +11,10 @@ import { useAuth } from '../auth.jsx';
 import { Icon } from '../icons.jsx';
 import { StatusBadge, TagList } from '../components.jsx';
 import { money } from '../money.js';
+import { Glyph } from '../social/glyphs.jsx';
+import { say } from '../social/toast.js';
+import { setMe } from '../social/store.js';
+import { play } from '../sfx.js';
 
 export default function ProductDetail() {
   const { id } = useParams();
@@ -33,6 +37,17 @@ export default function ProductDetail() {
     api.get(`/items/${id}`).then(setItem).catch((e) => setError(e.message));
     api.get(`/community/feed?item=${id}&sort=top`).then((r) => setTalk(r.posts.slice(0, 3))).catch(() => setTalk([]));
   }, [id]);
+
+  // Owners can feature their listing at the top of Browse for a day.
+  async function feature() {
+    if (!window.confirm('Feature this listing at the top of Browse for 24 hours, for 40 Limes?')) return;
+    try {
+      const r = await api.post('/market/boost', { kind: 'item', id: item.id });
+      setMe((m) => (m ? { ...m, limes: r.balance } : m));
+      play('success');
+      say('Featured on Browse for 24 hours', 'star');
+    } catch (e) { say(e.message, 'warn'); }
+  }
 
   async function messageLister() {
     if (!user) return navigate('/login');
@@ -103,6 +118,12 @@ export default function ProductDetail() {
             )}
             {mine && (
               <Link to={`/items/${item.id}/edit`} className="btn secondary lg">Edit your listing</Link>
+            )}
+            {mine && (
+              <button type="button" className="btn secondary lg" onClick={feature}><Glyph name="star" size={16} /> Feature on Browse · 40 Limes</button>
+            )}
+            {user && (
+              <Link to={`/studio?items=${item.id}`} className="btn secondary lg make-video"><Glyph name="clapper" size={16} /> Make a video</Link>
             )}
           </div>
           {error && <div className="error">{error}</div>}

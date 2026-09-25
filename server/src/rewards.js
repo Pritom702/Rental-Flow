@@ -17,6 +17,7 @@ import jwt from 'jsonwebtoken';
 import { pool } from './db.js';
 import { applyRewards, localDate } from './socialUtils.js';
 import { interestFromRequest } from './interests.js';
+import { creditsFromRequest } from './credits.js';
 
 // Record actions for a member; returns what to celebrate (or null).
 export async function award(userId, events) {
@@ -93,18 +94,25 @@ export function rewardMiddleware(req, res, next) {
     const fromRoute = action && action[2](req, body);
     if (fromRoute) events.push(fromRoute);
     const today = localDate();
-    if (checkedIn.get(userId) !== today) {
+    const dailyVisit = checkedIn.get(userId) !== today;
+    if (dailyVisit) {
       checkedIn.set(userId, today);
       events.unshift('daily_visit');
     }
-    if (!events.length) return send(body);
+    if (!events.length && method === 'GET') return send(body);
 
-    award(userId, events)
-      .then((reward) => {
-        if (reward && (reward.xp > 0 || reward.levelUp || reward.badges.length) && !res.headersSent) {
-          res.set('X-Reward', encodeURIComponent(JSON.stringify(reward)));
-        }
-      })
+    (async () => {
+      const reward = events.length ? await award(userId, events) : null;
+      // Limes (credits) and booking fees ride on the same hook.
+      const limes = await creditsFromRequest(userId, method, path, req, body, { dailyVisit, reward });
+      const worth = reward && (reward.xp > 0 || reward.levelUp || reward.badges.length);
+      if ((worth || limes > 0) && !res.headersSent) {
+        res.set('X-Reward', encodeURIComponent(JSON.stringify({
+          ...(reward || { xp: 0, badges: [], levelUp: false }), limes,
+        })));
+      }
+    })()
+      .catch((e) => console.error('Reward hook failed:', e.message))
       .finally(() => send(body));
     return res;
   };

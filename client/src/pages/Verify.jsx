@@ -353,7 +353,7 @@ function DoneStep({ next, onContinue }) {
       <h1>You're verified</h1>
       <p className="lead">Thanks! Your identity is confirmed and saved on your account — you won't be asked again.</p>
       <div className="verify-actions">
-        <button className="btn lg block" onClick={onContinue}>{next ? 'Continue to your booking' : 'Go to your feed'}</button>
+        <button className="btn lg block" onClick={onContinue}>{next ? 'Continue' : 'Go to your feed'}</button>
       </div>
     </div>
   );

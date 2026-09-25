@@ -8,7 +8,7 @@
 //                 a Create button and the account menu. On phones: a bottom
 //                 tab bar, and the full menu slides in from the side.
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { Routes, Route, NavLink, Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
+import { Routes, Route, NavLink, Navigate, Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from './auth.jsx';
 import { Icon } from './icons.jsx';
 import Landing from './pages/Landing.jsx';
@@ -37,10 +37,14 @@ const Flow = lazy(() => import('./pages/Flow.jsx'));
 const UserProfile = lazy(() => import('./pages/UserProfile.jsx'));
 const Communities = lazy(() => import('./pages/Communities.jsx'));
 const Moderation = lazy(() => import('./pages/Moderation.jsx'));
+const Limes = lazy(() => import('./pages/Limes.jsx'));
+const TestCheckout = lazy(() => import('./pages/TestCheckout.jsx'));
+const Studio = lazy(() => import('./pages/Studio.jsx'));
+const Revenue = lazy(() => import('./pages/Revenue.jsx'));
 import { api } from './api.js';
 import ThemeToggle from './components/ThemeToggle.jsx';
 import NotificationBell from './components/NotificationBell.jsx';
-import RewardLayer, { XpRing } from './social/RewardLayer.jsx';
+import RewardLayer, { XpRing, LimesChip } from './social/RewardLayer.jsx';
 import { Glyph } from './social/glyphs.jsx';
 import { useMe } from './social/store.js';
 import { installLinkTransitions } from './transitions.js';
@@ -68,12 +72,15 @@ function tabIndex(pathname) {
   return TABS.findIndex((t) => t && (pathname === t || pathname.startsWith(`${t}/`)));
 }
 
+// The RentalFlow mark: a package box whose lid unfolds into a flowing wave.
 const BrandMark = () => (
   <>
-    <span className="logo-mark"><Icon name="package" size={17} /></span>
+    <img src="/brand/logo-tile.svg" alt="" className="logo-img" width="34" height="34" />
     <span className="wordmark">Rental<span>Flow</span></span>
   </>
 );
+// The illustrated button icons that go with the mark (public/brand/icons/).
+const BrandIcon = ({ name, size = 26 }) => <img src={`/brand/icons/${name}.png`} alt="" className="b-icon" width={size} height={size} />;
 
 // Sidebar structure. `admin: true` entries only render for admins.
 const NAV_GROUPS = [
@@ -89,6 +96,8 @@ const NAV_GROUPS = [
     links: [
       { to: '/browse', icon: 'search', label: 'Browse' },
       { to: '/sell', icon: 'tag', label: 'Sell something' },
+      { to: '/studio', icon: 'sparkles', label: 'Video Studio' },
+      { to: '/limes', icon: 'wallet', label: 'Limes' },
       { to: '/messages', icon: 'chat', label: 'Messages', badge: 'unread' },
       { to: '/dashboard', icon: 'package', label: 'My Listings', adminLabel: 'All Listings' },
     ],
@@ -111,6 +120,7 @@ const NAV_GROUPS = [
       { to: '/admin/verifications', icon: 'shield', label: 'ID reviews', admin: true },
       { to: '/admin/incidents', icon: 'alert', label: 'Incidents', admin: true },
       { to: '/admin/moderation', icon: 'shield', label: 'Moderation', admin: true },
+      { to: '/admin/revenue', icon: 'chart', label: 'Revenue', admin: true },
     ],
   },
 ];
@@ -122,13 +132,13 @@ function initials(name = '') {
 // The top bar's main buttons: our own glyph in a tile, a word, and for some a
 // little tag. Everything else lives under "More".
 const TOP_NAV = [
-  { to: '/feed', glyph: 'sparkle', label: 'Feed' },
-  { to: '/flows', glyph: 'play', label: 'Flows', tag: 'New' },
-  { to: '/communities', glyph: 'people', label: 'Communities' },
-  { to: '/browse', glyph: 'rent', label: 'Rent' },
-  { to: '/sell', glyph: 'sell', label: 'Sell', tag: 'Hot', hot: true },
-  { to: '/messages', glyph: 'chat', label: 'Messages', badge: 'unread', sub: true },
-  { to: '/bookings', glyph: 'ticket', label: 'Bookings', sub: true },
+  { to: '/feed', icon: 'feed', label: 'Feed' },
+  { to: '/flows', icon: 'flows', label: 'Flows', tag: 'New' },
+  { to: '/communities', icon: 'communities', label: 'Communities' },
+  { to: '/browse', icon: 'rent', label: 'Rent' },
+  { to: '/sell', icon: 'sell', label: 'Sell', tag: 'Hot', hot: true },
+  { to: '/messages', icon: 'messages', label: 'Messages', badge: 'unread', sub: true },
+  { to: '/bookings', icon: 'bookings', label: 'Bookings', sub: true },
 ];
 const MORE_NAV = NAV_GROUPS.flatMap((g) => g.links)
   .filter((l) => !TOP_NAV.some((t) => t.to === l.to) && l.to !== '/sell');
@@ -175,9 +185,10 @@ function AppShell({ children }) {
   const moreActive = moreLinks.some((l) => pathname === l.to || pathname.startsWith(`${l.to}/`));
   const createChoices = (
     <>
-      <Link to="/feed?compose=post" className="create-opt"><span><Glyph name="post" size={26} /></span><div><b>Post</b><small>Photos, videos, questions, polls</small></div></Link>
-      <Link to="/feed?tab=sale&compose=sell" className="create-opt sell"><span><Glyph name="sell" size={26} /></span><div><b>Sell something</b><small>Buyers message you directly</small></div></Link>
-      <Link to="/items/new" className="create-opt"><span><Glyph name="rent" size={26} /></span><div><b>Rent it out</b><small>List an item and earn every day</small></div></Link>
+      <Link to="/feed?compose=post" className="create-opt"><span><BrandIcon name="feed" size={32} /></span><div><b>Post</b><small>Photos, videos, questions, polls</small></div></Link>
+      <Link to="/feed?tab=sale&compose=sell" className="create-opt sell"><span><BrandIcon name="sell" size={32} /></span><div><b>Sell something</b><small>Buyers message you directly</small></div></Link>
+      <Link to="/items/new" className="create-opt"><span><BrandIcon name="rent" size={32} /></span><div><b>Rent it out</b><small>List an item and earn every day</small></div></Link>
+      <Link to="/studio" className="create-opt"><span><BrandIcon name="studio" size={32} /></span><div><b>Make a video</b><small>Turn listings into a video in one tap</small></div></Link>
     </>
   );
 
@@ -206,6 +217,7 @@ function AppShell({ children }) {
           })}
         </nav>
         <div className="side-foot">
+          <div className="me-toggles drawer-toggles"><span>Sound &amp; theme</span><ThemeToggle /></div>
           <button className="side-logout" onClick={logout}><Icon name="logout" size={15} /> Sign out</button>
         </div>
       </aside>
@@ -217,7 +229,7 @@ function AppShell({ children }) {
         <nav className="tn-nav" aria-label="Main">
           {TOP_NAV.map((l) => (
             <NavLink key={l.to} to={l.to} className={`tn-btn${l.hot ? ' hot' : ''}${l.sub ? ' tn-sub' : ''}`} title={l.label}>
-              <span className="tn-tile"><Glyph name={l.glyph} size={18} /></span>
+              <span className="tn-tile"><BrandIcon name={l.icon} /></span>
               <span className="tn-label">{l.label}</span>
               {l.tag && <em className={`tn-tag${l.hot ? ' hot' : ''}`}>{l.tag}</em>}
               {l.badge === 'unread' && unread > 0 && <span className="tn-count">{unread > 9 ? '9+' : unread}</span>}
@@ -225,7 +237,7 @@ function AppShell({ children }) {
           ))}
           <div className="tn-more" ref={moreRef}>
             <button type="button" className={`tn-btn tn-sub${moreActive ? ' active' : ''}${more ? ' open' : ''}`} onClick={() => setMore((v) => !v)} aria-expanded={more}>
-              <span className="tn-tile"><Glyph name="more" size={18} /></span>
+              <span className="tn-tile"><BrandIcon name="more" /></span>
               <span className="tn-label">More</span>
             </button>
             {more && (
@@ -242,10 +254,11 @@ function AppShell({ children }) {
         </nav>
 
         <div className="tn-right">
+          <LimesChip />
           <XpRing />
           <div className="tn-create" ref={createRef}>
             <button type="button" className="tn-create-btn" onClick={() => setCreating((v) => !v)} aria-expanded={creating}>
-              <Glyph name="plus" size={18} /><span>Create</span>
+              <BrandIcon name="create" size={24} /><span>Create</span>
             </button>
             {creating && <div className="tn-pop create-pop">{createChoices}</div>}
           </div>
@@ -258,6 +271,8 @@ function AppShell({ children }) {
             {me && (
               <div className="tn-pop me-pop">
                 <div className="me-head"><b>{user?.name}</b><span>{user?.email}</span></div>
+                {/* Sound and light/dark live here too — on phones the top bar has no room for them. */}
+                <div className="me-toggles"><span>Sound &amp; theme</span><ThemeToggle /></div>
                 <Link to="/u/me" className="tn-pop-link"><Glyph name="sparkle" size={16} /> My profile & badges</Link>
                 <Link to="/profile" className="tn-pop-link"><Icon name="settings" size={16} /> Account settings</Link>
                 <Link to="/dashboard" className="tn-pop-link"><Icon name="package" size={16} /> {user?.role === 'admin' ? 'All listings' : 'My listings'}</Link>
@@ -286,12 +301,12 @@ function AppShell({ children }) {
       {/* Phones: an app-style tab bar with the five things people do most. */}
       <nav className="tabbar" aria-label="Main" style={{ '--tab': tabIndex(pathname) }}>
         {tabIndex(pathname) >= 0 && <span className="tab-pill" aria-hidden="true" />}
-        <NavLink to="/feed"><Icon name="sparkles" size={21} />Feed</NavLink>
-        <NavLink to="/communities"><Icon name="users" size={21} />Communities</NavLink>
-        <button type="button" className="tab-create" aria-label="Create" onClick={() => setCreating(true)}><span className="tab-plus"><Icon name="plus" size={24} /></span></button>
-        <NavLink to="/browse"><Icon name="search" size={21} />Rent</NavLink>
+        <NavLink to="/feed"><BrandIcon name="feed" size={24} />Feed</NavLink>
+        <NavLink to="/communities"><BrandIcon name="communities" size={24} />Communities</NavLink>
+        <button type="button" className="tab-create" aria-label="Create" onClick={() => setCreating(true)}><span className="tab-plus"><BrandIcon name="create" size={34} /></span></button>
+        <NavLink to="/browse"><BrandIcon name="rent" size={24} />Rent</NavLink>
         <NavLink to="/messages">
-          <Icon name="chat" size={21} />Messages
+          <BrandIcon name="messages" size={24} />Messages
           {unread > 0 && <span className="tab-badge">{unread}</span>}
         </NavLink>
       </nav>
@@ -361,6 +376,15 @@ function AnyShell({ children }) {
   return <Shell>{children}</Shell>;
 }
 
+// An invite link: remember who invited us, then sign up. The reward layer
+// credits both people once the new account exists.
+function JoinWithInvite() {
+  const { code } = useParams();
+  const { user } = useAuth();
+  try { localStorage.setItem('rentalflow_invite', String(code).toUpperCase()); } catch { /* private mode */ }
+  return <Navigate to={user ? '/feed' : '/login?mode=signup&next=/feed'} replace />;
+}
+
 export default function App() {
   const navigate = useNavigate();
   useEffect(() => installLinkTransitions(navigate), [navigate]);
@@ -384,6 +408,11 @@ export default function App() {
         <Route path="/reels" element={<Navigate to="/flows" replace />} />
         <Route path="/sell" element={<Navigate to="/feed?tab=sale&compose=sell" replace />} />
         <Route path="/admin/moderation" element={<RequireAdmin><Moderation /></RequireAdmin>} />
+        <Route path="/admin/revenue" element={<RequireAdmin><Revenue /></RequireAdmin>} />
+        <Route path="/limes" element={<RequireAuth><Limes /></RequireAuth>} />
+        <Route path="/checkout/:tran" element={<RequireAuth><TestCheckout /></RequireAuth>} />
+        <Route path="/studio" element={<RequireAuth><Studio /></RequireAuth>} />
+        <Route path="/join/:code" element={<JoinWithInvite />} />
         <Route path="/messages" element={<RequireAuth><Messages /></RequireAuth>} />
         <Route path="/messages/:id" element={<RequireAuth><Messages /></RequireAuth>} />
         <Route path="/login" element={<Login />} />

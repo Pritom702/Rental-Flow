@@ -59,6 +59,12 @@ async function main() {
     poll_votes, comments, comment_likes, content_reports, stories, story_views, follows, user_stats CASCADE`);
   await pool.query(fs.readFileSync(path.join(__dirname, 'schema_social.sql'), 'utf8'));
   console.log('✅ Community created (posts, comments, moments, rewards)');
+
+  // Business: chat guard, sale deals, Limes (credits), booking fees, ads.
+  await pool.query(`DROP TABLE IF EXISTS sale_deals, credit_wallets, credit_ledger, credit_orders, boosts,
+    booking_fees, ad_campaigns, ad_events CASCADE`);
+  await pool.query(fs.readFileSync(path.join(__dirname, 'schema_market.sql'), 'utf8'));
+  console.log('✅ Business tables created (credits, fees, deals, ads)');
   await pool.end();
 }
 

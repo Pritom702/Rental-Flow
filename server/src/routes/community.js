@@ -21,6 +21,8 @@ import { screenImage } from '../nsfwEngine.js';
 import { generateClientTokenFromReadWriteToken } from '@vercel/blob/client';
 import { head } from '@vercel/blob';
 import { noteInterestLater, interestSql } from '../interests.js';
+import { pickAds } from '../ads.js';
+import { withAds } from '../marketUtils.js';
 import { findFaces, faceDistance } from '../faceEngine.js';
 import { decodeJpeg } from '../imageUtils.js';
 import {
@@ -117,6 +119,7 @@ function postSelect(viewer) {
            COALESCE(us.xp, 0) AS author_xp, COALESCE(us.streak_days, 0) AS author_streak,
            c.slug AS community_slug, c.name AS community_name, c.category_id,
            ${TOP_SQL} AS is_top,
+           EXISTS (SELECT 1 FROM boosts bo WHERE bo.kind = 'post' AND bo.target_id = p.id AND bo.ends_at > NOW()) AS boosted,
            i.name AS item_name, i.rental_price AS item_price, i.status AS item_status,
            (SELECT url FROM item_images WHERE item_id = i.id ORDER BY position, id LIMIT 1) AS item_cover,
            (SELECT COALESCE(json_agg(t), '[]') FROM (
@@ -184,8 +187,10 @@ router.get('/me', authRequired, async (req, res) => {
       WHERE m.user_id = $1 ORDER BY c.name`, [req.user.id]
   );
   const unlocked = new Set(s.badges);
+  const { rows: [w] } = await query('SELECT balance FROM credit_wallets WHERE user_id = $1', [req.user.id]);
   res.json({
     handle,
+    limes: w?.balance ?? 0,
     bio: s.bio,
     avatar_url: s.avatar_url,
     avatarMatched: s.avatar_matched,
@@ -336,7 +341,8 @@ function forYouOrder(me, params) {
       / POWER(EXTRACT(EPOCH FROM (NOW() - p.created_at)) / 3600 + 2, 1.15))
     * (1 + 2.5 * LN(1 + ${interestSql(`$${n}`)})
          + 1.5 * (p.author_id IN (SELECT followee_id FROM follows WHERE follower_id = $${n}))::int
-         + 3 * ${TOP_SQL}::int)) DESC, p.id DESC`;
+         + 3 * ${TOP_SQL}::int
+         + 4 * EXISTS (SELECT 1 FROM boosts bo WHERE bo.kind = 'post' AND bo.target_id = p.id AND bo.ends_at > NOW())::int)) DESC, p.id DESC`;
 }
 
 router.get('/feed', async (req, res) => {
@@ -348,7 +354,7 @@ router.get('/feed', async (req, res) => {
   const order = sort === 'new' ? 'p.created_at DESC, p.id DESC'
     : sort === 'top' ? '(p.reaction_count + 2 * p.comment_count) DESC, p.id DESC'
       : me && req.query.scope === 'home' ? forYouOrder(me, params)
-        : `(${HOT_SQL} * (1 + 2.5 * ${TOP_SQL}::int)) DESC, p.id DESC`;
+        : `(${HOT_SQL} * (1 + 2.5 * ${TOP_SQL}::int + 4 * EXISTS (SELECT 1 FROM boosts bo WHERE bo.kind = 'post' AND bo.target_id = p.id AND bo.ends_at > NOW())::int)) DESC, p.id DESC`;
   const offset = Math.max(0, Math.min(Number(req.query.offset) || 0, 2000));
   params.push(PAGE + 1, offset);
   const { rows } = await query(
@@ -356,7 +362,20 @@ router.get('/feed', async (req, res) => {
     params
   );
   const more = rows.length > PAGE;
-  res.json({ posts: rows.slice(0, PAGE).map(shapePost), nextOffset: more ? offset + PAGE : null });
+  let posts = rows.slice(0, PAGE).map(shapePost);
+  // Sponsored posts: up to two per page of the main feeds and of Flows.
+  const adable = !req.query.community && !req.query.tag && !req.query.q && !req.query.author
+    && !['saved', 'following'].includes(req.query.scope) && req.query.kind !== 'sell';
+  if (adable) {
+    const picked = await pickAds(me, 2, { videosOnly: req.query.media === 'video' });
+    const ads = [];
+    for (const a of picked) {
+      const p = await loadPost(a.post_id, me);
+      if (p && !posts.some((x) => x.id === p.id)) ads.push({ ...p, sponsored: { id: a.id, headline: a.headline } });
+    }
+    posts = withAds(posts, ads);
+  }
+  res.json({ posts, nextOffset: more ? offset + PAGE : null });
 });
 
 // GET /api/community/feed/new-count?since=<iso> — for the "3 new posts" pill.

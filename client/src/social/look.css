@@ -415,3 +415,15 @@
 .pf-spin { width: 16px; height: 16px; border-radius: 50%; border: 2.5px solid rgba(11, 20, 15, .25); border-top-color: #0B140F; animation: spin .7s linear infinite; }
 .pf-photo-ok { position: absolute; left: 2px; bottom: 2px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--night); box-shadow: 0 0 0 3px var(--surface); }
 .pf-photo-ok .glyph { --g-line: var(--neon); --g-fill: transparent; }
+
+/* ================================================================ verify before you list or sell */
+.seller-gate {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 18px; margin: 4px 0 16px; border-radius: 20px;
+  background: linear-gradient(135deg, var(--night) 0%, var(--night-3) 100%); color: var(--night-text);
+  border: 1px solid var(--night-line); box-shadow: 0 18px 40px -26px rgba(0, 0, 0, .8); animation: post-in .4s var(--ease) both;
+}
+.sg-badge { width: 56px; height: 56px; border-radius: 18px; display: grid; place-items: center; background: var(--neon-grad); box-shadow: var(--neon-glow); flex: none; }
+.sg-badge .glyph { --g-line: #0B140F; --g-fill: rgba(255, 255, 255, .6); }
+.sg-text { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 4px; }
+.sg-text b { font: 500 20px var(--font-display); }
+.sg-text span { font-size: 13.5px; color: var(--night-muted); line-height: 1.5; }

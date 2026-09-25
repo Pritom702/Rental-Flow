@@ -13,6 +13,8 @@ import { Icon } from '../icons.jsx';
 import ProductCard from '../components/ProductCard.jsx';
 import { useAuth } from '../auth.jsx';
 import { money } from '../money.js';
+import { rentalDays, rentalFees } from '../social/fees.js';
+import { Glyph } from '../social/glyphs.jsx';
 
 function toISODate(date) {
   return date.toISOString().slice(0, 10);
@@ -40,6 +42,10 @@ export default function PublicBooking() {
   // item takes (deposit, guarantor), from GET /api/protection/quote.
   const [quote, setQuote] = useState(null);
   const [guarantor, setGuarantor] = useState({ name: '', phone: '', relation: '' });
+  // Optional damage protection, and listings featured with Limes.
+  const [protection, setProtection] = useState(true);
+  const [featured, setFeatured] = useState([]);
+  useEffect(() => { api.get('/market/featured').then(setFeatured).catch(() => {}); }, []);
   const isMember = user?.role === 'member';
 
   // An item id in the URL (?item=12) deep-links straight to that item's booking
@@ -121,9 +127,11 @@ export default function PublicBooking() {
     if (!user || user.role !== 'member') { setNeedsNid(false); setIdState(null); return; }
     api.get('/verify/status')
       .then((s) => {
+        // Renters no longer verify their identity (only owners and sellers do),
+        // so the booking form always opens straight to the dates.
         const state = s.step === 'done' ? null : s.status === 'pending_review' ? 'pending' : 'needed';
         setIdState(state);
-        setNeedsNid(Boolean(state));
+        setNeedsNid(false);
       })
       .catch(() => setNeedsNid(false));
   }, [user]);
@@ -151,6 +159,7 @@ export default function PublicBooking() {
         end_date: bookingForm.end_date,
         notes: bookingForm.notes,
         ...(quote?.deposit?.needsGuarantor ? { guarantor } : {}),
+        protection,
       });
       celebrate();
       setBookingSuccess('Booking request created successfully');
@@ -209,6 +218,21 @@ export default function PublicBooking() {
           <Icon name="check" size={16} /> {bookingSuccess}
           <Link to="/bookings" className="btn secondary small" style={{ marginLeft: 'auto' }}>View bookings</Link>
         </div>
+      )}
+
+      {featured.length > 0 && !hasFilters && (
+        <section className="featured-strip">
+          <div className="fs-head"><Glyph name="star" size={18} /><b>Featured</b><small>Promoted by their owners</small></div>
+          <div className="fs-row">
+            {featured.map((it) => (
+              <Link key={it.id} to={`/product/${it.id}`} className="fs-card">
+                {it.cover_url ? <img src={it.cover_url} alt="" loading="lazy" /> : <span className="fs-ph"><Icon name="package" size={24} /></span>}
+                <b>{it.name}</b>
+                <span>{money(it.rental_price)}/day{it.category_name ? ` · ${it.category_name}` : ''}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
       )}
 
       <div className="toolbar">
@@ -339,6 +363,23 @@ export default function PublicBooking() {
           {quote?.blocks?.length > 0 && (
             <div className="error"><Icon name="shield" size={16} /> {quote.blocks[0].text} <Link to="/bookings">Open my bookings</Link></div>
           )}
+          {bookingForm.start_date && bookingForm.end_date && bookingForm.start_date < bookingForm.end_date && (() => {
+            const days = rentalDays(bookingForm.start_date, bookingForm.end_date);
+            const f = rentalFees(selectedItem.rental_price, days, protection);
+            return (
+              <div className="fee-box">
+                <div><span>{money(selectedItem.rental_price)} × {days} day{days === 1 ? '' : 's'}</span><b>{money(f.total)}</b></div>
+                <div><span>Service fee <small>keeps your booking protected</small></span><b>{money(f.service)}</b></div>
+                <label className="fee-protect">
+                  <input type="checkbox" checked={protection} onChange={(e) => setProtection(e.target.checked)} />
+                  <span><b>Damage protection</b><small>Accidental damage covered up to the item's value — no surprise bills</small></span>
+                  <b>{protection ? money(f.cover) : '—'}</b>
+                </label>
+                <div className="fee-total"><span>You pay</span><b>{money(f.pay)}</b></div>
+                <p className="muted small">Plus a refundable deposit (below). Pay only through RentalFlow — deals outside it aren't protected.</p>
+              </div>
+            );
+          })()}
           <div className="booking-summary">
             <div>Deposit{quote ? '' : ' estimate'}: <b>{money(depositEstimate)}</b>{quote && <> ({Math.round(quote.deposit.rate * 100)}% of the item’s value, refunded when it comes back safely)</>}</div>
             <div>Late fee estimate: <b>{money(lateFeeEstimate)}</b> per overdue day</div>

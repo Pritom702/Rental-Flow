@@ -13,6 +13,8 @@ import { api } from '../api.js';
 import { useAuth } from '../auth.jsx';
 import { Icon } from '../icons.jsx';
 import { money } from '../money.js';
+import { Glyph } from '../social/glyphs.jsx';
+import { say } from '../social/toast.js';
 
 const THREAD_POLL_MS = 4000;
 const LIST_POLL_MS = 15000;
@@ -123,6 +125,8 @@ function Thread({ id, onActivity }) {
       lastId.current = Math.max(lastId.current, m.id);
       setMessages((prev) => [...prev, m]);
       play('send');
+      // Something was hidden: say why, kindly.
+      if (m.guardNote) say(m.guardNote, 'shield');
       setText('');
       onActivity();
     } catch (err) {
@@ -130,6 +134,14 @@ function Thread({ id, onActivity }) {
     } finally {
       setSending(false);
     }
+  }
+
+  async function reportOutside() {
+    if (!window.confirm(`Report ${convo.other_name} for asking to deal or pay outside RentalFlow?`)) return;
+    try {
+      const r = await api.post('/market/report-offplatform', { conversation_id: convo.id });
+      say(r.already ? 'Already reported — thank you' : `Thanks — reported. +${r.limes} Limes for keeping RentalFlow safe`, 'shield');
+    } catch (e) { say(e.message, 'warn'); }
   }
 
   if (error && !convo) return <div className="chat-placeholder"><div className="error">{error}</div></div>;
@@ -150,11 +162,29 @@ function Thread({ id, onActivity }) {
               // A chat about something for sale in the community.
               ? <Link to={`/post/${convo.post_id}`} className="thread-item">
                   {convo.post_cover && <img src={convo.post_cover} alt="" />}
-                  <span>🏷️ {convo.post_title} · {money(convo.sale?.price)}{convo.sale?.sold ? ' · sold' : ''}</span>
+                  <span>For sale · {convo.post_title} · {money(convo.sale?.price)}{convo.sale?.sold ? ' · sold' : ''}</span>
                 </Link>
               : <span className="muted">This listing was removed</span>}
         </div>
+        <button type="button" className="btn ghost small thread-report" onClick={reportOutside} title="They asked me to pay outside RentalFlow">
+          <Glyph name="flag" size={15} /> Report
+        </button>
       </header>
+
+      {!convo.unlocked && (
+        <div className="chat-lock">
+          <Glyph name="shield" size={20} />
+          <div>
+            <b>Protected chat</b>
+            <span>
+              Phone numbers and payment details stay hidden until {convo.item_id ? 'the booking is approved' : 'an offer is accepted'} — then
+              they show for both of you. Deals made outside RentalFlow lose the deposit protection, damage claims and refunds.
+            </span>
+          </div>
+          {convo.item_id && !convo.iAmOwner && <Link to={`/browse?item=${convo.item_id}`} className="btn accent small">Book now</Link>}
+        </div>
+      )}
+      {convo.post_id && <DealBox convo={convo} me={user} onChange={() => fetchNew(true)} />}
 
       <div className="thread-body">
         {!messages.length && (
@@ -164,12 +194,17 @@ function Thread({ id, onActivity }) {
               : `Ask ${convo.other_name} anything about this listing — condition, pickup, dates.`}
           </p>
         )}
-        {messages.map((m) => (
-          <div key={m.id} className={`bubble${m.sender_id === user.id ? ' me' : ''}`}>
+        {messages.map((m) => (m.kind === 'system' ? (
+          <div key={m.id} className="chat-system"><Glyph name="sparkle" size={14} />{m.body}</div>
+        ) : (
+          <div key={m.id} className={`bubble${m.sender_id === user.id ? ' me' : ''}${m.guard_flags?.length && !convo.unlocked ? ' guarded' : ''}`}>
             <p>{m.body}</p>
-            <span>{when(m.created_at)}{m.sender_id === user.id && (m.read_at || m.id <= seenUpTo) ? ' · Seen' : ''}</span>
+            <span>
+              {m.guard_flags?.length > 0 && !convo.unlocked && <em className="guard-tag"><Glyph name="shield" size={12} /> details hidden</em>}
+              {when(m.created_at)}{m.sender_id === user.id && (m.read_at || m.id <= seenUpTo) ? ' · Seen' : ''}
+            </span>
           </div>
-        ))}
+        )))}
         <div ref={bottom} />
       </div>
 
@@ -186,6 +221,55 @@ function Thread({ id, onActivity }) {
         <button className="btn" data-sfx="none" disabled={!text.trim() || sending}>Send</button>
       </form>
       {error && <div className="error">{error}</div>}
+    </div>
+  );
+}
+
+// A sale in the chat: the buyer makes an offer, the seller accepts or declines.
+// Accepting marks the item sold, unlocks the chat and records the deal.
+function DealBox({ convo, me, onChange }) {
+  const [price, setPrice] = useState(convo.sale?.price || '');
+  const [busy, setBusy] = useState(false);
+  const d = convo.deal;
+  const buyer = convo.renter_id ? convo.renter_id === me.id : !convo.iAmOwner;
+  async function offer() {
+    setBusy(true);
+    try { await api.post('/market/deals', { conversation_id: convo.id, price: Number(price) }); play('send'); onChange(); } catch (e) { say(e.message, 'warn'); } finally { setBusy(false); }
+  }
+  async function decide(decision) {
+    setBusy(true);
+    try {
+      await api.post(`/market/deals/${d.id}/${decision}`, {});
+      if (decision === 'accept') { play('success'); say('Deal done — contact details are now visible', 'coin'); }
+      onChange();
+    } catch (e) { say(e.message, 'warn'); } finally { setBusy(false); }
+  }
+  if (d && ['accepted', 'completed'].includes(d.status)) {
+    return <div className="deal-box done"><Glyph name="coin" size={18} /><b>Deal agreed at {money(d.price)}</b><span>Arrange the hand-over here — check the item before you pay.</span></div>;
+  }
+  if (d && d.status === 'offered') {
+    return (
+      <div className="deal-box">
+        <Glyph name="sell" size={18} />
+        <b>Offer: {money(d.price)}</b>
+        {convo.iAmOwner ? (
+          <span className="deal-actions">
+            <button type="button" className="btn accent small" disabled={busy} onClick={() => decide('accept')}>Accept</button>
+            <button type="button" className="btn ghost small" disabled={busy} onClick={() => decide('decline')}>Decline</button>
+          </span>
+        ) : <span className="muted">Waiting for {convo.other_name}</span>}
+      </div>
+    );
+  }
+  if (convo.iAmOwner || convo.sale?.sold) return null;
+  return (
+    <div className="deal-box">
+      <Glyph name="sell" size={18} />
+      <b>Make an offer</b>
+      <span className="deal-actions">
+        <span className="deal-input">৳<input type="number" min="1" inputMode="numeric" value={price} onChange={(e) => setPrice(e.target.value)} /></span>
+        <button type="button" className="btn accent small" disabled={busy || !(Number(price) > 0)} onClick={offer}>Send offer</button>
+      </span>
     </div>
   );
 }

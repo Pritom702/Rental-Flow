@@ -16,6 +16,7 @@ import { useAuth } from '../auth.jsx';
 import { play } from '../sfx.js';
 import { celebrate } from '../fx.js';
 import { applyReward, loadMe, useMe } from './store.js';
+import { api } from '../api.js';
 import { Glyph, Medallion } from './glyphs.jsx';
 
 // Where the last tap happened, so "+10 XP" can rise from right there.
@@ -35,6 +36,18 @@ export default function RewardLayer() {
 
   useEffect(() => { if (user) loadMe(); }, [user]);
 
+  // Joined with an invite link? Credit both people, once.
+  useEffect(() => {
+    if (!user) return;
+    let code = null;
+    try { code = localStorage.getItem('rentalflow_invite'); } catch { /* ignore */ }
+    if (!code) return;
+    api.post('/market/referral', { code }).then((r) => {
+      try { localStorage.removeItem('rentalflow_invite'); } catch { /* ignore */ }
+      if (r.ok) { toast({ kind: 'rt-badge', icon: 'lime', medal: true, title: `+${r.bonus} Limes welcome bonus`, body: 'For joining with an invite' }); loadMe(); }
+    }).catch(() => {});
+  }, [user]);
+
   // Small confirmations ("Link copied") and moderation notices.
   useEffect(() => {
     const onToast = (e) => toast({ kind: 'info', icon: e.detail.icon, title: e.detail.text, body: '' });
@@ -51,14 +64,15 @@ export default function RewardLayer() {
     function onReward(e) {
       const r = e.detail;
       applyReward(r);
-      if (r.xp > 0) {
+      if (r.xp > 0 || r.limes > 0) {
         const fresh = lastPoint && Date.now() - lastPoint.at < 4000;
         const x = fresh ? lastPoint.x : window.innerWidth - 90;
         const y = fresh ? lastPoint.y : 70;
         const id = ++seq;
-        setPops((p) => [...p, { id, x, y, xp: r.xp, label: r.label }]);
+        setPops((p) => [...p, { id, x, y, xp: r.xp, limes: r.limes, label: r.label }]);
         setTimeout(() => setPops((p) => p.filter((q) => q.id !== id)), 1400);
-        window.dispatchEvent(new CustomEvent('rf:xp-gain'));
+        if (r.xp > 0) window.dispatchEvent(new CustomEvent('rf:xp-gain'));
+        if (r.limes > 0) window.dispatchEvent(new CustomEvent('rf:limes', { detail: r.limes }));
       }
       if (r.streakUp) toast({ kind: 'streak', icon: 'flame', title: `${r.streak}-day streak!`, body: 'Come back tomorrow to keep it going.' });
       (r.badges || []).forEach((b, i) => setTimeout(() => {
@@ -94,7 +108,9 @@ export default function RewardLayer() {
       <div className="xp-pops" aria-live="polite">
         {pops.map((p) => (
           <span key={p.id} className="xp-pop" style={{ left: p.x, top: p.y }}>
-            <b>+{p.xp} XP</b>{p.label && <small>{p.label}</small>}
+            {p.xp > 0 && <b>+{p.xp} XP</b>}
+            {p.limes > 0 && <b className="lime-pop"><Glyph name="lime" size={14} />+{p.limes} Limes</b>}
+            {p.label && p.xp > 0 && <small>{p.label}</small>}
           </span>
         ))}
       </div>
@@ -135,6 +151,25 @@ export default function RewardLayer() {
         </div>
       )}
     </>
+  );
+}
+
+// Limes in the top bar: the balance, a tap away from the Limes page. It
+// bounces whenever some are earned.
+export function LimesChip() {
+  const me = useMe();
+  const navigate = useNavigate();
+  const [bump, setBump] = useState(false);
+  useEffect(() => {
+    const on = () => { setBump(false); requestAnimationFrame(() => setBump(true)); setTimeout(() => setBump(false), 800); };
+    window.addEventListener('rf:limes', on);
+    return () => window.removeEventListener('rf:limes', on);
+  }, []);
+  if (!me) return null;
+  return (
+    <button type="button" className={`limes-chip${bump ? ' bump' : ''}`} onClick={() => navigate('/limes')} title="Your Limes — earn, top up, boost">
+      <img src="/brand/icons/limes.png" alt="" width="24" height="24" /><b>{me.limes ?? '…'}</b>
+    </button>
   );
 }
 

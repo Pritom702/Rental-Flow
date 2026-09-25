@@ -353,15 +353,16 @@ export default function Landing() {
             <span className="hero-eyebrow reveal">How it works</span>
             <h2 className="reveal">Three steps, <em>no fuss.</em></h2>
           </div>
-          <p className="lead reveal">Every renter is verified once, so lending your things is safe.</p>
+          <p className="lead reveal">Every owner and seller is verified, so renting from a stranger feels like borrowing from a friend.</p>
         </div>
         <div className="steps">
           {[
-            ['Find it', 'Search or browse, check the calendar, and chat with the lister before you book.'],
-            ['Verify once', 'Your first rental asks for a quick NID photo and selfie. After that, one tap to book.'],
-            ['Pick up & enjoy', 'Scan the QR at pickup, return it on time, and your deposit comes straight back.'],
-          ].map(([h, p], i) => (
-            <div className="step reveal" key={h}>
+            ['Find it', 'Search or browse, watch it in action in Flows, and chat with the owner before you book.', 'step-find'],
+            ['Book safely', 'Owners verify their ID once. A refundable deposit and optional damage cover protect every rental.', 'step-safe'],
+            ['Pick up & enjoy', 'Scan the QR at pickup, return it on time, and your deposit comes straight back.', 'step-enjoy'],
+          ].map(([h, p, img], i) => (
+            <div className="step step-art reveal" key={h}>
+              <div className="step-img"><img src={`/landing/${img}.webp`} alt="" loading="lazy" width="1000" height="750" /></div>
               <b>0{i + 1}</b>
               <h3>{h}</h3>
               <p>{p}</p>
@@ -370,8 +371,40 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ---------- The community ---------- */}
+      <section className="l-section l-split reveal">
+        <div className="split-art"><img src="/landing/community.webp" alt="" loading="lazy" width="1600" height="900" /></div>
+        <div className="split-copy">
+          <span className="hero-eyebrow">Community</span>
+          <h2>Watch it, <em>spark it,</em> rent it.</h2>
+          <p className="lead">Short videos in Flows, a feed for every kind of gear, and people who know it inside out. Ask before you rent, show off what you made, sell what you no longer use.</p>
+          <ul className="split-points">
+            <li><span>01</span>Flows — gear in action, one swipe at a time</li>
+            <li><span>02</span>Communities for cameras, drones, gaming and more</li>
+            <li><span>03</span>Sparks, streaks and badges for everything you do</li>
+          </ul>
+          <Link to="/feed" className="btn accent lg">Open the feed <Icon name="arrow-right" size={18} /></Link>
+        </div>
+      </section>
+
+      {/* ---------- Earn ---------- */}
+      <section className="l-section l-split flip reveal">
+        <div className="split-art"><img src="/landing/earn.webp" alt="" loading="lazy" width="1600" height="900" /></div>
+        <div className="split-copy">
+          <span className="hero-eyebrow">Earn</span>
+          <h2>Your things <em>work</em> while you don't.</h2>
+          <p className="lead">List it once and earn every time it's rented. Sell what you've outgrown. Turn any listing into a video in one tap and put it in front of thousands.</p>
+          <ul className="split-points">
+            <li><span>01</span>Rent out in under a minute — you set the price</li>
+            <li><span>02</span>Limes for coming back, renting and inviting friends</li>
+            <li><span>03</span>Boost a listing or run your video as an ad</li>
+          </ul>
+          <Link to={user ? '/items/new' : '/login?mode=signup'} className="btn lg">Start earning <Icon name="arrow-right" size={18} /></Link>
+        </div>
+      </section>
+
       {/* ---------- CTA ---------- */}
-      <section className="cta-band-x reveal">
+      <section className="cta-band-x cta-art reveal" style={{ backgroundImage: 'url(/landing/shop.webp)' }}>
         <div>
           <h2>Your shelf is a <em>shop.</em></h2>
           <p>List a camera, a console or a stand mixer in under a minute — and earn every time it’s rented.</p>

@@ -17,6 +17,7 @@ import { fileSize, readVideo, shrinkImage, uploadFile, uploadVideo, duration as 
 import { loadMe, setMe, useMe } from './store.js';
 import { Glyph } from './glyphs.jsx';
 import { say } from './toast.js';
+import SellerGate, { useSellerGate } from './SellerGate.jsx';
 
 const DRAFT_KEY = 'rentalflow_post_draft';
 const URL_RE = /https?:\/\/[^\s<]+[^\s<.,:;"')\]!?]/;
@@ -46,6 +47,8 @@ export default function Composer({ open, onClose, onCreated, community: fixedCom
   const [mention, setMention] = useState(null);     // { q, results }
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // Selling needs a verified identity; every other kind of post does not.
+  const [sellGate, setSellGate] = useSellerGate();
   const photoInput = useRef(null);
   const fileInput = useRef(null);
   const textRef = useRef(null);
@@ -165,7 +168,7 @@ export default function Composer({ open, onClose, onCreated, community: fixedCom
   const uploading = media.some((m) => m.status !== 'done' && m.status !== 'error');
   const ready = media.filter((m) => m.status === 'done');
   const hasContent = body.trim() || ready.length || link || (kind === 'poll' && poll.filter((o) => o.trim()).length >= 2);
-  const saleOk = kind !== 'sell' || (Number(sale.price) > 0 && ready.some((m) => m.kind !== 'file'));
+  const saleOk = kind !== 'sell' || (sellGate === 'ok' && Number(sale.price) > 0 && ready.some((m) => m.kind !== 'file'));
   const canPost = community && hasContent && !uploading && saleOk && !busy;
 
   async function acceptRules() {
@@ -199,6 +202,7 @@ export default function Composer({ open, onClose, onCreated, community: fixedCom
     } catch (e) {
       setError(e.message);
       if (e.reason === 'rules-required') setMe((m) => (m ? { ...m, rulesAccepted: false } : m));
+      if (e.reason === 'seller-verification-required') setSellGate(e.message.includes('being checked') ? 'pending' : 'needed');
     } finally {
       setBusy(false);
     }
@@ -291,7 +295,10 @@ export default function Composer({ open, onClose, onCreated, community: fixedCom
               </div>
             )}
 
-            {kind === 'sell' && (
+            {kind === 'sell' && sellGate !== 'ok' && sellGate !== 'checking' && (
+              <SellerGate state={sellGate} returnTo="/feed?tab=sale&compose=sell" what="sell" />
+            )}
+            {kind === 'sell' && (sellGate === 'ok' || sellGate === 'checking') && (
               <div className="cs-extra grid2">
                 <label>Price<input type="number" min="1" inputMode="numeric" placeholder="৳" value={sale.price} onChange={(e) => setSale({ ...sale, price: e.target.value })} /></label>
                 <label>Condition

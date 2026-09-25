@@ -115,4 +115,5 @@ ALTER TABLE notifications ADD CONSTRAINT notifications_type_check
                   -- the community's types (schema_social.sql), listed here too so that
                   -- re-running this file never rejects notifications that already exist
                   'social_reaction', 'social_comment', 'social_reply', 'social_mention',
-                  'social_follow', 'social_milestone', 'social_wanted', 'social_moderation'));
+                  'social_follow', 'social_milestone', 'social_wanted', 'social_moderation',
+                  'credits', 'deal', 'ad'));

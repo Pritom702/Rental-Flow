@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from 'react';
 import { celebrate } from '../fx.js';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api.js';
+import SellerGate, { useSellerGate } from '../social/SellerGate.jsx';
 import { useAuth } from '../auth.jsx';
 import { Icon } from '../icons.jsx';
 
@@ -39,6 +40,8 @@ function clearDraft(key) {
 }
 
 export default function ItemForm() {
+  // Listing for rent needs a verified identity (renting does not).
+  const [gate, setGate] = useSellerGate();
   const { id } = useParams();
   const editing = Boolean(id);
   const navigate = useNavigate();
@@ -146,7 +149,8 @@ export default function ItemForm() {
 
   async function submit(e) {
     e.preventDefault();
-    if (saving) return;   // a second tap while saving would create a duplicate
+    if (saving) return;
+    if (!editing && gate !== 'ok') { setError('Verify your identity first (see above) — then your listing goes live.'); return; }   // a second tap while saving would create a duplicate
     setError('');
     const payload = {
       name: form.name,
@@ -169,6 +173,7 @@ export default function ItemForm() {
       celebrate();
       navigate('/dashboard');
     } catch (err) {
+      if (err.reason === 'seller-verification-required') setGate(err.data?.error?.includes('being checked') ? 'pending' : 'needed');
       setError(err.message);
       setSaving(false);
     }
@@ -182,6 +187,7 @@ export default function ItemForm() {
           <div className="sub">{editing ? 'Update the details of your listing.' : 'Add a new item to the marketplace.'}</div>
         </div>
       </div>
+      {!editing && <div style={{ maxWidth: 720 }}><SellerGate state={gate} returnTo="/items/new" what="list items for rent" /></div>}
       {restored && (
         <div className="hint" style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, maxWidth: 720 }}>
           <span><b>Restored your unsaved {editing ? 'changes' : 'listing'}.</b> Everything you typed before is back.</span>

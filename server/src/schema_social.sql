@@ -254,7 +254,8 @@ ALTER TABLE notifications ADD CONSTRAINT notifications_type_check
                   'rental_due_soon', 'rental_overdue', 'rental_warning', 'rental_frozen',
                   'rental_missing', 'claim_opened', 'claim_update', 'incident',
                   'social_reaction', 'social_comment', 'social_reply', 'social_mention',
-                  'social_follow', 'social_milestone', 'social_wanted', 'social_moderation'));
+                  'social_follow', 'social_milestone', 'social_wanted', 'social_moderation',
+                  'credits', 'deal', 'ad'));
 CREATE INDEX IF NOT EXISTS notifications_link_idx ON notifications (user_id, type, link) WHERE read_at IS NULL;
 
 -- ---------------------------------------------------------------- interests

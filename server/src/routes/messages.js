@@ -18,6 +18,7 @@
 import { Router } from 'express';
 import { query } from '../db.js';
 import { authRequired } from '../middleware/auth.js';
+import { guardMessage, guardNote } from '../contactGuard.js';
 
 const router = Router();
 router.use(authRequired);
@@ -31,6 +32,24 @@ async function mine(conversationId, userId) {
     [conversationId, userId]
   );
   return rows[0] || null;
+}
+
+// Keeping deals on RentalFlow: until the deal is on the platform — a booking
+// approved for this item, or an offer accepted on this sale — the chat is
+// "locked" and contact details are covered up (see contactGuard.js).
+export async function chatUnlocked(convo) {
+  if (convo.item_id) {
+    const { rows } = await query(
+      `SELECT 1 FROM bookings WHERE item_id = $1 AND renter_id = $2 AND status IN ('Approved', 'Completed') LIMIT 1`,
+      [convo.item_id, convo.renter_id]);
+    return rows.length > 0;
+  }
+  if (convo.post_id) {
+    const { rows } = await query(
+      `SELECT 1 FROM sale_deals WHERE conversation_id = $1 AND status IN ('accepted', 'completed') LIMIT 1`, [convo.id]);
+    return rows.length > 0;
+  }
+  return false;
 }
 
 router.get('/unread', async (req, res) => {
@@ -119,8 +138,10 @@ router.get('/conversations/:id', async (req, res) => {
       WHERE conversation_id = $1 AND sender_id <> $2 AND read_at IS NULL`,
     [convo.id, req.user.id]
   );
+  const unlocked = await chatUnlocked(convo);
   const { rows: msgs } = await query(
-    `SELECT id, sender_id, body, created_at, read_at FROM messages
+    `SELECT id, sender_id, kind, guard_flags,
+            ${unlocked ? 'COALESCE(raw_body, body)' : 'body'} AS body, created_at, read_at FROM messages
       WHERE conversation_id = $1 AND id > $2
       ORDER BY id LIMIT 200`,
     [convo.id, after]
@@ -145,9 +166,13 @@ router.get('/conversations/:id', async (req, res) => {
       WHERE conversation_id = $1 AND sender_id = $2 AND read_at IS NOT NULL`,
     [convo.id, req.user.id]
   );
+  const { rows: [deal] } = convo.post_id
+    ? await query(`SELECT * FROM sale_deals WHERE conversation_id = $1 ORDER BY id DESC LIMIT 1`, [convo.id])
+    : { rows: [] };
   res.json({
     id: convo.id, iAmOwner: convo.owner_id === req.user.id, ...meta[0],
     seenUpTo: seen[0].seen_up_to, messages: msgs,
+    unlocked, deal: deal || null,
   });
 });
 
@@ -159,13 +184,21 @@ router.post('/conversations/:id', async (req, res) => {
   if (body.length > MAX_MESSAGE) {
     return res.status(400).json({ error: `Messages can be at most ${MAX_MESSAGE} characters.` });
   }
+  // A locked chat stores the covered-up text for the other person and keeps
+  // what was typed, shown to both once the deal is on RentalFlow.
+  const unlocked = await chatUnlocked(convo);
+  const g = unlocked ? { text: body, flags: [], hits: 0 } : guardMessage(body);
   const { rows } = await query(
-    `INSERT INTO messages (conversation_id, sender_id, body) VALUES ($1, $2, $3)
-     RETURNING id, sender_id, body, created_at, read_at`,
-    [convo.id, req.user.id, body]
+    `INSERT INTO messages (conversation_id, sender_id, body, raw_body, guard_flags) VALUES ($1, $2, $3, $4, $5)
+     RETURNING id, sender_id, kind, guard_flags, body, created_at, read_at`,
+    [convo.id, req.user.id, g.text, g.flags.length ? body : null, g.flags]
   );
+  if (g.flags.length) {
+    await query('UPDATE users SET offplatform_flags = offplatform_flags + $2 WHERE id = $1',
+      [req.user.id, g.flags.includes('outside') || g.flags.includes('wallet') ? 2 : 1]);
+  }
   await query('UPDATE conversations SET last_message_at = NOW() WHERE id = $1', [convo.id]);
-  res.status(201).json(rows[0]);
+  res.status(201).json({ ...rows[0], guardNote: guardNote(g.flags) });
 });
 
 export default router;

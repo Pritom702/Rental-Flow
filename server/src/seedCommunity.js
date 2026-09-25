@@ -9,7 +9,7 @@
 // Karim post photos, short videos, a guide, questions, polls, a "wanted"
 // request and things for sale, comment on each other, react, follow and share
 // moments. The photos are the listings' own product photos; the videos were
-// made from them (see demo-community/).
+// made from them with the same engine as the Video Studio (see demo-community/).
 //
 // Safe to run again: it first removes the content it created last time (the
 // demo members' posts and the seeded posts by Rahim and Karim) and puts fresh
@@ -202,7 +202,7 @@ async function main() {
   for (const f of fs.readdirSync(path.join(DIR, 'video')).filter((x) => x.endsWith('.mp4'))) {
     const name = f.replace('.mp4', '');
     const owner = POSTS.find((p) => p.video === name);
-    const blob = await put(`videos/u${id[owner.by]}-demo-${name}.mp4`, fs.readFileSync(path.join(DIR, 'video', f)), {
+    const blob = await put(`videos/u${id[owner.by]}-demo-${name}-v2.mp4`, fs.readFileSync(path.join(DIR, 'video', f)), {
       access: 'public', contentType: 'video/mp4', addRandomSuffix: false, allowOverwrite: true,
     });
     videos[name] = { url: blob.url, poster: await storePoster(name) };
@@ -226,7 +226,7 @@ async function main() {
   for (const p of POSTS) {
     if (!cid[p.c]) { console.log(`  skipped ${p.k}: no c/${p.c}`); continue; }
     const attachments = [];
-    if (p.video) attachments.push({ type: 'video', url: videos[p.video].url, poster: videos[p.video].poster, mime: 'video/mp4', w: 720, h: 1280, duration: p.video === 'gamenight' ? 9 : 7, name: '' });
+    if (p.video) attachments.push({ type: 'video', url: videos[p.video].url, poster: videos[p.video].poster, mime: 'video/mp4', w: 720, h: 1280, duration: p.video === 'gamenight' ? 10 : 7, name: '' });
     if (p.image) attachments.push({ type: 'image', url: images[p.image], name: `${p.image}.jpg`, mime: 'image/jpeg' });
     let link = null;
     if (p.link) { try { link = await fetchPreview(p.link); } catch { link = { url: p.link, site: new URL(p.link).hostname, title: null }; } }

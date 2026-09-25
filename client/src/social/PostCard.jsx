@@ -23,6 +23,9 @@ import { Glyph } from './glyphs.jsx';
 import { fileSize } from './media.js';
 import FeedVideo from './FeedVideo.jsx';
 import { say } from './toast.js';
+import { PromoteDialog } from './AdsPanel.jsx';
+import { adEvent, watchAd } from './adTrack.js';
+import { setMe } from './store.js';
 
 const HOLD_MS = 380;
 
@@ -44,7 +47,12 @@ function PostCard({ post, onChange, onRemove, full = false }) {
   const [expanded, setExpanded] = useState(full);
   const [menu, setMenu] = useState(false);
   const [lightbox, setLightbox] = useState(null);
+  const [promoting, setPromoting] = useState(false);
+  const cardRef = useRef(null);
   const mine = user && user.id === post.author_id;
+  // A sponsored post counts its views (and clicks) for the advertiser.
+  useEffect(() => (post.sponsored ? watchAd(cardRef.current, post.sponsored.id) : undefined), [post.sponsored]);
+  const adClick = () => { if (post.sponsored) adEvent(post.sponsored.id, 'click'); };
   const update = (patch) => onChange?.({ ...post, ...patch });
 
   const images = (post.attachments || []).filter((a) => a.type === 'image');
@@ -109,6 +117,16 @@ function PostCard({ post, onChange, onRemove, full = false }) {
     say('Post deleted', 'trash');
     onRemove?.(post.id);
   }
+  async function boost() {
+    setMenu(false);
+    try {
+      const r = await api.post('/market/boost', { kind: 'post', id: post.id });
+      setMe((m) => (m ? { ...m, limes: r.balance } : m));
+      update({ boosted: true });
+      play('success');
+      say(`Boosted for 24 hours · ${r.price} Limes`, 'rocket');
+    } catch (e) { say(e.message, 'warn'); }
+  }
   async function report(reason) {
     setMenu(false);
     if (guest()) return;
@@ -146,17 +164,19 @@ function PostCard({ post, onChange, onRemove, full = false }) {
   const showResults = post.poll && (post.my_vote != null || pollClosed || !user || mine);
 
   // Why this post is in my feed — shown as a small line above it.
-  const reason = post.is_top ? { glyph: 'trophy', text: 'Top post this week' }
+  const reason = post.sponsored ? { glyph: 'megaphone', text: post.sponsored.headline ? `Sponsored · ${post.sponsored.headline}` : 'Sponsored' }
+    : post.boosted ? { glyph: 'rocket', text: 'Boosted' }
+    : post.is_top ? { glyph: 'trophy', text: 'Top post this week' }
     : post.following_author && !mine ? { glyph: 'people', text: `You follow ${post.author_name.split(' ')[0]}` }
       : post.my_interest >= 3 && !mine ? { glyph: 'spark', text: `You're into ${post.community_name}` }
         : null;
 
   return (
-    <article className={`post-card kind-${post.kind}${post.status !== 'visible' ? ' is-hidden' : ''}${post.is_top ? ' is-top' : ''}`} id={`post-${post.id}`}>
+    <article ref={cardRef} onClickCapture={adClick} className={`post-card kind-${post.kind}${post.status !== 'visible' ? ' is-hidden' : ''}${post.is_top ? ' is-top' : ''}${post.sponsored ? ' is-ad' : ''}`} id={post.sponsored ? `ad-${post.sponsored.id}` : `post-${post.id}`}>
       {post.kind !== 'post' && (
         <span className={`kind-ribbon k-${post.kind}`}><Glyph name={KINDS[post.kind].glyph} size={14} />{KINDS[post.kind].label}</span>
       )}
-      {reason && !full && <div className="pc-reason"><Glyph name={reason.glyph} size={14} />{reason.text}</div>}
+      {reason && !full && <div className={`pc-reason${post.sponsored ? ' ad' : ''}`}><Glyph name={reason.glyph} size={14} />{reason.text}</div>}
       <header className="pc-head">
         <Link to={`/u/${post.author_handle || post.author_id}`} className="pc-avatar" title={`Level ${post.author_level} · ${post.author_level_name}`}>
           <span className="lvl-avatar" style={{ '--lv': `${Math.min(1, post.author_level / 10) * 360}deg` }}>
@@ -183,6 +203,12 @@ function PostCard({ post, onChange, onRemove, full = false }) {
             <div className="pc-menu" onMouseLeave={() => setMenu(false)}>
               <button type="button" onClick={toggleSave}><Glyph name={post.saved ? 'keep-on' : 'keep'} size={16} />{post.saved ? 'Remove from Kept' : 'Keep'}</button>
               <button type="button" onClick={() => { setMenu(false); share(); }}><Glyph name="link" size={16} />Copy link</button>
+              {mine && post.status === 'visible' && (
+                <>
+                  <button type="button" onClick={boost}><Glyph name="rocket" size={16} />Boost 24 h · {post.kind === 'wanted' ? 15 : 30} Limes</button>
+                  <button type="button" onClick={() => { setMenu(false); setPromoting(true); }}><Glyph name="megaphone" size={16} />Promote as an ad</button>
+                </>
+              )}
               {(mine || user?.role === 'admin') && <button type="button" className="danger" onClick={remove}><Glyph name="trash" size={16} />Delete</button>}
               {!mine && (
                 <details>
@@ -317,6 +343,7 @@ function PostCard({ post, onChange, onRemove, full = false }) {
       )}
 
       {lightbox != null && <Lightbox images={images} start={lightbox} onClose={() => setLightbox(null)} />}
+      {promoting && <PromoteDialog post={post} onClose={() => setPromoting(false)} />}
     </article>
   );
 }
