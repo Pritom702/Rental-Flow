@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
 import { Icon } from '../icons.jsx';
 import { exportAgreementPdf, exportReturnSummaryPdf } from '../pdf.js';
@@ -12,10 +12,19 @@ const STATUS_OPTIONS = ['Pending', 'Approved', 'Cancelled', 'Completed', 'Reject
 
 export default function Bookings() {
   const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
   const [bookings, setBookings] = useState([]);
   const [items, setItems] = useState([]);
   const [selectedItem, setSelectedItem] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState(params.get('status') || '');
+  // A member is on two sides of the market: things they rent from others, and
+  // requests other people send for their own listings. ?view= picks one.
+  const view = params.get('view') || 'all';
+  function setView(next) {
+    const q = new URLSearchParams(params);
+    if (next === 'all') q.delete('view'); else q.set('view', next);
+    setParams(q, { replace: true });
+  }
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   // Which booking's renter identity is open for review, if any.
@@ -31,17 +40,34 @@ export default function Bookings() {
     const params = new URLSearchParams();
     if (selectedItem) params.set('item_id', selectedItem);
     if (statusFilter) params.set('status', statusFilter);
-    const [bookingData, itemData] = await Promise.all([
-      api.get(`/bookings?${params.toString()}`),
-      api.get('/items'),
-    ]);
+    const bookingData = await api.get(`/bookings?${params.toString()}`);
     setBookings(bookingData);
-    setItems(itemData);
+    // The item picker lists only items that appear in this person's bookings
+    // (not every listing on the site). Keep the list while one item is picked.
+    if (!selectedItem) {
+      const seen = new Map();
+      bookingData.forEach((b) => { if (b.item_id && !seen.has(b.item_id)) seen.set(b.item_id, { id: b.item_id, name: b.item_name || 'Item' }); });
+      setItems([...seen.values()].sort((a, b) => a.name.localeCompare(b.name)));
+    }
   }
 
   useEffect(() => {
     load().catch((err) => setError(err.message));
+    const q = new URLSearchParams(params);
+    if (statusFilter) q.set('status', statusFilter); else q.delete('status');
+    if (q.toString() !== params.toString()) setParams(q, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedItem, statusFilter]);
+
+  const isMember = user?.role === 'member';
+  const renting = bookings.filter((b) => b.my_role === 'renter');
+  const requests = bookings.filter((b) => b.my_role === 'owner');
+  const shown = !isMember || view === 'all' ? bookings : view === 'renting' ? renting : requests;
+  const VIEWS = [
+    { key: 'all', label: 'All', n: bookings.length },
+    { key: 'renting', label: 'My rentals', n: renting.length, hint: 'Things you are renting from others' },
+    { key: 'requests', label: 'Requests for my items', n: requests.length, hint: 'People who want to rent your listings' },
+  ];
 
   // Pay for my own booking request (RentalFlow Pay, a demo).
   async function payBooking(id) {
@@ -122,6 +148,24 @@ export default function Bookings() {
         </div>
       )}
 
+      {isMember && (
+        <div className="seg-tabs" role="tablist" aria-label="Which bookings">
+          {VIEWS.map((v) => (
+            <button
+              key={v.key}
+              type="button"
+              role="tab"
+              aria-selected={view === v.key}
+              className={view === v.key ? 'on' : ''}
+              title={v.hint}
+              onClick={() => setView(v.key)}
+            >
+              {v.label} <span className="seg-n">{v.n}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="toolbar">
         <select value={selectedItem} onChange={(e) => setSelectedItem(e.target.value)}>
           <option value="">All items</option>
@@ -133,11 +177,17 @@ export default function Bookings() {
         </select>
       </div>
 
-      {bookings.length === 0 ? (
-        <div className="center-empty">No bookings yet.</div>
+      {shown.length === 0 ? (
+        <div className="center-empty">
+          {statusFilter
+            ? `No ${statusFilter.toLowerCase()} bookings here.`
+            : view === 'renting' ? 'You haven’t rented anything yet.'
+              : view === 'requests' ? 'Nobody has asked to rent your listings yet.' : 'No bookings yet.'}
+          {view === 'renting' && !statusFilter && <div><Link to="/browse" className="btn">Find something to rent</Link></div>}
+        </div>
       ) : (
         <div className="grid">
-          {bookings.map((booking) => (
+          {shown.map((booking) => (
             <div className="card" key={booking.id}>
               <h3>{booking.item_name || 'Item'}</h3>
               <div className="serial">{booking.customer_name} · {booking.customer_email}</div>

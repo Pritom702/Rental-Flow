@@ -165,9 +165,12 @@ export default function Profile() {
         </div>
         <div className="card-actions" style={{ marginTop: 16 }}>
           {isMember && <Link to="/dashboard" className="btn secondary small">My listings</Link>}
-          <Link to="/bookings" className="btn secondary small">My bookings</Link>
+          <Link to="/bookings?view=renting" className="btn secondary small">My rentals</Link>
+          {isMember && activity.bookingsReceived.total > 0 && (
+            <Link to="/bookings?view=requests" className="btn secondary small">Requests for my items</Link>
+          )}
           {activity.bookingsReceived.pending > 0 && (
-            <Link to="/bookings" className="btn small">
+            <Link to="/bookings?view=requests&status=Pending" className="btn small">
               Review {activity.bookingsReceived.pending} {activity.bookingsReceived.pending === 1 ? 'pending request' : 'pending requests'}
             </Link>
           )}
