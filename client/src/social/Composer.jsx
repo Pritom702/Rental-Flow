@@ -9,13 +9,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api.js';
 import { useAuth } from '../auth.jsx';
-import { Icon } from '../icons.jsx';
+import { Icon, categoryIcon } from '../icons.jsx';
 import { money } from '../money.js';
 import { play } from '../sfx.js';
 import { CONDITIONS, KINDS, bodyMaxFor, Avatar } from './util.jsx';
 import { fileSize, readVideo, shrinkImage, uploadFile, uploadVideo, duration as fmt } from './media.js';
 import { loadMe, setMe, useMe } from './store.js';
 import { Glyph } from './glyphs.jsx';
+import { t as translate } from '../i18n.js';
 import { say } from './toast.js';
 import SellerGate, { useSellerGate } from './SellerGate.jsx';
 import Portal from '../components/Portal.jsx';
@@ -169,7 +170,10 @@ export default function Composer({ open, onClose, onCreated, community: fixedCom
   const uploading = media.some((m) => m.status !== 'done' && m.status !== 'error');
   const ready = media.filter((m) => m.status === 'done');
   const hasContent = body.trim() || ready.length || link || (kind === 'poll' && poll.filter((o) => o.trim()).length >= 2);
-  const saleOk = kind !== 'sell' || (sellGate === 'ok' && Number(sale.price) > 0 && ready.some((m) => m.kind !== 'file'));
+  // A sell post needs a photo: one you add, or the photos of your own listing you attach.
+  const listingPhotos = Boolean(item?.cover_url && item.owner_id === user?.id);
+  const hasPhoto = ready.some((m) => m.kind !== 'file') || listingPhotos;
+  const saleOk = kind !== 'sell' || (sellGate === 'ok' && Number(sale.price) > 0 && hasPhoto);
   const canPost = community && hasContent && !uploading && saleOk && !busy;
 
   async function acceptRules() {
@@ -233,11 +237,13 @@ export default function Composer({ open, onClose, onCreated, community: fixedCom
           <Avatar id={user?.id} name={user?.name} src={me?.avatar_url} size={38} />
           <div className="cs-who">
             <b>{user?.name}</b>
-            <select value={community} onChange={(e) => setCommunity(e.target.value)} disabled={Boolean(fixedCommunity)} aria-label="Community">
-              <option value="">Choose a community…</option>
-              {joined.length > 0 && <optgroup label="Your communities">{joined.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}</optgroup>}
-              <optgroup label={joined.length ? 'More' : 'Communities'}>{others.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}</optgroup>
-            </select>
+            <CommunityPicker
+              value={community}
+              onChange={setCommunity}
+              joined={joined}
+              others={others}
+              disabled={Boolean(fixedCommunity)}
+            />
           </div>
           <button type="button" className="icon-btn" onClick={onClose} aria-label="Close"><Icon name="close" size={18} /></button>
         </div>
@@ -309,7 +315,7 @@ export default function Composer({ open, onClose, onCreated, community: fixedCom
                 </label>
                 <label className="switch-line"><input type="checkbox" checked={sale.negotiable} onChange={(e) => setSale({ ...sale, negotiable: e.target.checked })} /> Price is negotiable</label>
                 {Number(sale.price) > 0 && <div className="sale-preview">{money(sale.price)}</div>}
-                {!ready.some((m) => m.kind !== 'file') && <div className="cs-hint"><Glyph name="camera" size={16} /> Add at least one photo or video of it</div>}
+                {!hasPhoto && <div className="cs-hint"><Glyph name="camera" size={16} /> Add a photo or video of it, or attach one of your listings that has photos</div>}
               </div>
             )}
 
@@ -379,5 +385,96 @@ export default function Composer({ open, onClose, onCreated, community: fixedCom
         )}
       </div>
     </div></Portal>
+  );
+}
+
+// Community picker with a search box: there are too many communities for a
+// plain drop-down. Your communities come first; type to narrow the list.
+function CommunityPicker({ value, onChange, joined, others, disabled }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const box = useRef(null);
+  const input = useRef(null);
+  const all = [...joined, ...others];
+  const current = all.find((c) => c.slug === value);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    setTimeout(() => input.current?.focus(), 30);
+    const away = (e) => { if (box.current && !box.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('pointerdown', away);
+    return () => document.removeEventListener('pointerdown', away);
+  }, [open]);
+
+  const needle = q.trim().toLowerCase();
+  // Match the English name or its Bangla one, so either language finds it.
+  const match = (c) => !needle || c.name.toLowerCase().includes(needle) || c.slug.includes(needle)
+    || String(translate(c.name)).toLowerCase().includes(needle);
+  const groups = [
+    { label: 'Your communities', list: joined.filter(match) },
+    { label: joined.length ? 'More' : 'Communities', list: others.filter(match) },
+  ].filter((g) => g.list.length);
+
+  function pick(slug) {
+    onChange(slug);
+    setOpen(false);
+    setQ('');
+  }
+
+  return (
+    <div className="cpick" ref={box}>
+      <button
+        type="button"
+        className="cpick-btn"
+        disabled={disabled}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label="Community"
+        onClick={() => setOpen(!open)}
+      >
+        {current ? <><Icon name={categoryIcon(current.name)} size={14} /> {current.name}</> : 'Choose a community…'}
+        {!disabled && <span className="cpick-caret" aria-hidden="true">▾</span>}
+      </button>
+      {open && (
+        <div className="cpick-pop">
+          <div className="cpick-search search-field">
+            <Icon name="search" size={15} />
+            <input
+              ref={input}
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search communities…"
+              aria-label="Search communities"
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); }
+                if (e.key === 'Enter') { e.preventDefault(); const first = groups[0]?.list[0]; if (first) pick(first.slug); }
+              }}
+            />
+          </div>
+          <div className="cpick-list" role="listbox">
+            {groups.length === 0 && <div className="cpick-empty">{`No community called “${q}”`}</div>}
+            {groups.map((g) => (
+              <div key={g.label}>
+                <div className="cpick-group">{g.label}</div>
+                {g.list.map((c) => (
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={c.slug === value}
+                    key={c.slug}
+                    className={c.slug === value ? 'on' : ''}
+                    onClick={() => pick(c.slug)}
+                  >
+                    <span className="cpick-ic"><Icon name={categoryIcon(c.name)} size={15} /></span>
+                    <span className="cpick-name">{c.name}</span>
+                    {c.member_count > 0 && <small>{c.member_count === 1 ? '1 member' : `${c.member_count} members`}</small>}
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

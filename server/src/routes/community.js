@@ -550,6 +550,15 @@ router.post('/posts', authRequired, async (req, res) => {
     const s = req.body.sale || {};
     const price = Math.round(Number(s.price));
     if (!(price > 0 && price < 100000000)) throw httpError(400, 'Set a price for what you are selling.');
+    // Selling one of your own listings: its photos count, and go on the post.
+    if (!attachments.some((a) => a.type === 'image' || a.type === 'video') && req.body.item_id) {
+      const { rows: pics } = await query(
+        `SELECT im.url FROM item_images im JOIN items i ON i.id = im.item_id
+          WHERE i.id = $1 AND i.owner_id = $2 ORDER BY im.position, im.id LIMIT 4`,
+        [req.body.item_id, me]
+      );
+      pics.forEach((r) => attachments.push({ type: 'image', url: r.url, mime: 'image/jpeg', name: '', size: 0 }));
+    }
     if (!attachments.some((a) => a.type === 'image' || a.type === 'video')) throw httpError(400, 'Add at least one photo of what you are selling.');
     const conditions = ['new', 'like_new', 'good', 'fair', 'for_parts'];
     sale = {
