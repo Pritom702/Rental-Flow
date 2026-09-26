@@ -938,3 +938,7 @@ img { max-width: 100%; }
   background: color-mix(in srgb, var(--neon, var(--accent)) 22%, transparent);
   border-color: color-mix(in srgb, var(--neon-deep, var(--accent)) 50%, transparent);
 }
+
+/* The rule for chatting with an owner, shown where the button would be */
+.chat-rule { display: flex; align-items: center; gap: 6px; margin: 10px 0 0; }
+.composer.locked-note { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 14px; padding: 14px 16px; }

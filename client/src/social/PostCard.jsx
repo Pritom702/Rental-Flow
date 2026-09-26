@@ -375,7 +375,7 @@ function PostCard({ post, onChange, onRemove, full = false }) {
         <Link to={`/product/${post.item_id}`} className="pc-item">
           {post.item_cover ? <img src={post.item_cover} alt="" loading="lazy" /> : <span className="pc-item-ph"><Icon name="package" size={20} /></span>}
           <div><b>{post.item_name}</b><span>{money(post.item_price)}/day · {post.item_status}</span></div>
-          <span className="btn accent small">Rent it</span>
+          <span className="btn accent small">{user && Number(post.item_owner_id) === Number(user.id) ? 'Your listing' : 'Rent it'}</span>
         </Link>
       )}
 

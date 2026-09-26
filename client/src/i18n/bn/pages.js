@@ -649,4 +649,20 @@ export default {
   'Make a video ad in the Video Studio': 'ভিডিও স্টুডিওতে একটি ভিডিও বিজ্ঞাপন তৈরি করুন',
   'Video Studio': 'ভিডিও স্টুডিও',
   'Refund': 'ফেরত',
+  // Chat after approval
+  'You can message the owner once they approve your booking request. They see your rental and sales record first.':
+    'মালিক আপনার বুকিং অনুরোধ অনুমোদন করলেই তাকে মেসেজ করতে পারবেন। তার আগে তিনি আপনার ভাড়া ও বিক্রির রেকর্ড দেখবেন।',
+  'You can message the owner once they approve your booking request. Send a request first; they will see your rental and sales record.':
+    'মালিক আপনার বুকিং অনুরোধ অনুমোদন করলেই তাকে মেসেজ করতে পারবেন। আগে অনুরোধ পাঠান; তিনি আপনার ভাড়া ও বিক্রির রেকর্ড দেখবেন।',
+  'You can write here once the owner approves your booking request.': 'মালিক আপনার বুকিং অনুরোধ অনুমোদন করলে এখানে লিখতে পারবেন।',
+  'You can message the owner once they approve.': 'মালিক অনুমোদন করলে তাকে মেসেজ করতে পারবেন।',
+  'Message owner': 'মালিককে মেসেজ করুন',
+  'Your listing': 'আপনার লিস্টিং',
+  'Your listing · Edit': 'আপনার লিস্টিং · এডিট',
+  'Sales record': 'বিক্রির রেকর্ড',
+  'Items bought': 'কেনা জিনিস',
+  'Items sold': 'বিক্রি করা জিনিস',
+  'Deals dropped': 'বাতিল ডিল',
+  'declined or cancelled': 'প্রত্যাখ্যাত বা বাতিল',
+  'No rentals yet — this is their first request.': 'এখনও কোনো ভাড়া নেই — এটি তার প্রথম অনুরোধ।',
 };

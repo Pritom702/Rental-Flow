@@ -77,6 +77,14 @@ export default function Bookings() {
     } catch (e) { setError(e.message); }
   }
 
+  // The chat with the owner opens once they approve the request.
+  async function messageOwner(itemId) {
+    try {
+      const { id } = await api.post('/messages/conversations', { item_id: itemId });
+      navigate(`/messages/${id}`);
+    } catch (e) { setError(e.message); }
+  }
+
   async function updateStatus(id, status) {
     try {
       await api.patch(`/bookings/${id}/status`, { status });
@@ -221,6 +229,12 @@ export default function Bookings() {
                   {booking.paid_at && <span className="badge paid">Paid</span>}
                   {!booking.paid_at && ['Pending', 'Approved'].includes(booking.status) && (
                     <button className="btn accent small" onClick={() => payBooking(booking.id)}>Pay now</button>
+                  )}
+                  {['Approved', 'Completed'].includes(booking.status) && (
+                    <button className="btn secondary small" onClick={() => messageOwner(booking.item_id)}><Icon name="chat" size={14} /> Message owner</button>
+                  )}
+                  {booking.status === 'Pending' && (
+                    <span className="muted small">You can message the owner once they approve.</span>
                   )}
                   {booking.status === 'Pending' && (
                     <button className="btn secondary small" onClick={() => updateStatus(booking.id, 'Cancelled')}>Cancel request</button>

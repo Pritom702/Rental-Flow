@@ -200,6 +200,18 @@ router.get('/:id/renter', authRequired, async (req, res) => {
     customer_email: booking.customer_email,
   }));
 
+  // Their record as a buyer and seller too (Buy now / offers on sell posts).
+  let sales = null;
+  if (account) {
+    const { rows: [s] } = await query(
+      `SELECT COUNT(*) FILTER (WHERE buyer_id = $1 AND status IN ('accepted', 'completed'))::int AS bought,
+              COUNT(*) FILTER (WHERE seller_id = $1 AND status IN ('accepted', 'completed'))::int AS sold,
+              COUNT(*) FILTER (WHERE (buyer_id = $1 OR seller_id = $1) AND status IN ('declined', 'cancelled'))::int AS dropped
+         FROM sale_deals`,
+      [account.id]);
+    sales = s;
+  }
+
   // Record the look-up. Never let an audit failure block the response — the
   // owner still has a decision to make.
   try {
@@ -252,6 +264,7 @@ router.get('/:id/renter', authRequired, async (req, res) => {
       : { onFile: false },
     profile: history.length ? buildProfile(history) : null,
     history,
+    sales,
   });
 });
 
@@ -469,6 +482,15 @@ router.patch('/:id/status', authRequired, async (req, res) => {
         item_name: rows[0].item_name,
         owner_id: rows[0].owner_id,
       }, event);
+    }
+
+    // Approving a request opens the chat between owner and renter.
+    if (status === 'Approved' && rows[0].status !== 'Approved' && rows[0].renter_id && rows[0].owner_id
+        && Number(rows[0].renter_id) !== Number(rows[0].owner_id)) {
+      await client.query(
+        `INSERT INTO conversations (item_id, renter_id, owner_id) VALUES ($1, $2, $3)
+         ON CONFLICT (item_id, renter_id, owner_id) WHERE item_id IS NOT NULL DO NOTHING`,
+        [rows[0].item_id, rows[0].renter_id, rows[0].owner_id]);
     }
 
     // A paid request that does not go ahead is refunded (demo payments).

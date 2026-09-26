@@ -31,6 +31,11 @@ export default function ProductDetail() {
 
   // Community posts that tag this listing: real renters' photos and opinions.
   const [talk, setTalk] = useState([]);
+  const [myBookings, setMyBookings] = useState([]);
+  useEffect(() => {
+    if (!user) return;
+    api.get(`/bookings?item_id=${id}`).then(setMyBookings).catch(() => setMyBookings([]));
+  }, [id, user]);
   useEffect(() => {
     setItem((cur) => (cur && String(cur.id) === String(id) ? cur : null));
     setPhoto(0);
@@ -67,6 +72,8 @@ export default function ProductDetail() {
   const images = item.images?.length ? item.images : item.cover_url ? [{ id: 'cover', url: item.cover_url }] : [];
   const mine = user && user.id === item.owner_id;
   const available = item.status === 'Available';
+  // Messaging the owner opens after they approve your booking request.
+  const approved = myBookings.some((b) => b.item_id === item.id && ['Approved', 'Completed'].includes(b.status));
 
   return (
     <div className="container product-page">
@@ -111,7 +118,7 @@ export default function ProductDetail() {
                 <Icon name="calendar" size={16} /> {available ? 'Request booking' : 'Not available right now'}
               </button>
             )}
-            {!mine && (
+            {!mine && approved && (
               <button className="btn secondary lg" disabled={busy} onClick={messageLister}>
                 <Icon name="chat" size={16} /> Message the lister
               </button>
@@ -126,6 +133,9 @@ export default function ProductDetail() {
               <Link to={`/studio/make?items=${item.id}`} className="btn secondary lg make-video"><Glyph name="clapper" size={16} /> Make a video ad</Link>
             )}
           </div>
+          {!mine && !approved && (
+            <p className="muted small chat-rule"><Icon name="chat" size={14} /> You can message the owner once they approve your booking request. They see your rental and sales record first.</p>
+          )}
           {error && <div className="error">{error}</div>}
 
           <h2 className="product-h">Description</h2>

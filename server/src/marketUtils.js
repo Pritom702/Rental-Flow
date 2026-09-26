@@ -50,7 +50,7 @@ export const PRICES = {
   boost_post: 30,       // your post lifted high in everyone's feed
   boost_item: 40,       // your listing featured at the top of Browse
   boost_wanted: 15,     // your "wanted" request highlighted
-  studio_video: 10,     // one Video Studio video (about ৳8 at the Starter pack's rate)
+  studio_video: 5,      // one Video Studio video (about ৳4 at the Starter pack's rate)
 };
 // What earns Limes — the things that keep RentalFlow healthy.
 export const EARN = {

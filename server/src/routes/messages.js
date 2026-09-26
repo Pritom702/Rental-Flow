@@ -34,6 +34,8 @@ async function mine(conversationId, userId) {
   return rows[0] || null;
 }
 
+const CHAT_AFTER_APPROVAL = 'You can message the owner once they approve your booking request. Send a request first; they will see your rental and sales record.';
+
 // Keeping deals on RentalFlow: until the deal is on the platform — a booking
 // approved for this item, or an offer accepted on this sale — the chat is
 // "locked" and contact details are covered up (see contactGuard.js).
@@ -98,6 +100,11 @@ router.post('/conversations', async (req, res) => {
   if (!item) return res.status(404).json({ error: 'That listing no longer exists.' });
   if (item.owner_id === req.user.id) {
     return res.status(400).json({ error: 'This is your own listing.' });
+  }
+  // The owner first looks at who is asking (their ID, rentals and sales) and
+  // approves the booking request; only then can the renter message them.
+  if (!(await chatUnlocked({ item_id: item.id, renter_id: req.user.id }))) {
+    return res.status(403).json({ error: CHAT_AFTER_APPROVAL, reason: 'chat-after-approval' });
   }
   const { rows } = await query(
     `INSERT INTO conversations (item_id, renter_id, owner_id)
@@ -173,6 +180,8 @@ router.get('/conversations/:id', async (req, res) => {
     id: convo.id, iAmOwner: convo.owner_id === req.user.id, ...meta[0],
     seenUpTo: seen[0].seen_up_to, messages: msgs,
     unlocked, deal: deal || null,
+    // Whether this person may write here now (a renter waits for approval).
+    canWrite: !(convo.item_id && convo.renter_id === req.user.id && !unlocked),
   });
 });
 
@@ -181,6 +190,10 @@ router.post('/conversations/:id', async (req, res) => {
   if (!convo) return res.status(404).json({ error: 'Conversation not found' });
   const body = String(req.body.body || '').trim();
   if (!body) return res.status(400).json({ error: 'Type a message first.' });
+  // A rental chat from before this rule: the renter waits for an approval too.
+  if (convo.item_id && convo.renter_id === req.user.id && !(await chatUnlocked(convo))) {
+    return res.status(403).json({ error: CHAT_AFTER_APPROVAL, reason: 'chat-after-approval' });
+  }
   if (body.length > MAX_MESSAGE) {
     return res.status(400).json({ error: `Messages can be at most ${MAX_MESSAGE} characters.` });
   }

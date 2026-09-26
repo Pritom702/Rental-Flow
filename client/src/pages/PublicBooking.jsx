@@ -102,6 +102,11 @@ export default function PublicBooking() {
   // Booking needs an account. A visitor who isn't signed in is sent to sign up
   // first and brought straight back to this item's booking panel afterwards.
   function openBooking(it) {
+    // Your own listing cannot be booked; show it instead.
+    if (user && Number(it.owner_id) === Number(user.id)) {
+      navigate(`/product/${it.id}`, { replace: true });
+      return;
+    }
     if (!user) {
       navigate(`/login?mode=signup&next=${encodeURIComponent(`/browse?item=${it.id}`)}`);
       return;
@@ -642,7 +647,18 @@ export default function PublicBooking() {
 }
 
 function BookButton({ it, onBook }) {
+  const { user } = useAuth();
   const free = it.status === 'Available';
+  // Your own listing: nothing to book, so it links to the listing instead.
+  if (user && Number(it.owner_id) === Number(user.id)) {
+    return (
+      <div className="card-actions">
+        <Link className="btn secondary small" to={`/items/${it.id}/edit`} onClick={(e) => e.stopPropagation()}>
+          <Icon name="tag" size={15} /> Your listing · Edit
+        </Link>
+      </div>
+    );
+  }
   return (
     <div className="card-actions">
       <button

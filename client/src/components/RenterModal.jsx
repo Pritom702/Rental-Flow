@@ -154,6 +154,21 @@ export default function RenterModal({ bookingId, onClose, onDecide }) {
               </>
             )}
 
+            {/* ---- Buying and selling on RentalFlow ---- */}
+            {data.sales && (
+              <>
+                <h3 style={{ marginTop: 22 }}>Sales record</h3>
+                <div className="stat-row compact" style={{ marginBottom: 6 }}>
+                  <div className="stat-tile"><div className="stat-label">Items bought</div><div className="stat-value">{data.sales.bought}</div></div>
+                  <div className="stat-tile"><div className="stat-label">Items sold</div><div className="stat-value">{data.sales.sold}</div></div>
+                  <div className="stat-tile"><div className="stat-label">Deals dropped</div><div className="stat-value">{data.sales.dropped}</div><div className="stat-hint">declined or cancelled</div></div>
+                </div>
+              </>
+            )}
+            {!data.profile && (
+              <p className="muted" style={{ marginTop: 18 }}>No rentals yet — this is their first request.</p>
+            )}
+
             {/* ---- Track record ---- */}
             {data.profile && (
               <>

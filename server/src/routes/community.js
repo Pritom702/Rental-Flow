@@ -122,7 +122,7 @@ function postSelect(viewer) {
            c.slug AS community_slug, c.name AS community_name, c.category_id,
            ${TOP_SQL} AS is_top,
            EXISTS (SELECT 1 FROM boosts bo WHERE bo.kind = 'post' AND bo.target_id = p.id AND bo.ends_at > NOW()) AS boosted,
-           i.name AS item_name, i.rental_price AS item_price, i.status AS item_status,
+           i.name AS item_name, i.rental_price AS item_price, i.status AS item_status, i.owner_id AS item_owner_id,
            (SELECT url FROM item_images WHERE item_id = i.id ORDER BY position, id LIMIT 1) AS item_cover,
            (SELECT COALESCE(json_agg(t), '[]') FROM (
               SELECT type, COUNT(*)::int AS n FROM post_reactions WHERE post_id = p.id

@@ -208,6 +208,9 @@ function Thread({ id, onActivity }) {
         <div ref={bottom} />
       </div>
 
+      {convo.canWrite === false ? (
+        <div className="composer locked-note"><Icon name="shield" size={16} /> You can write here once the owner approves your booking request.</div>
+      ) : (
       <form className="composer" onSubmit={send}>
         <textarea
           value={text}
@@ -220,6 +223,7 @@ function Thread({ id, onActivity }) {
         />
         <button className="btn" data-sfx="none" disabled={!text.trim() || sending}>Send</button>
       </form>
+      )}
       {error && <div className="error">{error}</div>}
     </div>
   );
