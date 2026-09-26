@@ -40,8 +40,8 @@ export default function SellerGate({ state, returnTo, what = 'list or sell' }) {
           <>
             <b>Verify once to {what}</b>
             <span>
-              Owners and sellers confirm who they are with their National ID and a quick selfie, so
-              renters and buyers can trust them. It takes about 2 minutes and you only do it once.
+              Owners and sellers confirm who they are with their National ID, a quick selfie and their
+              phone number, so renters and buyers can trust them. It takes about 2 minutes and you only do it once.
               Renting never needs it.
             </span>
           </>

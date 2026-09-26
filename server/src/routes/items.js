@@ -93,7 +93,7 @@ router.get('/', async (req, res) => {
     `SELECT i.id, i.owner_id, u.name AS owner_name, i.name, i.description,
             i.serial_number, i.rental_price, i.replacement_cost,
             i.status, i.category_id, c.name AS category_name, i.created_at,
-            (u.verification_status = 'verified' AND u.nid_number IS NOT NULL) AS owner_verified,
+            (u.verification_status = 'verified' AND u.nid_number IS NOT NULL AND u.phone_verified_at IS NOT NULL) AS owner_verified,
             (SELECT url FROM item_images WHERE item_id = i.id
               ORDER BY position, id LIMIT 1) AS cover_url,
             (SELECT COUNT(*)::int FROM item_images WHERE item_id = i.id) AS image_count,

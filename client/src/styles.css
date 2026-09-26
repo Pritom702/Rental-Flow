@@ -926,3 +926,15 @@ img { max-width: 100%; }
 :root[data-theme="dark"] .cat-tile.on { background: var(--neon, #C6F24E); border-color: var(--neon-deep, #8FD12A); color: #0A120E; }
 :root[data-theme="dark"] .cat-tile.on small { color: #0A120E; }
 :root[data-theme="dark"] .cat-tile.on .cat-ic { background: #0A120E; color: var(--neon, #C6F24E); }
+
+/* Profile: the two parts of being fully verified */
+.verify-parts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; }
+.verify-parts > span {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border-radius: 999px;
+  border: 1px dashed var(--border); color: var(--muted); font-size: 13px; font-weight: 600;
+}
+.verify-parts > span.done {
+  border-style: solid; color: var(--text);
+  background: color-mix(in srgb, var(--neon, var(--accent)) 22%, transparent);
+  border-color: color-mix(in srgb, var(--neon-deep, var(--accent)) 50%, transparent);
+}

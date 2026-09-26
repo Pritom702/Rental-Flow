@@ -82,7 +82,7 @@ export default function Profile() {
               </div>
               <div className="field">
                 <label>Phone</label>
-                <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="01XXXXXXXXX" />
+                <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="01XXXXXXXXX" disabled={account.phoneVerified} title={account.phoneVerified ? 'A verified number is changed by verifying the new one' : undefined} />
               </div>
             </div>
             <div className="card-actions">
@@ -94,7 +94,10 @@ export default function Profile() {
           <dl className="detail-grid">
             <div><dt>Name</dt><dd>{account.name}</dd></div>
             <div><dt>Email</dt><dd>{account.email}</dd></div>
-            <div><dt>Phone</dt><dd>{account.phone || <span className="muted">Not added</span>}</dd></div>
+            <div><dt>Phone</dt><dd>
+              {account.phone || <span className="muted">Not added</span>}
+              {account.phoneVerified && <span className="badge Completed" style={{ marginLeft: 8 }}>Verified</span>}
+            </dd></div>
             <div><dt>Role</dt><dd style={{ textTransform: 'capitalize' }}>{account.role}</dd></div>
             <div><dt>Status</dt><dd>
               <span className={`badge ${account.status === 'active' ? 'Available' : 'Retired'}`}>{account.status}</span>
@@ -108,7 +111,15 @@ export default function Profile() {
       <section className="panel">
         <div className="panel-head">
           <h2>Identity verification</h2>
-          {nid.onFile && nid.verified && <span className="badge Completed">Verified</span>}
+          {nid.onFile && nid.verified && account.phoneVerified && <span className="badge Completed">Fully verified</span>}
+        </div>
+        {/* Fully verified = a checked National ID + a checked phone number. */}
+        <div className="verify-parts">
+          <span className={nid.onFile && nid.verified ? 'done' : ''}><Icon name={nid.onFile && nid.verified ? 'check' : 'shield'} size={14} /> National ID &amp; selfie</span>
+          <span className={account.phoneVerified ? 'done' : ''}><Icon name={account.phoneVerified ? 'check' : 'chat'} size={14} /> Phone number</span>
+          {!(nid.onFile && nid.verified && account.phoneVerified) && nid.status !== 'pending_review' && (
+            <Link to="/verify?next=/profile" className="btn small">{nid.onFile && nid.verified ? 'Verify my phone' : 'Get fully verified'}</Link>
+          )}
         </div>
         {nid.onFile ? (
           <div className="locked">
@@ -123,7 +134,7 @@ export default function Profile() {
           </div>
         ) : (
           <div className="locked" style={{ display: 'grid', gap: 10 }}>
-            <span><Icon name="shield" size={15} /> You'll verify your identity once, before your first rental — a photo of your NID and a quick selfie.</span>
+            <span><Icon name="shield" size={15} /> You verify once: a photo of your NID, a quick selfie and your phone number. You need it to list or sell, and it lowers your deposits when you rent.</span>
             <Link to="/verify?next=/profile" className="btn small" style={{ justifySelf: 'start' }}>Verify now</Link>
           </div>
         )}

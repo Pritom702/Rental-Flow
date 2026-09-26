@@ -39,7 +39,9 @@ import { readText } from '../ocrEngine.js';
 import { sendMail, mailConfigured, codeEmail, decisionEmail } from '../mailer.js';
 import { signFileUrl } from './files.js';
 import { createHandoff } from './handoff.js';
-import { identityVerified } from '../middleware/requireVerified.js';
+import { identityVerified, nidVerified } from '../middleware/requireVerified.js';
+import { normalizeBdPhone, maskPhone } from '../phoneUtils.js';
+import { sendSms, smsConfigured } from '../sms.js';
 import {
   FEATURES, PRIOR, featureVector, predict, priorModel, train, leaveOneOutAccuracy, explain, AUTO_APPROVE_MIN,
 } from '../riskModel.js';
@@ -68,7 +70,8 @@ function hashCode(userId, code) {
 
 async function loadAccount(id) {
   const { rows } = await query(
-    `SELECT id, name, email, role, verification_status, email_verified_at, nid_number
+    `SELECT id, name, email, role, verification_status, email_verified_at, nid_number,
+            phone, phone_verified_at
        FROM users WHERE id = $1`,
     [id]
   );
@@ -88,6 +91,8 @@ async function latestAttempt(userId) {
 function stepFor(account, attempt) {
   if (identityVerified(account)) return 'done';
   if (!account.email_verified_at) return 'email';
+  if (!account.phone_verified_at) return 'phone';
+  if (nidVerified(account)) return 'done';
   if (account.verification_status === 'pending_review') return 'review';
   if (account.verification_status === 'rejected') return 'rejected';
   if (attempt && attempt.decision === 'in_progress') return 'selfie';
@@ -195,6 +200,10 @@ router.get('/status', async (req, res) => {
     email: account.email,
     emailVerified: Boolean(account.email_verified_at),
     mailDevMode: !mailConfigured(),
+    phone: account.phone || '',
+    phoneVerified: Boolean(account.phone_verified_at),
+    nidVerified: nidVerified(account),
+    smsDevMode: !smsConfigured(),
     challenge: step === 'selfie' ? attempt.liveness_challenge : null,
     lastResult: attempt && ['retry', 'rejected', 'pending_review'].includes(attempt.decision)
       ? {
@@ -255,7 +264,76 @@ router.post('/email/confirm', async (req, res) => {
   }
   await query('UPDATE users SET email_verified_at = NOW() WHERE id = $1', [req.user.id]);
   await query('DELETE FROM email_codes WHERE user_id = $1', [req.user.id]);
-  res.json({ ok: true, step: 'nid' });
+  res.json({ ok: true, step: 'phone' });
+});
+
+// ---------------------------------------------------------------- phone
+
+// Text a 6-digit code to the member's mobile. The number is saved on the
+// account only when the code comes back right.
+router.post('/phone/send', async (req, res) => {
+  const account = await loadAccount(req.user.id);
+  if (!account.email_verified_at) return res.status(409).json({ error: 'Confirm your email first.' });
+  const phone = normalizeBdPhone(req.body.phone);
+  if (!phone) {
+    return res.status(400).json({ error: 'Enter a Bangladeshi mobile number, like 01712-345678.', reason: 'phone-invalid' });
+  }
+  if (account.phone_verified_at && account.phone === phone) return res.json({ ok: true, alreadyVerified: true });
+  const { rows: taken } = await query(
+    'SELECT 1 FROM users WHERE phone = $1 AND phone_verified_at IS NOT NULL AND id <> $2', [phone, account.id]);
+  if (taken.length) {
+    return res.status(409).json({ error: 'That number is already verified on another RentalFlow account.', reason: 'phone-taken' });
+  }
+  const { rows } = await query(
+    `SELECT EXTRACT(EPOCH FROM (NOW() - last_sent_at))::int AS age FROM phone_codes WHERE user_id = $1`, [account.id]);
+  if (rows[0] && rows[0].age < RESEND_AFTER_SECONDS) {
+    return res.status(429).json({
+      error: `Please wait ${RESEND_AFTER_SECONDS - rows[0].age} seconds before asking for another code.`,
+      retryAfter: RESEND_AFTER_SECONDS - rows[0].age,
+    });
+  }
+  const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+  await query(
+    `INSERT INTO phone_codes (user_id, phone, code_hash, expires_at, attempts, last_sent_at)
+     VALUES ($1, $2, $3, NOW() + ($4 || ' minutes')::interval, 0, NOW())
+     ON CONFLICT (user_id) DO UPDATE
+       SET phone = EXCLUDED.phone, code_hash = EXCLUDED.code_hash, expires_at = EXCLUDED.expires_at,
+           attempts = 0, last_sent_at = NOW()`,
+    [account.id, phone, hashCode(account.id, `p${code}`), String(CODE_TTL_MINUTES)]
+  );
+  const sms = await sendSms(phone, `${code} is your RentalFlow code. It expires in ${CODE_TTL_MINUTES} minutes.`);
+  res.json({ ok: true, sentTo: maskPhone(phone), ...(sms.dev ? { devCode: code } : {}) });
+});
+
+router.post('/phone/confirm', async (req, res) => {
+  const code = String(req.body.code || '').replace(/\D/g, '');
+  const { rows } = await query(
+    `SELECT phone, code_hash, attempts, expires_at < NOW() AS expired FROM phone_codes WHERE user_id = $1`,
+    [req.user.id]
+  );
+  const row = rows[0];
+  if (!row) return res.status(400).json({ error: 'Ask for a code first.' });
+  if (row.expired) return res.status(400).json({ error: 'That code has expired. Ask for a new one.', reason: 'code-expired' });
+  if (row.attempts >= CODE_MAX_ATTEMPTS) {
+    return res.status(429).json({ error: 'Too many wrong codes. Ask for a new one.', reason: 'code-locked' });
+  }
+  const ok = code.length === 6 && crypto.timingSafeEqual(
+    Buffer.from(hashCode(req.user.id, `p${code}`)), Buffer.from(row.code_hash)
+  );
+  if (!ok) {
+    await query('UPDATE phone_codes SET attempts = attempts + 1 WHERE user_id = $1', [req.user.id]);
+    const left = CODE_MAX_ATTEMPTS - row.attempts - 1;
+    return res.status(400).json({ error: `That code is not right. ${left} ${left === 1 ? 'try' : 'tries'} left.`, reason: 'code-wrong' });
+  }
+  try {
+    await query('UPDATE users SET phone = $2, phone_verified_at = NOW() WHERE id = $1', [req.user.id, row.phone]);
+  } catch (e) {
+    if (e.code === '23505') return res.status(409).json({ error: 'That number is already verified on another RentalFlow account.', reason: 'phone-taken' });
+    throw e;
+  }
+  await query('DELETE FROM phone_codes WHERE user_id = $1', [req.user.id]);
+  const account = await loadAccount(req.user.id);
+  res.json({ ok: true, step: stepFor(account, await latestAttempt(req.user.id)) });
 });
 
 // ---------------------------------------------------------------- photos
@@ -290,7 +368,7 @@ async function saveFile(client, ownerId, kind, photo) {
 
 router.post('/nid', async (req, res) => {
   const account = await loadAccount(req.user.id);
-  if (identityVerified(account)) {
+  if (nidVerified(account)) {
     return res.status(409).json({ error: 'This account is already verified.' });
   }
   if (account.verification_status === 'pending_review') {
@@ -757,7 +835,7 @@ admin.post('/attempts/:id/decision', async (req, res) => {
 admin.get('/users/:id', async (req, res) => {
   const { rows } = await query(
     `SELECT id, name, email, role, status, verification_status, created_at,
-            nid_number, nid_name, nid_submitted_at
+            nid_number, nid_name, nid_submitted_at, phone, phone_verified_at
        FROM users WHERE id = $1`,
     [req.params.id]
   );

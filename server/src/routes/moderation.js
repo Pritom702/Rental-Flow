@@ -128,7 +128,7 @@ router.get('/users', async (req, res) => {
   const { rows } = await query(
     `SELECT u.id, u.name, u.email, u.handle, u.avatar_url, u.role, u.status, u.suspended_reason, u.created_at,
             u.warning_count, u.content_strikes,
-            (u.verification_status = 'verified' AND u.nid_number IS NOT NULL) AS verified,
+            (u.verification_status = 'verified' AND u.nid_number IS NOT NULL AND u.phone_verified_at IS NOT NULL) AS verified,
             (SELECT COUNT(*)::int FROM posts p WHERE p.author_id = u.id AND p.status <> 'removed') AS posts,
             (SELECT COUNT(*)::int FROM moderation_actions m WHERE m.user_id = u.id AND m.action IN ('remove', 'remove_adult', 'remove_photo')) AS removals
        FROM users u

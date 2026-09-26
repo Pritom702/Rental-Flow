@@ -30,6 +30,7 @@ const REASON = {
   daily: 'Daily check-in', streak: 'Streak bonus', first_listing: 'First listing', rental_completed: 'Rental finished',
   sale_completed: 'Sale agreed', referral: 'Invite joined', referral_welcome: 'Welcome bonus', report: 'Report',
   purchase: 'Top-up', boost: 'Boost', ad_budget: 'Ad budget', ad_refund: 'Ad refund',
+  studio: 'Video Studio', refund: 'Refund',
 };
 
 export default function Limes() {
@@ -112,6 +113,7 @@ export default function Limes() {
             <li><span className="earn-ic"><Glyph name="rocket" size={18} /></span>Boost a post to the top of feeds, 24 h<b>{w.prices.boost_post}</b></li>
             <li><span className="earn-ic"><Glyph name="star" size={18} /></span>Feature a listing on Browse, 24 h<b>{w.prices.boost_item}</b></li>
             <li><span className="earn-ic"><Glyph name="wanted" size={18} /></span>Highlight a "wanted" request, 24 h<b>{w.prices.boost_wanted}</b></li>
+            <li><span className="earn-ic"><Glyph name="clapper" size={18} /></span>Make a video ad in the Video Studio<b>{w.prices.studio_video}</b></li>
             <li><span className="earn-ic"><Glyph name="megaphone" size={18} /></span>Run your video as an ad — 10 views per Lime<b>from 20</b></li>
           </ul>
           {w.boosts.length > 0 && (

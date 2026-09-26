@@ -75,6 +75,11 @@ async function main() {
   await pool.query('DROP TABLE IF EXISTS payments CASCADE');
   await pool.query(fs.readFileSync(path.join(__dirname, 'schema_payments.sql'), 'utf8'));
   console.log('✅ Payments table created');
+
+  // Phone check: the second half of being fully verified.
+  await pool.query('DROP TABLE IF EXISTS phone_codes CASCADE');
+  await pool.query(fs.readFileSync(path.join(__dirname, 'schema_phone.sql'), 'utf8'));
+  console.log('✅ Phone verification ready');
   await pool.end();
 }
 

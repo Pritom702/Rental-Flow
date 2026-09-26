@@ -50,7 +50,7 @@ export async function standingFor(userId, db = { query }) {
       WHERE renter_id = $1 AND ((status = 'Approved' AND checked_out_at IS NOT NULL AND checked_in_at IS NULL) OR status = 'Missing')`,
     [userId]
   );
-  const { rows: [me] } = await db.query('SELECT role, verification_status, nid_number FROM users WHERE id = $1', [userId]);
+  const { rows: [me] } = await db.query('SELECT role, verification_status, nid_number, phone_verified_at FROM users WHERE id = $1', [userId]);
   const tier = trustTier({ cleanReturns: hist.rows[0].clean, lateReturns: hist.rows[0].late });
   const blocks = renterBlocks({ claims, activeRentals: active });
   return {

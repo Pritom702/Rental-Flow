@@ -21,7 +21,7 @@ async function main() {
   // --- NID on file (damage control) ---
   // The write-once trigger rejects any change, so only fill an empty one.
   // Rahim and Karim are the demo accounts: both count as verified, so a demo
-  // can list, sell and rent straight away without the NID + selfie step.
+  // can list, sell and rent straight away without the NID, selfie and phone steps.
   const verified = [
     [karim, '1990123456789', 'Karim Hasan', '01811223344'],
     [rahim, '1992234567890', 'Rahim Uddin', '01711223344'],
@@ -42,6 +42,11 @@ async function main() {
       `UPDATE users SET verification_status = 'verified', email_verified_at = COALESCE(email_verified_at, NOW())
         WHERE id = $1`,
       [id]
+    );
+    // Fully verified also means a checked mobile number.
+    await query(
+      `UPDATE users SET phone = $2, phone_verified_at = NOW() WHERE id = $1 AND phone_verified_at IS NULL`,
+      [id, phone]
     );
   }
 

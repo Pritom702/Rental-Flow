@@ -25,7 +25,7 @@ router.use(authRequired);
 // Columns that are safe to send to the browser. The raw nid_number is NEVER in
 // this list — it is masked by the handler before it leaves the server.
 const ACCOUNT_COLUMNS = `id, name, email, role, status, phone, verification_status,
-  nid_number, nid_name, nid_front_url, nid_back_url, nid_submitted_at, created_at`;
+  nid_number, nid_name, nid_front_url, nid_back_url, nid_submitted_at, created_at, phone_verified_at`;
 
 async function loadUser(id) {
   const { rows } = await query(`SELECT ${ACCOUNT_COLUMNS} FROM users WHERE id = $1`, [id]);
@@ -83,6 +83,7 @@ router.get('/', async (req, res) => {
       role: user.role,
       status: user.status,
       phone: user.phone,
+      phoneVerified: Boolean(user.phone_verified_at),
       memberSince: user.created_at,
     },
     // Identity: the member sees only whether they are verified. The NID number
@@ -104,7 +105,16 @@ router.get('/', async (req, res) => {
 
 // PATCH /api/profile — the few details a member may edit freely.
 router.patch('/', async (req, res) => {
-  const { name, phone } = req.body;
+  const { name } = req.body;
+  let { phone } = req.body;
+  // A checked number is locked here: changing it means proving the new one
+  // with a code (on the Verify page), so this ignores an unchanged number and
+  // refuses a different one.
+  const current = await loadUser(req.user.id);
+  if (current?.phone_verified_at && phone && phone !== current.phone) {
+    return res.status(409).json({ error: 'Your verified number can only be changed by verifying the new one.', reason: 'phone-locked' });
+  }
+  if (current?.phone_verified_at) phone = null;
   const { rows } = await query(
     `UPDATE users SET name = COALESCE($2, name), phone = COALESCE($3, phone)
       WHERE id = $1 RETURNING ${ACCOUNT_COLUMNS}`,

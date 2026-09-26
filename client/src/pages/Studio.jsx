@@ -20,6 +20,7 @@ import { W, H, STYLES, drawFrame, durationFor, loadImages, makeVideo, brandFonts
 import { preloadUploader, uploadFile, uploadVideo } from '../social/media.js';
 import { PromoteDialog } from '../social/AdsPanel.jsx';
 import { STUDIO_MAX } from './StudioPick.jsx';
+import { loadMe } from '../social/store.js';
 
 // Shown before a first-ever post (a pop-up, so plain text with line breaks).
 const RULES = `Before your first post, please agree to the community rules:
@@ -49,6 +50,13 @@ export default function Studio() {
   const [result, setResult] = useState(null);     // { file, url, post }
   const [promote, setPromote] = useState(false);
   const canvas = useRef(null);
+  // A video costs a few Limes, charged when it goes live. Known up front, so
+  // nobody makes a video only to learn they cannot post it.
+  const [wallet, setWallet] = useState(null);   // { balance, price }
+  useEffect(() => {
+    api.get('/market/limes').then((w) => setWallet({ balance: w.balance, price: w.prices.studio_video })).catch(() => {});
+  }, []);
+  const short = wallet ? Math.max(0, wallet.price - wallet.balance) : 0;
 
   useEffect(() => { brandFontsReady(); preloadUploader().catch(() => {}); }, []);
   // Only your own listings with a photo can be in your video; anything else
@@ -120,7 +128,7 @@ export default function Studio() {
   };
 
   async function create() {
-    if (phase !== 'edit' || !list.length) return;
+    if (phase !== 'edit' || !list.length || short > 0) return;
     setPhase('recording'); setProgress(0);
     try {
       // Can this member post today? Asked first, not after the video is made.
@@ -148,15 +156,18 @@ export default function Studio() {
       const url = await step('upload', uploadVideo(file, frames, (p) => setProgress(p)), 240, 'Uploading took too long. Check your connection and try again.');
       const community = slugOf(list[0].category_name) || 'cameras';
       const post = await step('post', api.post('/community/posts', {
-        community, kind: 'showcase', body: caption, item_id: list[0].id,
+        community, kind: 'showcase', body: caption, item_id: list[0].id, studio: true,
         attachments: [{ type: 'video', url, poster: posterUp.url, duration, w: W, h: H, color: null }],
       }), 90, 'Posting took too long. Please try again.');
       setStage('');
+      setWallet((w) => (w ? { ...w, balance: w.balance - w.price } : w));
+      loadMe();
       setResult({ file, url, post, preview: URL.createObjectURL(file) });
       setPhase('done');
       celebrate();
       say('Your video is live in the feed and in Flows', 'clapper');
     } catch (e) {
+      if (e?.reason === 'not-enough-limes') setWallet((w) => (w ? { ...w, balance: e.data?.balance ?? w.balance } : w));
       say(e?.message || 'The video could not be made. Please try again.', 'warn');
       setPhase('edit');
       setStage('');
@@ -218,9 +229,27 @@ export default function Studio() {
             </div>
           ) : (
             <div className="studio-go-bar">
-              <button type="button" className="btn accent lg block studio-go" disabled={phase !== 'edit' || !caption.trim()} onClick={create}>
-                <Glyph name="clapper" size={18} /> {busy ? `${phase === 'recording' ? 'Making' : 'Uploading'}… ${Math.round(progress * 100)}%` : 'Create & post the video'}
-              </button>
+              {short > 0 && !busy ? (
+                <>
+                  <div className="studio-cost short">
+                    <img src="/brand/icons/limes.png" alt="" width="22" height="22" />
+                    <span>{`A video costs ${wallet.price} Limes. You have ${wallet.balance}.`}</span>
+                  </div>
+                  <Link to="/limes" className="btn accent lg block studio-go"><img src="/brand/icons/limes.png" alt="" width="20" height="20" /> Get Limes</Link>
+                </>
+              ) : (
+                <>
+                  {wallet && !busy && (
+                    <div className="studio-cost">
+                      <img src="/brand/icons/limes.png" alt="" width="22" height="22" />
+                      <span>{`Costs ${wallet.price} Limes, only when it is posted. You have ${wallet.balance}.`}</span>
+                    </div>
+                  )}
+                  <button type="button" className="btn accent lg block studio-go" disabled={phase !== 'edit' || !caption.trim()} onClick={create}>
+                    <Glyph name="clapper" size={18} /> {busy ? `${phase === 'recording' ? 'Making' : 'Uploading'}… ${Math.round(progress * 100)}%` : wallet ? `Create & post · ${wallet.price} Limes` : 'Create & post the video'}
+                  </button>
+                </>
+              )}
             </div>
           )}
         </section>

@@ -21,7 +21,7 @@ import LiveSelfie from '../components/LiveSelfie.jsx';
 import ContinueOnPhone from '../components/ContinueOnPhone.jsx';
 import ThemeToggle from '../components/ThemeToggle.jsx';
 
-const STEP_NUMBER = { nid: 1, selfie: 2 };   // the identity check; email is its own screen
+const STEP_NUMBER = { phone: 1, nid: 2, selfie: 3 };   // full verification; email is its own screen
 const DEV_CODE_KEY = 'rentalflow_dev_code';
 
 export default function Verify() {
@@ -45,13 +45,12 @@ export default function Verify() {
     }
   }, [setVerificationStatus, setEmailVerified]);
 
-  // Email confirmed: straight into the platform, unless the member is on
-  // their way to publishing a listing, in which case the ID check follows.
+  // Email confirmed: the phone check follows (it takes a minute). Someone not
+  // on their way to a listing may skip it for now and do it later.
   const afterEmail = useCallback(() => {
     setEmailVerified(true);
-    if (next) load();
-    else navigate('/feed', { replace: true });
-  }, [next, load, navigate, setEmailVerified]);
+    load();
+  }, [load, setEmailVerified]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -71,9 +70,9 @@ export default function Verify() {
       </header>
 
       {STEP_NUMBER[step] && (
-        <div className="verify-progress two" aria-label={`Step ${STEP_NUMBER[step]} of 2`}>
-          {[1, 2].map((n) => <span key={n} className={n <= STEP_NUMBER[step] ? 'on' : ''} />)}
-          <small>Identity check · step {STEP_NUMBER[step]} of 2</small>
+        <div className="verify-progress three" aria-label={`Step ${STEP_NUMBER[step]} of 3`}>
+          {[1, 2, 3].map((n) => <span key={n} className={n <= STEP_NUMBER[step] ? 'on' : ''} />)}
+          <small>{`Getting fully verified · step ${STEP_NUMBER[step]} of 3`}</small>
         </div>
       )}
 
@@ -81,6 +80,9 @@ export default function Verify() {
         {!status && !error && <p className="muted center">Loading…</p>}
         {error && !status && <div className="error">{error}</div>}
         {step === 'email' && <EmailStep status={status} onDone={afterEmail} />}
+        {step === 'phone' && (
+          <PhoneStep status={status} onDone={load} onSkip={next ? null : () => navigate('/feed', { replace: true })} />
+        )}
         {(step === 'nid' || step === 'selfie') && <ContinueOnPhone onTick={load} />}
         {step === 'nid' && <NidStep onDone={load} name={user?.name} />}
         {step === 'selfie' && <SelfieStep challenge={status.challenge} onDone={load} />}
@@ -177,6 +179,127 @@ function EmailStep({ status, onDone }) {
         <button type="button" className="btn ghost block" disabled={wait > 0} onClick={resend}>
           {wait > 0 ? `Send a new code in ${wait}s` : 'Send a new code'}
         </button>
+      </div>
+    </form>
+  );
+}
+
+// ---------------------------------------------------------------- phone
+
+// Prove the mobile number with a texted code. Two small screens: the number,
+// then the code. The number is saved only once the code comes back right.
+function PhoneStep({ status, onDone, onSkip }) {
+  const [phone, setPhone] = useState(status.phone || '');
+  const [sentTo, setSentTo] = useState('');
+  const [code, setCode] = useState('');
+  const [devCode, setDevCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [wait, setWait] = useState(0);
+
+  useEffect(() => {
+    if (!wait) return undefined;
+    const t = setTimeout(() => setWait(wait - 1), 1000);
+    return () => clearTimeout(t);
+  }, [wait]);
+
+  async function send(e) {
+    e?.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      const r = await api.post('/verify/phone/send', { phone });
+      if (r.alreadyVerified) { onDone(); return; }
+      setSentTo(r.sentTo);
+      setDevCode(r.devCode || '');
+      setCode('');
+      setWait(60);
+    } catch (err) {
+      setError(err.message);
+      const secs = Number(/(\d+) seconds/.exec(err.message)?.[1]);
+      if (secs) setWait(secs);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirm(e) {
+    e.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      await api.post('/verify/phone/confirm', { code });
+      celebrate();
+      onDone();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!sentTo) {
+    return (
+      <form className="verify-step" onSubmit={send}>
+        <div className="verify-icon"><Icon name="chat" size={26} /></div>
+        <h1>Verify your phone number</h1>
+        <p className="lead">We text a 6-digit code to your mobile. A checked number plus your National ID makes you <b>fully verified</b>, so people can trust you.</p>
+        <label className="phone-field">
+          <span>+88</span>
+          <input
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel-national"
+            placeholder="01XXXXXXXXX"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            aria-label="Mobile number"
+            autoFocus
+          />
+        </label>
+        {error && <div className="error">{error}</div>}
+        <div className="verify-actions">
+          <button className="btn lg block" disabled={busy || phone.replace(/\D/g, '').length < 10}>
+            {busy ? 'Sending…' : 'Text me a code'}
+          </button>
+          {onSkip && <button type="button" className="btn ghost block" onClick={onSkip}>Skip for now</button>}
+        </div>
+      </form>
+    );
+  }
+
+  return (
+    <form className="verify-step" onSubmit={confirm}>
+      <div className="verify-icon"><Icon name="chat" size={26} /></div>
+      <h1>Enter the code</h1>
+      <p className="lead">We texted a 6-digit code to <b>{sentTo}</b>.</p>
+      {status.smsDevMode && (
+        <div className="hint">
+          <b>Test mode:</b> text messages are not set up yet
+          {devCode ? <>, so here is your code: <b className="devcode">{devCode}</b></> : '.'}
+        </div>
+      )}
+      <input
+        className="code-input"
+        inputMode="numeric"
+        autoComplete="one-time-code"
+        pattern="\d{6}"
+        maxLength={6}
+        placeholder="••••••"
+        value={code}
+        onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+        aria-label="6-digit code"
+        autoFocus
+      />
+      {error && <div className="error">{error}</div>}
+      <div className="verify-actions">
+        <button className="btn lg block" disabled={busy || code.length !== 6}>
+          {busy ? 'Checking…' : 'Verify number'}
+        </button>
+        <button type="button" className="btn ghost block" disabled={wait > 0 || busy} onClick={send}>
+          {wait > 0 ? `Send a new code in ${wait}s` : 'Send a new code'}
+        </button>
+        <button type="button" className="btn ghost block" onClick={() => { setSentTo(''); setError(''); }}>Use a different number</button>
       </div>
     </form>
   );

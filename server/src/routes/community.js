@@ -23,7 +23,8 @@ import { generateClientTokenFromReadWriteToken } from '@vercel/blob/client';
 import { head } from '@vercel/blob';
 import { noteInterestLater, interestSql } from '../interests.js';
 import { pickAds } from '../ads.js';
-import { withAds } from '../marketUtils.js';
+import { withAds, PRICES } from '../marketUtils.js';
+import { spend, earn } from '../credits.js';
 import { findFaces, faceDistance } from '../faceEngine.js';
 import { decodeJpeg } from '../imageUtils.js';
 import {
@@ -116,7 +117,7 @@ function postSelect(viewer) {
            p.item_id, p.hashtags, p.reaction_count, p.comment_count, p.share_count, p.status,
            p.created_at, p.edited_at,
            u.name AS author_name, u.handle AS author_handle, u.avatar_url AS author_avatar,
-           (u.verification_status = 'verified' AND u.nid_number IS NOT NULL) AS author_verified,
+           (u.verification_status = 'verified' AND u.nid_number IS NOT NULL AND u.phone_verified_at IS NOT NULL) AS author_verified,
            COALESCE(us.xp, 0) AS author_xp, COALESCE(us.streak_days, 0) AS author_streak,
            c.slug AS community_slug, c.name AS community_name, c.category_id,
            ${TOP_SQL} AS is_top,
@@ -407,7 +408,7 @@ router.get('/posts/:id', async (req, res) => {
   const { rows: comments } = await query(
     `SELECT cm.id, cm.parent_id, cm.body, cm.like_count, cm.created_at, cm.author_id, cm.status,
             u.name AS author_name, u.handle AS author_handle, u.avatar_url AS author_avatar,
-            (u.verification_status = 'verified' AND u.nid_number IS NOT NULL) AS author_verified,
+            (u.verification_status = 'verified' AND u.nid_number IS NOT NULL AND u.phone_verified_at IS NOT NULL) AS author_verified,
             ${me ? `EXISTS (SELECT 1 FROM comment_likes l WHERE l.comment_id = cm.id AND l.user_id = ${Number(me)})` : 'FALSE'} AS liked
        FROM comments cm JOIN users u ON u.id = cm.author_id
       WHERE cm.post_id = $1 AND (cm.status = 'visible' OR cm.author_id = $2)
@@ -577,11 +578,21 @@ router.post('/posts', authRequired, async (req, res) => {
 
   if (!body && !attachments.length && !link && !poll) throw httpError(400, 'Write something, or add a photo, file or link.');
 
-  const { rows: [created] } = await query(
-    `INSERT INTO posts (community_id, author_id, kind, body, attachments, link, poll, wanted, sale, item_id, hashtags)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
-    [community.id, me, kind, body, JSON.stringify(attachments), link, poll, wanted, sale, itemId, parseHashtags(body)]
-  );
+  // A Video Studio video costs a few Limes, paid as it goes live (a render
+  // that fails, or never gets posted, costs nothing).
+  const studio = Boolean(req.body.studio) && attachments.some((a) => a.type === 'video');
+  if (studio) await spend(me, PRICES.studio_video, 'studio', { note: 'Video Studio video' });
+  let created;
+  try {
+    ({ rows: [created] } = await query(
+      `INSERT INTO posts (community_id, author_id, kind, body, attachments, link, poll, wanted, sale, item_id, hashtags)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
+      [community.id, me, kind, body, JSON.stringify(attachments), link, poll, wanted, sale, itemId, parseHashtags(body)]
+    ));
+  } catch (e) {
+    if (studio) await earn(me, PRICES.studio_video, 'refund', { note: 'Video Studio refund' }).catch(() => {});
+    throw e;
+  }
   await query('UPDATE communities SET post_count = post_count + 1 WHERE id = $1', [community.id]);
   await query(
     `INSERT INTO user_stats (user_id, post_count) VALUES ($1, 1)
@@ -797,7 +808,7 @@ router.post('/posts/:id/comments', authRequired, async (req, res) => {
   const { rows: [out] } = await query(
     `SELECT cm.id, cm.parent_id, cm.body, cm.like_count, cm.created_at, cm.author_id, cm.status,
             u.name AS author_name, u.handle AS author_handle, u.avatar_url AS author_avatar, FALSE AS liked,
-            (u.verification_status = 'verified' AND u.nid_number IS NOT NULL) AS author_verified
+            (u.verification_status = 'verified' AND u.nid_number IS NOT NULL AND u.phone_verified_at IS NOT NULL) AS author_verified
        FROM comments cm JOIN users u ON u.id = cm.author_id WHERE cm.id = $1`, [c.id]);
   res.status(201).json(out);
 });
@@ -1043,7 +1054,7 @@ router.get('/users/:who', async (req, res) => {
   const who = String(req.params.who);
   const { rows: [u] } = await query(
     `SELECT u.id, u.name, u.handle, u.bio, u.role, u.created_at, u.avatar_url, u.avatar_matched,
-            (u.verification_status = 'verified' AND u.nid_number IS NOT NULL) AS verified,
+            (u.verification_status = 'verified' AND u.nid_number IS NOT NULL AND u.phone_verified_at IS NOT NULL) AS verified,
             COALESCE(us.xp, 0) AS xp, COALESCE(us.karma, 0) AS karma, COALESCE(us.streak_days, 0) AS streak,
             COALESCE(us.best_streak, 0) AS best_streak, COALESCE(us.badges, '{}') AS badges,
             (SELECT COUNT(*)::int FROM follows WHERE followee_id = u.id) AS followers,

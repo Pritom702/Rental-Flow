@@ -176,7 +176,7 @@ router.get('/:id/renter', authRequired, async (req, res) => {
   // The renter is matched to an account by the email they booked with.
   const { rows: users } = await query(
     `SELECT id, name, email, phone, status, created_at, role, verification_status,
-            nid_number, nid_name, nid_front_url, nid_back_url, nid_submitted_at
+            nid_number, nid_name, nid_front_url, nid_back_url, nid_submitted_at, phone_verified_at
        FROM users WHERE LOWER(email) = LOWER($1)`,
     [booking.customer_email || '']
   );
