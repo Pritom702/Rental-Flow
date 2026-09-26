@@ -16,10 +16,10 @@ import crypto from 'crypto';
 import { query } from '../db.js';
 import { authRequired } from '../middleware/auth.js';
 import { earn } from '../credits.js';
-import { EARN, saleFee, rentalDays, rentalFees } from '../marketUtils.js';
+import { EARN, rentalDays, rentalFees } from '../marketUtils.js';
 
 const router = Router();
-const httpError = (status, message) => Object.assign(new Error(message), { status });
+const httpError = (status, message, extra = {}) => Object.assign(new Error(message), { status, ...extra });
 const taka = (n) => `৳${Math.round(n).toLocaleString('en-IN')}`;
 const METHODS = ['bkash', 'nagad', 'rocket', 'card'];
 const newTran = (prefix) => `${prefix}-${Date.now()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
@@ -41,21 +41,14 @@ router.post('/sale', authRequired, async (req, res) => {
   const { rows: [post] } = await query(`SELECT sale, body FROM posts WHERE id = $1 AND status <> 'removed'`, [c.post_id]);
   if (!post?.sale) throw httpError(404, 'That listing no longer exists.');
 
-  // An offer the seller already accepted is paid at its price; otherwise this
-  // is Buy now at the asking price.
-  let { rows: [deal] } = await query(
+  // Only a deal the seller accepted can be paid: the seller first looks at who
+  // is buying (their rental and sales record), like an owner approving a rental.
+  const { rows: [deal] } = await query(
     `SELECT * FROM sale_deals WHERE conversation_id = $1 AND buyer_id = $2 AND status IN ('offered', 'accepted') ORDER BY id DESC LIMIT 1`,
     [c.id, req.user.id]);
   if (deal?.paid_at) throw httpError(409, 'This is already paid.');
-  if (!deal || (deal.status === 'offered' && deal.price !== Math.round(Number(post.sale.price)))) {
-    if (post.sale.sold) throw httpError(409, 'That item is no longer for sale.');
-    const price = Math.round(Number(post.sale.price));
-    if (deal) await query(`UPDATE sale_deals SET status = 'declined', decided_at = NOW() WHERE id = $1`, [deal.id]);
-    ({ rows: [deal] } = await query(
-      `INSERT INTO sale_deals (conversation_id, post_id, buyer_id, seller_id, price, platform_fee) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [c.id, c.post_id, req.user.id, c.owner_id, price, saleFee(price)]));
-  } else if (deal.status === 'offered' && post.sale.sold) {
-    throw httpError(409, 'That item is no longer for sale.');
+  if (!deal || deal.status !== 'accepted') {
+    throw httpError(409, 'The seller has to accept your offer first. You can pay as soon as they do.', { reason: 'awaiting-seller' });
   }
   const tran = newTran('SALE');
   await query(

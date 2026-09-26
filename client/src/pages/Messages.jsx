@@ -209,7 +209,7 @@ function Thread({ id, onActivity }) {
       </div>
 
       {convo.canWrite === false ? (
-        <div className="composer locked-note"><Icon name="shield" size={16} /> You can write here once the owner approves your booking request.</div>
+        <div className="composer locked-note"><Icon name="shield" size={16} /> {convo.post_id ? 'You can write here once the seller accepts your offer.' : 'You can write here once the owner approves your booking request.'}</div>
       ) : (
       <form className="composer" onSubmit={send}>
         <textarea
@@ -225,6 +225,20 @@ function Thread({ id, onActivity }) {
       </form>
       )}
       {error && <div className="error">{error}</div>}
+    </div>
+  );
+}
+
+// Who is asking to buy: shown to the seller next to the offer, like the renter
+// check an owner sees before approving a rental.
+function BuyerRecord({ who, r }) {
+  return (
+    <div className="buyer-record">
+      <span className={r.verified ? 'ok' : ''}>{r.verified ? 'Fully verified' : 'Not verified yet'}</span>
+      <span>{r.rentals === 1 ? '1 rental' : `${r.rentals} rentals`}{r.rentals_with_charges > 0 ? ` · ${r.rentals_with_charges} with charges` : ''}</span>
+      <span>{`${r.bought} bought · ${r.sold} sold`}</span>
+      {r.dropped > 0 && <span className="warn">{r.dropped === 1 ? '1 deal dropped' : `${r.dropped} deals dropped`}</span>}
+      <small className="muted">{`About ${who}, before you accept.`}</small>
     </div>
   );
 }
@@ -272,6 +286,7 @@ function DealBox({ convo, me, onChange }) {
       <div className="deal-box">
         <Glyph name="sell" size={18} />
         <b>Offer: {money(d.price)}</b>
+        {convo.iAmOwner && convo.buyer && <BuyerRecord who={convo.other_name} r={convo.buyer} />}
         {convo.iAmOwner ? (
           <span className="deal-actions">
             <button type="button" className="btn accent small" disabled={busy} onClick={() => decide('accept')}>Accept</button>

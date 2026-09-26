@@ -669,4 +669,11 @@ export default {
   'Nothing for rent yet': 'এখনও ভাড়ার কিছু নেই',
   'List something you own and earn from it when you are not using it.': 'নিজের কোনো জিনিস লিস্ট করুন, ব্যবহার না করার সময় তা থেকে আয় করুন।',
   'Rent something out': 'কিছু ভাড়া দিন',
+  // Sale chats after the seller accepts
+  'You can message the seller once they accept your offer. Send an offer or a Buy now request first; they will see your rental and sales record.':
+    'বিক্রেতা আপনার অফার গ্রহণ করলেই তাকে মেসেজ করতে পারবেন। আগে একটি অফার বা এখনই কিনুন অনুরোধ পাঠান; তিনি আপনার ভাড়া ও বিক্রির রেকর্ড দেখবেন।',
+  'You can write here once the seller accepts your offer.': 'বিক্রেতা আপনার অফার গ্রহণ করলে এখানে লিখতে পারবেন।',
+  'The seller has to accept your offer first. You can pay as soon as they do.': 'আগে বিক্রেতাকে আপনার অফার গ্রহণ করতে হবে। তিনি গ্রহণ করলেই পেমেন্ট করতে পারবেন।',
+  'Request sent. You can pay and chat as soon as the seller accepts.': 'অনুরোধ পাঠানো হয়েছে। বিক্রেতা গ্রহণ করলেই পেমেন্ট ও চ্যাট করতে পারবেন।',
+  'Not verified yet': 'এখনও যাচাই হয়নি',
 };

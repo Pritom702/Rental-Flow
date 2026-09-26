@@ -35,6 +35,24 @@ async function mine(conversationId, userId) {
 }
 
 const CHAT_AFTER_APPROVAL = 'You can message the owner once they approve your booking request. Send a request first; they will see your rental and sales record.';
+const CHAT_AFTER_ACCEPT = 'You can message the seller once they accept your offer. Send an offer or a Buy now request first; they will see your rental and sales record.';
+
+// What a seller sees about a buyer before accepting: are they verified, and
+// how have their rentals and deals gone.
+async function buyerRecord(userId) {
+  const { rows: [r] } = await query(
+    `SELECT (u.verification_status = 'verified' AND u.nid_number IS NOT NULL AND u.phone_verified_at IS NOT NULL) AS verified,
+            u.created_at AS member_since,
+            (SELECT COUNT(*) FROM bookings b WHERE b.renter_id = u.id AND b.status = 'Completed')::int AS rentals,
+            (SELECT COUNT(*) FROM bookings b WHERE b.renter_id = u.id AND b.status = 'Completed'
+                AND (b.late_fee_amount > 0 OR b.penalty_amount > 0))::int AS rentals_with_charges,
+            (SELECT COUNT(*) FROM sale_deals d WHERE d.buyer_id = u.id AND d.status IN ('accepted', 'completed'))::int AS bought,
+            (SELECT COUNT(*) FROM sale_deals d WHERE d.seller_id = u.id AND d.status IN ('accepted', 'completed'))::int AS sold,
+            (SELECT COUNT(*) FROM sale_deals d WHERE (d.buyer_id = u.id OR d.seller_id = u.id) AND d.status IN ('declined', 'cancelled'))::int AS dropped
+       FROM users u WHERE u.id = $1`,
+    [userId]);
+  return r || null;
+}
 
 // Keeping deals on RentalFlow: until the deal is on the platform — a booking
 // approved for this item, or an offer accepted on this sale — the chat is
@@ -180,8 +198,12 @@ router.get('/conversations/:id', async (req, res) => {
     id: convo.id, iAmOwner: convo.owner_id === req.user.id, ...meta[0],
     seenUpTo: seen[0].seen_up_to, messages: msgs,
     unlocked, deal: deal || null,
-    // Whether this person may write here now (a renter waits for approval).
-    canWrite: !(convo.item_id && convo.renter_id === req.user.id && !unlocked),
+    // Whether this person may write here now (a renter or buyer waits for
+    // the owner's approval / the seller's acceptance).
+    canWrite: !((convo.item_id || convo.post_id) && convo.renter_id === req.user.id && !unlocked),
+    renter_id: convo.renter_id,
+    // A seller deciding on an offer sees who is asking.
+    buyer: convo.post_id && convo.owner_id === req.user.id ? await buyerRecord(convo.renter_id) : null,
   });
 });
 
@@ -190,9 +212,12 @@ router.post('/conversations/:id', async (req, res) => {
   if (!convo) return res.status(404).json({ error: 'Conversation not found' });
   const body = String(req.body.body || '').trim();
   if (!body) return res.status(400).json({ error: 'Type a message first.' });
-  // A rental chat from before this rule: the renter waits for an approval too.
-  if (convo.item_id && convo.renter_id === req.user.id && !(await chatUnlocked(convo))) {
-    return res.status(403).json({ error: CHAT_AFTER_APPROVAL, reason: 'chat-after-approval' });
+  // The renter / buyer writes only once the owner approved the booking or the
+  // seller accepted an offer. The owner or seller may always write.
+  if (convo.renter_id === req.user.id && (convo.item_id || convo.post_id) && !(await chatUnlocked(convo))) {
+    return res.status(403).json(convo.post_id
+      ? { error: CHAT_AFTER_ACCEPT, reason: 'chat-after-accept' }
+      : { error: CHAT_AFTER_APPROVAL, reason: 'chat-after-approval' });
   }
   if (body.length > MAX_MESSAGE) {
     return res.status(400).json({ error: `Messages can be at most ${MAX_MESSAGE} characters.` });

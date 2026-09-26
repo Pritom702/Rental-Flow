@@ -942,3 +942,13 @@ img { max-width: 100%; }
 /* The rule for chatting with an owner, shown where the button would be */
 .chat-rule { display: flex; align-items: center; gap: 6px; margin: 10px 0 0; }
 .composer.locked-note { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 14px; padding: 14px 16px; }
+
+/* A seller's look at the buyer before accepting an offer */
+.buyer-record { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0 2px; }
+.buyer-record > span {
+  padding: 3px 9px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
+  background: var(--surface-2); border: 1px solid var(--border); color: var(--text-2);
+}
+.buyer-record > span.ok { background: color-mix(in srgb, var(--neon, var(--accent)) 25%, transparent); color: var(--text); }
+.buyer-record > span.warn { background: color-mix(in srgb, #FF9F43 20%, transparent); color: var(--text); }
+.buyer-record small { flex-basis: 100%; }
