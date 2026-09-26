@@ -116,7 +116,7 @@ function postSelect(viewer) {
            p.item_id, p.hashtags, p.reaction_count, p.comment_count, p.share_count, p.status,
            p.created_at, p.edited_at,
            u.name AS author_name, u.handle AS author_handle, u.avatar_url AS author_avatar,
-           (u.role <> 'member' OR (u.verification_status = 'verified' AND u.nid_number IS NOT NULL)) AS author_verified,
+           (u.verification_status = 'verified' AND u.nid_number IS NOT NULL) AS author_verified,
            COALESCE(us.xp, 0) AS author_xp, COALESCE(us.streak_days, 0) AS author_streak,
            c.slug AS community_slug, c.name AS community_name, c.category_id,
            ${TOP_SQL} AS is_top,
@@ -407,7 +407,7 @@ router.get('/posts/:id', async (req, res) => {
   const { rows: comments } = await query(
     `SELECT cm.id, cm.parent_id, cm.body, cm.like_count, cm.created_at, cm.author_id, cm.status,
             u.name AS author_name, u.handle AS author_handle, u.avatar_url AS author_avatar,
-            (u.role <> 'member' OR (u.verification_status = 'verified' AND u.nid_number IS NOT NULL)) AS author_verified,
+            (u.verification_status = 'verified' AND u.nid_number IS NOT NULL) AS author_verified,
             ${me ? `EXISTS (SELECT 1 FROM comment_likes l WHERE l.comment_id = cm.id AND l.user_id = ${Number(me)})` : 'FALSE'} AS liked
        FROM comments cm JOIN users u ON u.id = cm.author_id
       WHERE cm.post_id = $1 AND (cm.status = 'visible' OR cm.author_id = $2)
@@ -797,7 +797,7 @@ router.post('/posts/:id/comments', authRequired, async (req, res) => {
   const { rows: [out] } = await query(
     `SELECT cm.id, cm.parent_id, cm.body, cm.like_count, cm.created_at, cm.author_id, cm.status,
             u.name AS author_name, u.handle AS author_handle, u.avatar_url AS author_avatar, FALSE AS liked,
-            (u.role <> 'member' OR (u.verification_status = 'verified' AND u.nid_number IS NOT NULL)) AS author_verified
+            (u.verification_status = 'verified' AND u.nid_number IS NOT NULL) AS author_verified
        FROM comments cm JOIN users u ON u.id = cm.author_id WHERE cm.id = $1`, [c.id]);
   res.status(201).json(out);
 });
@@ -1043,7 +1043,7 @@ router.get('/users/:who', async (req, res) => {
   const who = String(req.params.who);
   const { rows: [u] } = await query(
     `SELECT u.id, u.name, u.handle, u.bio, u.role, u.created_at, u.avatar_url, u.avatar_matched,
-            (u.role <> 'member' OR (u.verification_status = 'verified' AND u.nid_number IS NOT NULL)) AS verified,
+            (u.verification_status = 'verified' AND u.nid_number IS NOT NULL) AS verified,
             COALESCE(us.xp, 0) AS xp, COALESCE(us.karma, 0) AS karma, COALESCE(us.streak_days, 0) AS streak,
             COALESCE(us.best_streak, 0) AS best_streak, COALESCE(us.badges, '{}') AS badges,
             (SELECT COUNT(*)::int FROM follows WHERE followee_id = u.id) AS followers,
