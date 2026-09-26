@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api.js';
+import { useAuth } from '../auth.jsx';
 import { Icon } from '../icons.jsx';
 import { StatTile } from '../components/Charts.jsx';
 
@@ -12,6 +13,8 @@ import { money } from '../money.js';
 import Portal from '../components/Portal.jsx';
 
 export default function Customers() {
+  const { user } = useAuth();
+  const team = user?.role === 'admin' || user?.role === 'staff';
   const [customers, setCustomers] = useState([]);
   const [summary, setSummary] = useState(null);
   const [search, setSearch] = useState('');
@@ -41,7 +44,9 @@ export default function Customers() {
       <div className="page-head">
         <div>
           <h1>Customers</h1>
-          <div className="sub">Everyone who has booked, what they spent, and how reliably they return items.</div>
+          <div className="sub">{team
+            ? 'Everyone who has booked on RentalFlow, what they spent, and how reliably they return items.'
+            : 'People who rented your listings, what they spent, and how reliably they return items.'}</div>
         </div>
         <Link to="/bookings" className="btn secondary">Bookings</Link>
       </div>

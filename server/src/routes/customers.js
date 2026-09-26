@@ -18,6 +18,10 @@ const REVENUE_SQL = `
   ((b.end_date - b.start_date) * i.rental_price) + b.late_fee_amount + b.penalty_amount
 `;
 
+// Admin and staff run the whole counter. A member's customers are the people
+// who booked the member's own listings — never anyone else's.
+const isTeam = (user) => user.role === 'admin' || user.role === 'staff';
+
 // GET /api/customers?q= — the CRM list, best customers first.
 router.get('/', authRequired, async (req, res) => {
   const params = [];
@@ -25,6 +29,10 @@ router.get('/', authRequired, async (req, res) => {
   if (req.query.q) {
     params.push(`%${String(req.query.q).toLowerCase()}%`);
     where += ` AND (LOWER(b.customer_email) LIKE $1 OR LOWER(b.customer_name) LIKE $1)`;
+  }
+  if (!isTeam(req.user)) {
+    params.push(req.user.id);
+    where += ` AND i.owner_id = $${params.length}`;
   }
   const { rows } = await query(
     `SELECT LOWER(b.customer_email)                              AS email,
@@ -72,20 +80,28 @@ router.get('/', authRequired, async (req, res) => {
 });
 
 // GET /api/customers/summary — headline CRM numbers for the page header.
-router.get('/summary', authRequired, async (_req, res) => {
+router.get('/summary', authRequired, async (req, res) => {
+  const params = [];
+  let scope = '';
+  if (!isTeam(req.user)) {
+    params.push(req.user.id);
+    scope = ` AND b.item_id IN (SELECT id FROM items WHERE owner_id = $1)`;
+  }
   const { rows } = await query(
     `SELECT COUNT(DISTINCT LOWER(customer_email)) AS customers,
             COUNT(*)                              AS bookings,
             COUNT(DISTINCT LOWER(customer_email))
               FILTER (WHERE created_at > NOW() - INTERVAL '30 days') AS new_customers
-       FROM bookings WHERE status <> 'Rejected'`
+       FROM bookings b WHERE status <> 'Rejected'${scope}`,
+    params
   );
   const repeat = await query(
     `SELECT COUNT(*) AS repeat_customers FROM (
-        SELECT LOWER(customer_email) FROM bookings
-         WHERE status <> 'Rejected'
+        SELECT LOWER(customer_email) FROM bookings b
+         WHERE status <> 'Rejected'${scope}
          GROUP BY LOWER(customer_email) HAVING COUNT(*) > 1
-     ) AS repeats`
+     ) AS repeats`,
+    params
   );
   const r = rows[0];
   const customers = Number(r.customers);
@@ -101,14 +117,22 @@ router.get('/summary', authRequired, async (_req, res) => {
 // GET /api/customers/:email — one customer's profile + full rental history (F17).
 router.get('/:email', authRequired, async (req, res) => {
   const email = normalizeEmail(req.params.email);
+  const params = [email];
+  // A member may pull their own statement (everything they rented), or the
+  // history of a customer on their own listings only.
+  let scope = '';
+  if (!isTeam(req.user) && email !== normalizeEmail(req.user.email || '')) {
+    params.push(req.user.id);
+    scope = ` AND i.owner_id = $2`;
+  }
   const { rows } = await query(
     `SELECT b.*, i.name AS item_name, i.rental_price,
             ${REVENUE_SQL} AS revenue
        FROM bookings b
        JOIN items i ON i.id = b.item_id
-      WHERE LOWER(b.customer_email) = $1
+      WHERE LOWER(b.customer_email) = $1${scope}
       ORDER BY b.start_date DESC`,
-    [email]
+    params
   );
   if (!rows.length) return res.status(404).json({ error: 'Customer not found' });
 

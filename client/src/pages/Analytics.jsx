@@ -4,6 +4,7 @@
 // ============================================================
 import { useEffect, useState } from 'react';
 import { api } from '../api.js';
+import { useAuth } from '../auth.jsx';
 import { Icon } from '../icons.jsx';
 import { BarChart, DonutChart, UtilizationBar, StatTile } from '../components/Charts.jsx';
 
@@ -16,6 +17,8 @@ const RANGES = [
 ];
 
 export default function Analytics() {
+  const { user } = useAuth();
+  const team = user?.role === 'admin' || user?.role === 'staff';
   const [days, setDays] = useState(30);
   const [overview, setOverview] = useState(null);
   const [trend, setTrend] = useState([]);
@@ -52,7 +55,9 @@ export default function Analytics() {
       <div className="page-head">
         <div>
           <h1>Analytics</h1>
-          <div className="sub">Revenue, fleet utilization and where the money actually comes from.</div>
+          <div className="sub">{team
+            ? 'Revenue, fleet utilization and where the money actually comes from — across the whole platform.'
+            : 'What your own listings earned, how often they are rented, and which ones earn the most.'}</div>
         </div>
         <div className="toolbar" style={{ margin: 0 }}>
           {RANGES.map((r) => (
