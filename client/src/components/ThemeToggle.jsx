@@ -16,7 +16,7 @@ export function currentTheme() {
   return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
 }
 
-export default function ThemeToggle({ className = '' }) {
+export default function ThemeToggle({ className = '', labeled = false }) {
   const [theme, setTheme] = useState(currentTheme);
 
   function flip() {
@@ -32,20 +32,27 @@ export default function ThemeToggle({ className = '' }) {
 
   return (
     <span className={`toggles ${className}`}>
-      <LangToggle />
-      <SoundToggle />
-      <button type="button" data-sfx="toggle" className="theme-toggle" onClick={flip}
+      <LangToggle labeled={labeled} />
+      <SoundToggle labeled={labeled} />
+      <button type="button" data-sfx="toggle" className={`theme-toggle${labeled ? ' pic-btn' : ''}`} onClick={flip}
         aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} title={theme === 'dark' ? 'Light mode' : 'Dark mode'}>
-        <span className="theme-toggle-icons" data-theme={theme}>
-          <Icon name="sun" size={17} />
-          <Icon name="moon" size={17} />
-        </span>
+        {labeled ? (
+          <>
+            <img src="/brand/icons/theme.png" alt="" width="26" height="26" />
+            <small>{theme === 'dark' ? 'Light' : 'Dark'}</small>
+          </>
+        ) : (
+          <span className="theme-toggle-icons" data-theme={theme}>
+            <Icon name="sun" size={17} />
+            <Icon name="moon" size={17} />
+          </span>
+        )}
       </button>
     </span>
   );
 }
 
-function SoundToggle() {
+function SoundToggle({ labeled = false }) {
   const [muted, setState] = useState(isMuted);
   function flip() {
     setMuted(!muted);
@@ -53,23 +60,38 @@ function SoundToggle() {
     if (muted) play('success');                     // just switched on: a chime, so you can check your volume
   }
   return (
-    <button type="button" data-sfx="none" className="theme-toggle sound-toggle" onClick={flip}
+    <button type="button" data-sfx="none" className={`theme-toggle sound-toggle${labeled ? ' pic-btn' : ''}${muted ? ' muted' : ''}`} onClick={flip}
       aria-pressed={!muted} aria-label={muted ? 'Turn sounds on' : 'Turn sounds off'} title={muted ? 'Sounds off' : 'Sounds on'}>
-      <Icon name={muted ? 'sound-off' : 'sound'} size={17} />
+      {labeled ? (
+        <>
+          <img src="/brand/icons/sound.png" alt="" width="26" height="26" />
+          <small>{muted ? 'Muted' : 'Sound'}</small>
+        </>
+      ) : <Icon name={muted ? 'sound-off' : 'sound'} size={17} />}
     </button>
   );
 }
 
 // বাংলা / English. The labels are never translated, so each language is
 // always written in its own script.
-export function LangToggle() {
+export function LangToggle({ labeled = false }) {
   const lang = useLang();
   const next = lang === 'bn' ? 'en' : 'bn';
   return (
-    <button type="button" data-sfx="toggle" className="lang-toggle" translate="no" onClick={() => setLang(next)}
+    <button type="button" data-sfx="toggle" className={`lang-toggle${labeled ? ' pic-btn' : ''}`} translate="no" onClick={() => setLang(next)}
       aria-label={lang === 'bn' ? 'Switch to English' : 'বাংলায় দেখুন'} title={lang === 'bn' ? 'English' : 'বাংলা'}>
-      <span className={lang === 'bn' ? 'on' : ''}>বাং</span>
-      <span className={lang === 'en' ? 'on' : ''}>EN</span>
+      {labeled ? (
+        <>
+          <img src="/brand/icons/language.png" alt="" width="26" height="26" />
+          {/* the language you switch to, written in that language */}
+          <small>{lang === 'bn' ? 'English' : 'বাংলা'}</small>
+        </>
+      ) : (
+        <>
+          <span className={lang === 'bn' ? 'on' : ''}>বাং</span>
+          <span className={lang === 'en' ? 'on' : ''}>EN</span>
+        </>
+      )}
     </button>
   );
 }

@@ -170,6 +170,7 @@ export function LimesChip() {
   return (
     <button type="button" className={`limes-chip${bump ? ' bump' : ''}`} onClick={() => navigate('/limes')} title="Your Limes — earn, top up, boost">
       <img src="/brand/icons/limes.png" alt="" width="24" height="24" /><b>{me.limes ?? '…'}</b>
+      <small className="tb-name">Limes</small>
     </button>
   );
 }
@@ -215,6 +216,7 @@ export function XpRing() {
           <Glyph name="flame" size={16} />{me.streak}
         </span>
       )}
+      <small className="tb-name">Level</small>
     </button>
   );
 }

@@ -617,4 +617,10 @@ export default {
   'Add a photo or video of it, or attach one of your listings that has photos': 'এর একটি ছবি বা ভিডিও যোগ করুন, অথবা ছবিসহ আপনার কোনো লিস্টিং যুক্ত করুন',
   'Search communities…': 'কমিউনিটি খুঁজুন…',
   'Search communities': 'কমিউনিটি খুঁজুন',
+  // Top bar names
+  'Alerts': 'নোটিফিকেশন',
+  'Muted': 'মিউট',
+  'Sound': 'সাউন্ড',
+  'Light': 'লাইট',
+  'Dark': 'ডার্ক',
 };

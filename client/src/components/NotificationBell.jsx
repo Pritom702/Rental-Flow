@@ -66,7 +66,7 @@ function timeAgo(iso) {
   return new Date(iso).toLocaleDateString();
 }
 
-export default function NotificationBell() {
+export default function NotificationBell({ labeled = false }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
@@ -135,15 +135,22 @@ export default function NotificationBell() {
     <div className="bell-wrap" ref={wrapRef}>
       <style>{STYLES}</style>
       <button
-        className="bell-btn"
+        className={`bell-btn${labeled ? ' pic-btn' : ''}`}
         onClick={() => setOpen((v) => !v)}
         aria-label={unread ? `${unread} unread notifications` : 'Notifications'}
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M18 8.5a6 6 0 1 0-12 0c0 5-2 6.5-2 6.5h16s-2-1.5-2-6.5" />
-          <path d="M10.5 19a2 2 0 0 0 3 0" />
-        </svg>
+        {labeled ? (
+          <>
+            <img src="/brand/icons/bell.png" alt="" width="26" height="26" />
+            <small>Alerts</small>
+          </>
+        ) : (
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M18 8.5a6 6 0 1 0-12 0c0 5-2 6.5-2 6.5h16s-2-1.5-2-6.5" />
+            <path d="M10.5 19a2 2 0 0 0 3 0" />
+          </svg>
+        )}
         {unread > 0 && <span className="bell-count">{unread > 9 ? '9+' : unread}</span>}
       </button>
 

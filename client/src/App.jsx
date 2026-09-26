@@ -98,32 +98,33 @@ const NAV_GROUPS = [
     label: 'Marketplace',
     links: [
       { to: '/browse', icon: 'search', bi: 'rent', label: 'Browse' },
+      { to: '/items/new', icon: 'plus', bi: 'rentout', label: 'Rent it out' },
       { to: '/sell', icon: 'tag', bi: 'sell', label: 'Sell something' },
       { to: '/studio', icon: 'sparkles', bi: 'studio', label: 'Video Studio' },
       { to: '/limes', icon: 'wallet', bi: 'limes', label: 'Limes' },
       { to: '/messages', icon: 'chat', bi: 'messages', label: 'Messages', badge: 'unread' },
-      { to: '/dashboard', icon: 'package', label: 'My Listings', adminLabel: 'All Listings' },
+      { to: '/dashboard', icon: 'package', bi: 'listings', label: 'My Listings', adminLabel: 'All Listings' },
     ],
   },
   {
     label: 'Operations',
     links: [
       { to: '/bookings', icon: 'calendar', bi: 'bookings', label: 'Bookings' },
-      { to: '/customers', icon: 'users', label: 'Customers' },
-      { to: '/maintenance', icon: 'tool', label: 'Maintenance' },
+      { to: '/customers', icon: 'users', bi: 'customers', label: 'Customers' },
+      { to: '/maintenance', icon: 'tool', bi: 'maintenance', label: 'Maintenance' },
     ],
   },
   {
     label: 'Records',
     links: [
-      { to: '/analytics', icon: 'chart', label: 'Analytics' },
-      { to: '/documents', icon: 'file', label: 'Documents' },
-      { to: '/profile', icon: 'user', label: 'My Profile' },
-      { to: '/admin', icon: 'settings', label: 'Admin', admin: true },
-      { to: '/admin/verifications', icon: 'shield', label: 'ID reviews', admin: true },
-      { to: '/admin/incidents', icon: 'alert', label: 'Incidents', admin: true },
-      { to: '/admin/moderation', icon: 'shield', label: 'Moderation', admin: true },
-      { to: '/admin/revenue', icon: 'chart', label: 'Revenue', admin: true },
+      { to: '/analytics', icon: 'chart', bi: 'analytics', label: 'Analytics' },
+      { to: '/documents', icon: 'file', bi: 'documents', label: 'Documents' },
+      { to: '/profile', icon: 'user', bi: 'profile', label: 'My Profile' },
+      { to: '/admin', icon: 'settings', bi: 'admin', label: 'Admin', admin: true },
+      { to: '/admin/verifications', icon: 'shield', bi: 'idreviews', label: 'ID reviews', admin: true },
+      { to: '/admin/incidents', icon: 'alert', bi: 'incidents', label: 'Incidents', admin: true },
+      { to: '/admin/moderation', icon: 'shield', bi: 'moderation', label: 'Moderation', admin: true },
+      { to: '/admin/revenue', icon: 'chart', bi: 'revenue', label: 'Revenue', admin: true },
     ],
   },
 ];
@@ -140,6 +141,7 @@ const TOP_NAV = [
   { to: '/communities', icon: 'communities', label: 'Communities' },
   { to: '/browse', icon: 'rent', label: 'Rent' },
   { to: '/sell', icon: 'sell', label: 'Sell', tag: 'Hot', hot: true },
+  { to: '/items/new', icon: 'rentout', label: 'Rent it out' },
   { to: '/messages', icon: 'messages', label: 'Messages', badge: 'unread', sub: true },
   { to: '/bookings', icon: 'bookings', label: 'Bookings', sub: true },
 ];
@@ -251,7 +253,7 @@ function AppShell({ children }) {
               <div className="tn-pop more-pop">
                 {moreLinks.map((l) => (
                   <NavLink key={l.to} to={l.to} end={l.to === '/admin'} className="tn-pop-link">
-                    <Icon name={l.icon} size={16} />
+                    {l.bi ? <BrandIcon name={l.bi} size={24} /> : <Icon name={l.icon} size={16} />}
                     {user?.role === 'admin' && l.adminLabel ? l.adminLabel : l.label}
                   </NavLink>
                 ))}
@@ -269,8 +271,8 @@ function AppShell({ children }) {
             </button>
             {creating && <div className="tn-pop create-pop">{createChoices}</div>}
           </div>
-          <ThemeToggle className="tn-toggles" />
-          <NotificationBell />
+          <ThemeToggle className="tn-toggles" labeled />
+          <NotificationBell labeled />
           <div className="tn-me" ref={meRef}>
             <button type="button" className="tn-avatar" onClick={() => setMeMenu((v) => !v)} aria-label="Your account" aria-expanded={me}>
               {meStats?.avatar_url ? <img src={meStats.avatar_url} alt="" /> : initials(user?.name)}

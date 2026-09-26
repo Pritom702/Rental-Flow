@@ -162,22 +162,17 @@
 
 /* narrower screens: icons first, then the phone layout */
 /* words stay as long as they fit: the main places keep theirs longest */
-@media (max-width: 1640px) { .tn-sub:not(.active) .tn-label { display: none; } .tn-sub:not(.active) { padding: 0 6px; } }
-@media (max-width: 1500px) { .tn-btn:not(.active) .tn-label { display: none; } .tn-btn:not(.active) { padding: 0 6px; } }
 /* Narrow laptops: Limes and XP step aside (both are in the menu), Create is an icon. */
 @media (max-width: 1100px) {
   .tn-right .limes-chip, .tn-right .xp-ring-btn { display: none; }
   .tn-create-btn > span { display: none; }
   .tn-create-btn { padding: 0 10px; }
 }
-@media (max-width: 1000px) { .tn-btn .tn-label { display: none; } .tn-btn { padding: 0 6px; } }
 /* Mid-size screens: sound moves into the account menu, and the language
    switch shows just the language you can switch to. */
 @media (max-width: 1240px) {
   .tn-toggles .sound-toggle { display: none; }
   .me-pop .me-toggles { display: flex !important; }
-  .tn-toggles .lang-toggle span:not(.on) { display: none; }
-  .tn-toggles .lang-toggle span.on { background: none; color: var(--text); }
 }
 @media (max-width: 900px) {
   .tn-nav, .tn-create, .tn-toggles { display: none; }
@@ -191,7 +186,7 @@
 .shell-top .shell-main { background: radial-gradient(1100px 380px at 50% -140px, rgba(198, 242, 78, .16), transparent 70%) no-repeat; }
 
 /* ================================================================ the feed, vivid */
-.feed-tabs { top: 64px; padding: 6px; margin: 0 0 14px; border-radius: 18px; background: var(--night); position: sticky; box-shadow: 0 10px 30px -18px rgba(0, 0, 0, .6); }
+.feed-tabs { top: 68px; padding: 6px; margin: 0 0 14px; border-radius: 18px; background: var(--night); position: sticky; box-shadow: 0 10px 30px -18px rgba(0, 0, 0, .6); }
 @media (max-width: 900px) { .feed-tabs { top: 58px; } }
 .feed-tabs button, .feed-tabs .reels-tab { border: none; background: transparent; color: var(--night-muted); padding: 9px 14px; border-radius: 12px; }
 .feed-tabs button:hover { color: #fff; background: rgba(255, 255, 255, .06); }
@@ -441,3 +436,60 @@
 .sg-text { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 4px; }
 .sg-text b { font: 500 20px var(--font-display); }
 .sg-text span { font-size: 13.5px; color: var(--night-muted); line-height: 1.5; }
+
+/* ================================================================ top bar: every button is a picture with its name under it */
+.topnav { height: 68px; }
+.tn-btn {
+  flex-direction: column; justify-content: center; gap: 3px; height: 58px; min-width: 58px; padding: 4px 6px;
+}
+.tn-label { font-size: 11px; line-height: 1.1; letter-spacing: .01em; }
+.tn-btn .tn-count { top: 0; left: calc(50% + 6px); }
+.tn-btn .tn-tag { top: -2px; right: 0; }
+.tn-btn.active::after { bottom: -6px; }
+.tn-pop { top: calc(100% + 8px); }
+.tn-pop-link .b-icon { flex: none; }
+
+/* the round controls on the right follow the same pattern */
+.topnav .pic-btn {
+  display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  width: auto; min-width: 50px; height: 56px; padding: 4px 6px; border-radius: 14px;
+  background: none; border: 1px solid transparent; color: var(--night-muted); cursor: pointer;
+  font: 600 11px/1.1 var(--font-ui);
+  transition: background .2s, color .2s;
+}
+.topnav .pic-btn img { transition: transform .35s var(--spring); }
+.topnav .pic-btn:hover { background: rgba(255, 255, 255, .045); color: #fff; border-color: transparent; }
+.topnav .pic-btn:hover img { transform: translateY(-2px) rotate(-9deg) scale(1.1); }
+.topnav .pic-btn:active img { transform: scale(.88); }
+.topnav .pic-btn small { font: inherit; white-space: nowrap; }
+.topnav .sound-toggle.pic-btn.muted img { filter: grayscale(1); opacity: .55; }
+.topnav .bell-btn.pic-btn .bell-count { top: 0; right: 4px; }
+@media (min-width: 901px) { .tn-toggles.toggles { display: inline-flex; gap: 2px; } }
+
+.tb-name { display: none; }
+.topnav .tb-name { display: block; flex-basis: 100%; text-align: center; font: 600 11px/1.1 var(--font-ui); color: var(--night-muted); }
+.topnav .limes-chip, .topnav .xp-ring-btn { flex-wrap: wrap; justify-content: center; row-gap: 1px; height: 56px; border-radius: 14px; }
+.topnav .limes-chip { padding: 4px 10px; }
+
+/* narrower laptops: keep every name, just tighten the spacing */
+@media (max-width: 1500px) {
+  .tn-btn { min-width: 52px; padding: 4px 4px; }
+  .tn-label, .topnav .pic-btn, .topnav .tb-name { font-size: 10.5px; }
+  .topnav .pic-btn { min-width: 44px; padding: 4px 3px; }
+  .tn-brand .wordmark { display: none; }
+}
+@media (max-width: 1240px) {
+  .tn-btn { min-width: 46px; }
+  .tn-label, .topnav .pic-btn, .topnav .tb-name { font-size: 10px; }
+}
+@media (max-width: 900px) {
+  .topnav { height: 58px; }
+  .tn-brand .wordmark { display: inline; }
+}
+@media (max-width: 1100px) and (min-width: 901px) {
+  .tn-create-btn { flex-direction: column; gap: 1px; height: 52px; padding: 4px 10px; }
+  .tn-create-btn > span { display: block !important; font-size: 10px; line-height: 1.1; }
+}
+@media (max-width: 900px) {
+  .topnav .bell-btn.pic-btn { min-width: 44px; height: 50px; padding: 3px 2px; }
+}
