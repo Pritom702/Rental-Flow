@@ -307,7 +307,8 @@ router.post('/join-many', authRequired, async (req, res) => {
 // GET /api/community/feed?scope=home|all|following|saved&sort=hot|new|top
 //     &community=<slug>&tag=<tag>&q=<text>&author=<id>&item=<id>&kind=<kind>&offset=<n>
 function feedFilters(req, me, params) {
-  const where = [`p.status = 'visible'`];
+  // A For rent post whose listing is gone has nothing left to show.
+  const where = [`p.status = 'visible'`, `NOT (p.kind = 'rent' AND p.item_id IS NULL)`];
   const add = (sql, value) => { params.push(value); where.push(sql.replace('$?', `$${params.length}`)); };
   const { scope = 'all', community, tag, q, author, item, kind } = req.query;
 
@@ -316,7 +317,7 @@ function feedFilters(req, me, params) {
   if (q) add(`p.body ILIKE $?`, `%${String(q).slice(0, 80)}%`);
   if (author) add(`p.author_id = $?`, Number(author));
   if (item) add(`p.item_id = $?`, Number(item));
-  if (kind && KINDS.includes(kind)) add(`p.kind = $?`, kind);
+  if (kind && (KINDS.includes(kind) || kind === 'rent')) add(`p.kind = $?`, kind);
   if (req.query.media === 'video') where.push(`p.attachments @> '[{"type":"video"}]'`);
 
   if (me && scope === 'following') {

@@ -7,6 +7,7 @@
 // and accessory tracking. Every item is owned by the member who listed it.
 // Only the owner or an admin may modify a listing. All raw SQL.
 import { Router } from 'express';
+import { syncListingPost, removeListingPost } from '../listingPosts.js';
 import { randomUUID } from 'crypto';
 import { query, pool } from '../db.js';
 import { NAME_MAX, DESCRIPTION_MAX } from '../socialUtils.js';
@@ -194,6 +195,7 @@ router.post('/', authRequired, async (req, res) => {
   // while asking for another waited until timeout and answered 500 — after the
   // item had already been saved, so every retry created a duplicate listing.
   client.release();
+  await syncListingPost(itemId);   // the new listing shows up in the feed
   res.status(201).json(await getItemFull(itemId));
 });
 
@@ -250,6 +252,7 @@ router.put('/:id', authRequired, requireOwnerOrAdmin, async (req, res) => {
     return res.status(500).json({ error: err.message });
   }
   client.release();   // before getItemFull() — see POST above
+  await syncListingPost(id);
   res.json(await getItemFull(id));
 });
 
@@ -263,11 +266,13 @@ router.patch('/:id/status', authRequired, requireOwnerOrAdmin, async (req, res) 
     'UPDATE items SET status = $2 WHERE id = $1 RETURNING id, name, status',
     [req.params.id, status]
   );
+  await syncListingPost(req.params.id);   // a retired listing leaves the feed
   res.json(rows[0]);
 });
 
 // DELETE /api/items/:id  — owner or admin.
 router.delete('/:id', authRequired, requireOwnerOrAdmin, async (req, res) => {
+  await removeListingPost(req.params.id);
   await query('DELETE FROM items WHERE id = $1', [req.params.id]);
   res.status(204).end();
 });

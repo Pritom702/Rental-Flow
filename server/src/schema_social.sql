@@ -114,7 +114,7 @@ CREATE TABLE IF NOT EXISTS posts (
   community_id   INTEGER NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
   author_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   kind           VARCHAR(12) NOT NULL DEFAULT 'post'
-                 CHECK (kind IN ('post', 'showcase', 'question', 'guide', 'wanted', 'poll', 'sell')),
+                 CHECK (kind IN ('post', 'showcase', 'question', 'guide', 'wanted', 'poll', 'sell', 'rent')),
   body           TEXT NOT NULL DEFAULT '' CHECK (char_length(body) <= 5000),
   attachments    JSONB NOT NULL DEFAULT '[]',
   link           JSONB,
@@ -135,7 +135,7 @@ CREATE TABLE IF NOT EXISTS posts (
 ALTER TABLE posts ADD COLUMN IF NOT EXISTS sale JSONB;
 ALTER TABLE posts DROP CONSTRAINT IF EXISTS posts_kind_check;
 ALTER TABLE posts ADD CONSTRAINT posts_kind_check
-  CHECK (kind IN ('post', 'showcase', 'question', 'guide', 'wanted', 'poll', 'sell'));
+  CHECK (kind IN ('post', 'showcase', 'question', 'guide', 'wanted', 'poll', 'sell', 'rent'));
 CREATE INDEX IF NOT EXISTS posts_new_idx        ON posts (created_at DESC, id DESC) WHERE status = 'visible';
 CREATE INDEX IF NOT EXISTS posts_community_idx  ON posts (community_id, created_at DESC) WHERE status = 'visible';
 CREATE INDEX IF NOT EXISTS posts_author_idx     ON posts (author_id, created_at DESC);

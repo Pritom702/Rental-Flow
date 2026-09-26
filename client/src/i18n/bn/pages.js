@@ -665,4 +665,8 @@ export default {
   'Deals dropped': 'বাতিল ডিল',
   'declined or cancelled': 'প্রত্যাখ্যাত বা বাতিল',
   'No rentals yet — this is their first request.': 'এখনও কোনো ভাড়া নেই — এটি তার প্রথম অনুরোধ।',
+  // Listings in the feed
+  'Nothing for rent yet': 'এখনও ভাড়ার কিছু নেই',
+  'List something you own and earn from it when you are not using it.': 'নিজের কোনো জিনিস লিস্ট করুন, ব্যবহার না করার সময় তা থেকে আয় করুন।',
+  'Rent something out': 'কিছু ভাড়া দিন',
 };

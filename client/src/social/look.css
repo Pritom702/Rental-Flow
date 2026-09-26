@@ -227,8 +227,8 @@
   background: var(--night); color: var(--neon); box-shadow: 0 6px 16px -6px rgba(0, 0, 0, .5);
 }
 .kind-ribbon .glyph { --g-line: var(--neon); --g-fill: transparent; }
-.kind-ribbon.k-sell, .kind-ribbon.k-showcase { background: var(--neon-grad); color: #0B140F; box-shadow: 0 6px 18px -6px rgba(198, 242, 78, .8); }
-.kind-ribbon.k-sell .glyph, .kind-ribbon.k-showcase .glyph { --g-line: #0B140F; }
+.kind-ribbon.k-sell, .kind-ribbon.k-showcase, .kind-ribbon.k-rent { background: var(--neon-grad); color: #0B140F; box-shadow: 0 6px 18px -6px rgba(198, 242, 78, .8); }
+.kind-ribbon.k-sell .glyph, .kind-ribbon.k-showcase .glyph, .kind-ribbon.k-rent .glyph { --g-line: #0B140F; }
 .kind-ribbon.k-wanted { background: linear-gradient(135deg, #FFD37A, #FF9F43); color: #1A0C00; }
 .kind-ribbon.k-wanted .glyph { --g-line: #1A0C00; }
 .pc-reason { display: inline-flex; align-items: center; gap: 6px; margin: -2px 0 8px; padding: 3px 10px 3px 7px; border-radius: 999px; font-size: 11.5px; font-weight: 800; color: var(--accent); background: var(--accent-soft); }

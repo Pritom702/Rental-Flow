@@ -26,6 +26,8 @@ export const KINDS = {
   wanted:   { label: 'Wanted',   glyph: 'wanted',   hint: 'Looking for something to rent' },
   poll:     { label: 'Poll',     glyph: 'poll',     hint: 'Let people vote' },
   sell:     { label: 'Sell',     glyph: 'sell',     hint: 'Sell something you own' },
+  // Made by RentalFlow when a listing goes up for rent; never picked by hand.
+  rent:     { label: 'For rent', glyph: 'rent',     hint: 'A new listing for rent', auto: true },
 };
 // Posts are kept short, like a status; a sale describes the item in up to
 // 1000 characters, and so does a listing. Product names: 50. (The server

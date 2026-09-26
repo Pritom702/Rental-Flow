@@ -34,6 +34,7 @@ const TABS = [
   { id: 'following', label: 'Following', scope: 'following', sort: 'new', auth: true },
   { id: 'new', label: 'New', scope: 'all', sort: 'new' },
   { id: 'top', label: 'Top', scope: 'all', sort: 'top' },
+  { id: 'rent', label: 'For rent', glyph: 'rent', scope: 'all', sort: 'new', kind: 'rent' },
   { id: 'sale', label: 'For sale', glyph: 'sell', scope: 'all', sort: 'new', kind: 'sell' },
   { id: 'saved', label: 'Kept', glyph: 'keep', scope: 'saved', sort: 'new', auth: true },
 ];
@@ -474,13 +475,15 @@ function EmptyFeed({ tab, slug, onCompose }) {
     following: ['Follow people to fill this', 'Tap a name on any post, then Follow.'],
     saved: ['Nothing kept yet', 'Tap Keep on any post to find it here later.'],
     sale: ['Nothing for sale yet', 'Got something you no longer use? Sell it here in a minute.'],
+    rent: ['Nothing for rent yet', 'List something you own and earn from it when you are not using it.'],
   }[tab.id] || [slug ? 'Be the first to post here' : 'Nothing here yet', 'Start the conversation — it takes ten seconds.'];
   return (
     <div className="feed-empty">
-      <span className="fe-emoji"><Glyph name={tab.id === 'sale' ? 'sell' : tab.id === 'saved' ? 'keep' : 'sprout'} size={44} /></span>
+      <span className="fe-emoji"><Glyph name={tab.id === 'sale' ? 'sell' : tab.id === 'rent' ? 'rent' : tab.id === 'saved' ? 'keep' : 'sprout'} size={44} /></span>
       <b>{copy[0]}</b>
       <span className="muted">{copy[1]}</span>
-      {tab.id !== 'saved' && tab.id !== 'following' && (
+      {tab.id === 'rent' && <Link to="/items/new" className="btn accent">Rent something out</Link>}
+      {tab.id !== 'saved' && tab.id !== 'following' && tab.id !== 'rent' && (
         <button type="button" className="btn accent" onClick={() => onCompose(tab.id === 'sale' ? 'sell' : 'post')}>
           {tab.id === 'sale' ? 'Sell something' : 'Create a post'}
         </button>

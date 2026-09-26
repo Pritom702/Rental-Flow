@@ -80,6 +80,10 @@ async function main() {
   await pool.query('DROP TABLE IF EXISTS phone_codes CASCADE');
   await pool.query(fs.readFileSync(path.join(__dirname, 'schema_phone.sql'), 'utf8'));
   console.log('✅ Phone verification ready');
+
+  // Rental listings in the feed (one 'rent' post per listing).
+  await pool.query(fs.readFileSync(path.join(__dirname, 'schema_listing_posts.sql'), 'utf8'));
+  console.log('✅ Listing posts ready');
   await pool.end();
 }
 
