@@ -9,7 +9,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { celebrate } from '../fx.js';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
-import { Icon } from '../icons.jsx';
+import { Icon, categoryIcon } from '../icons.jsx';
 import ProductCard from '../components/ProductCard.jsx';
 import { useAuth } from '../auth.jsx';
 import { money } from '../money.js';
@@ -17,9 +17,24 @@ import { rentalDays, rentalFees } from '../social/fees.js';
 import { Glyph } from '../social/glyphs.jsx';
 import Portal from '../components/Portal.jsx';
 
+// Local calendar date as YYYY-MM-DD. toISOString() would give the UTC date,
+// which in Bangladesh (UTC+6) is the previous day for any local midnight.
 function toISODate(date) {
-  return date.toISOString().slice(0, 10);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
+const BLOCKING = ['Pending', 'Approved', 'Completed'];
+const PRICE_BANDS = [
+  { key: 'u500', label: 'Under ৳500', min: 0, max: 500 },
+  { key: '500-2000', label: '৳500 – ৳2,000', min: 500, max: 2000 },
+  { key: 'o2000', label: 'Over ৳2,000', min: 2000, max: Infinity },
+];
+const SORTS = [
+  { key: 'best', label: 'Best match' },
+  { key: 'low', label: 'Lowest price' },
+  { key: 'high', label: 'Highest price' },
+  { key: 'new', label: 'Newest' },
+];
 
 export default function PublicBooking() {
   const [params, setParams] = useSearchParams();
@@ -29,6 +44,11 @@ export default function PublicBooking() {
   const [categories, setCategories] = useState([]);
   const [search, setSearch] = useState(params.get('search') || '');
   const [categoryId, setCategoryId] = useState(params.get('category_id') || '');
+  // Quick filters, kept in the URL so a filtered view can be shared.
+  const [availOnly, setAvailOnly] = useState(params.get('available') === '1');
+  const [verifiedOnly, setVerifiedOnly] = useState(params.get('verified') === '1');
+  const [price, setPrice] = useState(params.get('price') || '');
+  const [sort, setSort] = useState(params.get('sort') || 'best');
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState(null);
   const [bookingAvailability, setBookingAvailability] = useState([]);
@@ -61,8 +81,20 @@ export default function PublicBooking() {
     const data = await api.get(`/items?${q.toString()}`);
     setItems(data);
     setLoading(false);
-    setParams(q, { replace: true });
   }
+  // Mirror every filter into the URL (keeping ?item= for deep links).
+  useEffect(() => {
+    const q = new URLSearchParams();
+    if (search) q.set('search', search);
+    if (categoryId) q.set('category_id', categoryId);
+    if (availOnly) q.set('available', '1');
+    if (verifiedOnly) q.set('verified', '1');
+    if (price) q.set('price', price);
+    if (sort !== 'best') q.set('sort', sort);
+    if (params.get('item')) q.set('item', params.get('item'));
+    if (q.toString() !== params.toString()) setParams(q, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, categoryId, availOnly, verifiedOnly, price, sort]);
 
   useEffect(() => { api.get('/categories').then(setCategories).catch(() => {}); }, []);
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [search, categoryId]);
@@ -89,8 +121,43 @@ export default function PublicBooking() {
   function clearFilters() {
     setSearch('');
     setCategoryId('');
+    setAvailOnly(false);
+    setVerifiedOnly(false);
+    setPrice('');
+    setSort('best');
   }
-  const hasFilters = Boolean(search || categoryId);
+  const hasFilters = Boolean(search || categoryId || availOnly || verifiedOnly || price);
+
+  // Filter and sort on the page: the list is small and this keeps taps instant.
+  const shown = useMemo(() => {
+    const band = PRICE_BANDS.find((b) => b.key === price);
+    const list = items.filter((it) => (
+      (!availOnly || it.status === 'Available')
+      && (!verifiedOnly || it.owner_verified)
+      && (!band || (Number(it.rental_price) >= band.min && Number(it.rental_price) < band.max))
+    ));
+    const newest = (a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')) || b.id - a.id;
+    const by = {
+      // Best match: rentable now first, then listings with photos, then newest.
+      best: (a, b) => (b.status === 'Available') - (a.status === 'Available') || Boolean(b.cover_url) - Boolean(a.cover_url) || newest(a, b),
+      low: (a, b) => Number(a.rental_price) - Number(b.rental_price),
+      high: (a, b) => Number(b.rental_price) - Number(a.rental_price),
+      new: newest,
+    }[sort] || newest;
+    return [...list].sort(by);
+  }, [items, availOnly, verifiedOnly, price, sort]);
+
+  // With nothing picked, the page shows a row per category instead of one long list.
+  const shelves = useMemo(() => {
+    if (hasFilters) return [];
+    return categories
+      .map((c) => ({ ...c, list: shown.filter((it) => String(it.category_id) === String(c.id)) }))
+      .filter((c) => c.list.length)
+      // Rows with real photos lead; a row of "No photo" cards looks empty.
+      .map((c) => ({ ...c, photos: c.list.filter((it) => it.cover_url).length }))
+      .sort((a, b) => b.photos - a.photos || b.list.length - a.list.length);
+  }, [categories, shown, hasFilters]);
+  const activeCategory = categories.find((c) => String(c.id) === String(categoryId));
 
   useEffect(() => {
     if (!selectedItem) {
@@ -198,27 +265,54 @@ export default function PublicBooking() {
     const leadingBlankCount = firstDay.getDay();
     const days = [];
     for (let i = 0; i < leadingBlankCount; i += 1) days.push(null);
+    const today = toISODate(new Date());
     for (let day = 1; day <= daysInMonth; day += 1) {
-      const date = new Date(year, month, day);
-      const dateKey = toISODate(date);
-      const isBooked = bookingAvailability.some((booking) => {
-        const blockedStatuses = ['Pending', 'Approved', 'Completed'];
-        if (!blockedStatuses.includes(booking.status)) return false;
-        return dateKey >= booking.start_date && dateKey <= booking.end_date;
-      });
-      days.push({ dateKey, day, isBooked });
+      const dateKey = toISODate(new Date(year, month, day));
+      // The end date is the return day, so a new rental may start on it.
+      const isBooked = bookingAvailability.some((booking) => (
+        BLOCKING.includes(booking.status) && dateKey >= booking.start_date && dateKey < booking.end_date
+      ));
+      days.push({ dateKey, day, isBooked, isPast: dateKey < today, isToday: dateKey === today });
     }
     return days;
   }, [bookingAvailability, calendarMonth, selectedItem]);
 
+  // Tap a day to set the pickup date, tap a later day to set the return date.
+  // A third tap starts a new range.
+  function pickDay(dateKey) {
+    const { start_date: start, end_date: end } = bookingForm;
+    if (!start || end || dateKey <= start) {
+      setBookingForm({ ...bookingForm, start_date: dateKey, end_date: '' });
+    } else {
+      setBookingForm({ ...bookingForm, end_date: dateKey });
+    }
+  }
+  const monthStart = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1);
+  const thisMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+
   return (
     <div className="container">
-      <div className="page-head">
-        <div>
-          <h1>Rental Marketplace</h1>
-          <div className="sub">Browse equipment, review availability, and request a booking.</div>
+      <section className="browse-hero">
+        <div className="browse-hero-text">
+          <span className="browse-eyebrow"><Icon name="sparkles" size={14} /> Rent it, don’t buy it</span>
+          <h1>Find what you need, from people near you</h1>
+          <p>Cameras, tools, gear and more, by the day. Every owner’s ID is checked before they can list.</p>
         </div>
-      </div>
+        <div className="browse-search search-field">
+          <Icon name="search" size={20} />
+          <input
+            placeholder="Search cameras, drills, tents…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="Search items"
+          />
+          {search && (
+            <button type="button" className="browse-search-x" onClick={() => setSearch('')} aria-label="Clear search">
+              <Icon name="close" size={16} />
+            </button>
+          )}
+        </div>
+      </section>
 
       {/* Confirmation lives on the page, not in the modal — the modal closes on success. */}
       {bookingSuccess && (
@@ -227,6 +321,54 @@ export default function PublicBooking() {
           <Link to="/bookings" className="btn secondary small" style={{ marginLeft: 'auto' }}>View bookings</Link>
         </div>
       )}
+
+      <div className="cat-rail" role="tablist" aria-label="Categories">
+        <button type="button" role="tab" aria-selected={!categoryId} className={`cat-tile${!categoryId ? ' on' : ''}`} onClick={() => setCategoryId('')}>
+          <span className="cat-ic"><Icon name="grid" size={22} /></span>
+          <b>Everything</b>
+          <small>{categories.reduce((n, c) => n + Number(c.item_count || 0), 0)}</small>
+        </button>
+        {[...categories].sort((x, y) => Number(y.item_count) - Number(x.item_count)).map((c) => (
+          <button
+            type="button"
+            role="tab"
+            key={c.id}
+            aria-selected={String(c.id) === String(categoryId)}
+            className={`cat-tile${String(c.id) === String(categoryId) ? ' on' : ''}${Number(c.item_count) ? '' : ' empty'}`}
+            onClick={() => setCategoryId(String(c.id) === String(categoryId) ? '' : String(c.id))}
+          >
+            <span className="cat-ic"><Icon name={categoryIcon(c.name)} size={22} /></span>
+            <b>{c.name}</b>
+            <small>{c.item_count}</small>
+          </button>
+        ))}
+      </div>
+
+      <div className="filter-row">
+        <button type="button" className={`chip${availOnly ? ' on' : ''}`} aria-pressed={availOnly} onClick={() => setAvailOnly(!availOnly)}>
+          <Icon name="calendar" size={14} /> Available now
+        </button>
+        <button type="button" className={`chip${verifiedOnly ? ' on' : ''}`} aria-pressed={verifiedOnly} onClick={() => setVerifiedOnly(!verifiedOnly)}>
+          <Icon name="shield" size={14} /> Verified owners
+        </button>
+        <span className="chip-sep" aria-hidden="true" />
+        {PRICE_BANDS.map((b) => (
+          <button key={b.key} type="button" className={`chip${price === b.key ? ' on' : ''}`} aria-pressed={price === b.key} onClick={() => setPrice(price === b.key ? '' : b.key)}>
+            {b.label}
+          </button>
+        ))}
+        <label className="chip sort-chip">
+          <Icon name="filter" size={14} />
+          <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort by">
+            {SORTS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+          </select>
+        </label>
+        {hasFilters && (
+          <button className="chip clear" type="button" onClick={clearFilters}>
+            <Icon name="close" size={14} /> Clear all
+          </button>
+        )}
+      </div>
 
       {featured.length > 0 && !hasFilters && (
         <section className="featured-strip">
@@ -243,33 +385,9 @@ export default function PublicBooking() {
         </section>
       )}
 
-      <div className="toolbar">
-        <div className="search-field" style={{ minWidth: 240, flex: '1 1 240px' }}>
-          <Icon name="search" size={18} />
-          <input
-            placeholder="Search items…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{ width: '100%' }}
-          />
-        </div>
-        <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-          <option value="">All categories</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>{c.name} ({c.item_count})</option>
-          ))}
-        </select>
-        {hasFilters && (
-          <button className="btn ghost small" type="button" onClick={clearFilters}>
-            <Icon name="close" size={14} /> Clear filters
-          </button>
-        )}
-        <span className="muted">{items.length} {items.length === 1 ? 'result' : 'results'}</span>
-      </div>
-
       {loading ? (
         <div className="center-empty">Loading…</div>
-      ) : items.length === 0 ? (
+      ) : shown.length === 0 ? (
         <div className="center-empty">
           <Icon name="search" size={30} />
           <div className="empty-title">Nothing matches those filters</div>
@@ -284,24 +402,38 @@ export default function PublicBooking() {
             </div>
           )}
         </div>
+      ) : shelves.length > 0 ? (
+        shelves.map((c) => (
+          <section className="shelf" key={c.id}>
+            <div className="shelf-head">
+              <h2><span className="cat-ic sm"><Icon name={categoryIcon(c.name)} size={16} /></span>{c.name}</h2>
+              <button type="button" className="btn ghost small" onClick={() => { setCategoryId(String(c.id)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
+                {c.list.length > 8 ? `See all ${c.list.length}` : 'See all'} <Icon name="arrow-right" size={14} />
+              </button>
+            </div>
+            <div className="shelf-row">
+              {c.list.slice(0, 8).map((it) => (
+                <ProductCard item={it} key={it.id}>
+                  <BookButton it={it} onBook={openBooking} />
+                </ProductCard>
+              ))}
+            </div>
+          </section>
+        ))
       ) : (
-        <div className="grid">
-          {items.map((it) => (
-            <ProductCard item={it} key={it.id}>
-              <div className="card-actions">
-                <button
-                  className="btn accent small"
-                  disabled={it.status !== 'Available'}
-                  onClick={() => openBooking(it)}
-                  title={it.status !== 'Available' ? 'Not available right now' : 'Request a booking'}
-                >
-                  <Icon name="calendar" size={15} />
-                  {it.status === 'Available' ? 'Request Booking' : 'Unavailable'}
-                </button>
-              </div>
-            </ProductCard>
-          ))}
-        </div>
+        <>
+          <div className="results-head">
+            <h2>{activeCategory ? activeCategory.name : search ? `Results for “${search}”` : 'All items'}</h2>
+            <span className="muted">{shown.length === 1 ? '1 item' : `${shown.length} items`}</span>
+          </div>
+          <div className="grid">
+            {shown.map((it) => (
+              <ProductCard item={it} key={it.id}>
+                <BookButton it={it} onBook={openBooking} />
+              </ProductCard>
+            ))}
+          </div>
+        </>
       )}
 
       {/* The booking form is a modal: previously it rendered below the item grid,
@@ -404,23 +536,44 @@ export default function PublicBooking() {
           </div>
           {bookingError && <div className="error"><Icon name="shield" size={16} /> {bookingError}</div>}
           <div className="calendar-toolbar">
-            <button className="btn secondary small" type="button" onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))}>← Prev</button>
+            <button className="btn secondary small" type="button" disabled={monthStart <= thisMonth} onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))} aria-label="Previous month">←</button>
             <strong>{calendarMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</strong>
-            <button className="btn secondary small" type="button" onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))}>Next →</button>
+            <button className="btn secondary small" type="button" onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))} aria-label="Next month">→</button>
+          </div>
+          <div className="muted small calendar-hint">
+            {!bookingForm.start_date ? 'Tap the day you pick it up.' : !bookingForm.end_date ? 'Now tap the day you bring it back.' : 'Tap any day to start again.'}
           </div>
           <div className="calendar-grid">
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
               <div className="calendar-cell calendar-header" key={day}>{day}</div>
             ))}
-            {calendarDays.map((cell) => (
-              <div className={`calendar-cell${cell?.isBooked ? ' booked' : ''}`} key={cell ? cell.dateKey : `blank-${Math.random()}`}>
-                {cell ? cell.day : ''}
-              </div>
-            ))}
+            {calendarDays.map((cell, i) => {
+              if (!cell) return <div className="calendar-cell blank" key={`blank-${i}`} />;
+              const { start_date: start, end_date: end } = bookingForm;
+              const edge = cell.dateKey === start || cell.dateKey === end;
+              const inRange = start && end && cell.dateKey > start && cell.dateKey < end;
+              const cls = ['calendar-cell', 'day',
+                cell.isBooked && 'booked', cell.isPast && 'past', cell.isToday && 'today',
+                edge && 'picked', inRange && 'in-range'].filter(Boolean).join(' ');
+              return (
+                <button
+                  type="button"
+                  key={cell.dateKey}
+                  className={cls}
+                  disabled={cell.isPast || cell.isBooked}
+                  aria-pressed={edge || Boolean(inRange)}
+                  aria-label={cell.dateKey}
+                  onClick={() => pickDay(cell.dateKey)}
+                >
+                  {cell.day}
+                </button>
+              );
+            })}
           </div>
           <div className="calendar-key">
-            <span><i style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} />Free</span>
-            <span><i style={{ background: 'color-mix(in srgb, var(--red) 25%, transparent)' }} />Already booked</span>
+            <span><i className="k-free" />Free</span>
+            <span><i className="k-picked" />Your dates</span>
+            <span><i className="k-booked" />Already booked</span>
           </div>
           <div className="muted" style={{ marginTop: 12 }}>{availabilityMessage}</div>
           <form className="form" onSubmit={submitBooking} style={{ padding: 0, border: 'none', boxShadow: 'none', maxWidth: 'none', marginTop: 16 }}>
@@ -484,6 +637,23 @@ export default function PublicBooking() {
           </div>
         </div></Portal>
       )}
+    </div>
+  );
+}
+
+function BookButton({ it, onBook }) {
+  const free = it.status === 'Available';
+  return (
+    <div className="card-actions">
+      <button
+        className="btn accent small"
+        disabled={!free}
+        onClick={() => onBook(it)}
+        title={free ? 'Request a booking' : 'Not available right now'}
+      >
+        <Icon name="calendar" size={15} />
+        {free ? 'Request Booking' : 'Unavailable'}
+      </button>
     </div>
   );
 }

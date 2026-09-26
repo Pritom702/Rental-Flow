@@ -132,7 +132,13 @@ export const patterns = [
   [new RegExp(`^(\\d+) ${plural('view')}$`), (m) => `${bnNum(m[1])} ভিউ`],
   [/^(\d+) (?:reply|replies)$/, (m) => `${bnNum(m[1])}টি উত্তর`],
   [new RegExp(`^(\\d+) ${plural('day')}$`), (m) => `${bnNum(m[1])} দিন`],
+  [new RegExp(`^(\\d+) ${plural('item')}$`), (m) => `${bnNum(m[1])}টি আইটেম`],
+  [/^No community called “(.+)”$/, (m) => `“${m[1]}” নামে কোনো কমিউনিটি নেই`],
+  [/^See all (\d+)$/, (m) => `সব ${bnNum(m[1])}টি দেখুন`],
+  [/^Results for “(.+)”$/, (m) => `“${m[1]}”-এর ফলাফল`],
+  [/^No (pending|approved|cancelled|completed|rejected) bookings here\.$/, (m) => `এখানে কোনো ${STATUS_LOWER[m[1]]} বুকিং নেই।`],
 ];
+const STATUS_LOWER = { pending: 'অপেক্ষমাণ', approved: 'অনুমোদিত', cancelled: 'বাতিল', completed: 'সম্পন্ন', rejected: 'প্রত্যাখ্যাত' };
 
 const STATUS = {
   Pending: 'অপেক্ষমাণ', Approved: 'অনুমোদিত', Rejected: 'বাতিল', Cancelled: 'বাতিল',
