@@ -62,6 +62,17 @@ function wrap(g, text, maxW, max = 3) {
   return lines;
 }
 // The largest font size (from `size` down) at which `text` fits in `max` lines.
+// Centred text, placed by hand. Some phone browsers draw a centred line that
+// mixes Latin letters with the taka sign (a Bengali character) as if it were
+// left-aligned from the middle, pushing it off the frame. Measuring the line
+// and drawing it left-aligned gives the same result everywhere.
+function centerText(g, text, cx, y) {
+  const align = g.textAlign;
+  g.textAlign = 'left';
+  g.fillText(text, cx - g.measureText(text).width / 2, y);
+  g.textAlign = align;
+}
+
 function fitFont(g, text, weight, size, maxW, max) {
   for (let s = size; s > 30; s -= 4) {
     g.font = `${weight} ${s}px Inter, system-ui, sans-serif`;
@@ -172,10 +183,10 @@ function hookCard(g, st, hook, t) {
   const lh = Math.round(size * 1.18);
   const lines = wrap(g, hook, W - 120, 4);
   const y0 = H / 2 - ((lines.length - 1) * lh) / 2 + (1 - k) * 60;
-  lines.forEach((l, i) => g.fillText(l, W / 2, y0 + i * lh));
+  lines.forEach((l, i) => centerText(g, l, W / 2, y0 + i * lh));
   g.font = '600 30px Inter, system-ui, sans-serif';
   g.globalAlpha = k * 0.8;
-  g.fillText('on RentalFlow', W / 2, y0 + (lines.length - 1) * lh + 70);
+  centerText(g, 'on RentalFlow', W / 2, y0 + (lines.length - 1) * lh + 70);
   g.restore();
 }
 
@@ -234,7 +245,7 @@ function scene(g, st, item, img, local, index, count, slideIn) {
   // "2 / 3"
   if (count > 1) {
     g.font = '700 26px Inter, system-ui, sans-serif'; g.globalAlpha = k * 0.7; g.fillStyle = st.ink;
-    g.textAlign = 'right'; g.fillText(`${index + 1} / ${count}`, W - 48, 100);
+    g.textAlign = 'left'; g.fillText(`${index + 1} / ${count}`, W - 48 - g.measureText(`${index + 1} / ${count}`).width, 100);
   }
   g.restore();
 }
@@ -253,9 +264,9 @@ function outro(g, st, items, local) {
   g.textAlign = 'center'; g.fillStyle = st.ink;
   g.font = '700 40px Inter, system-ui, sans-serif';
   const line = items.length > 1 ? `All of it from ${taka(total)} a day` : `Rent it from ${taka(total)} a day`;
-  g.fillText(line, W / 2, H / 2 + 10);
+  centerText(g, line, W / 2, H / 2 + 10);
   g.font = '600 27px Inter, system-ui, sans-serif'; g.globalAlpha = k * 0.78;
-  g.fillText('Verified owners · deposit protection · damage cover', W / 2, H / 2 + 70);
+  centerText(g, 'Verified owners · deposit protection · damage cover', W / 2, H / 2 + 70);
   // the address, on a pill
   g.globalAlpha = k;
   const host = typeof window !== 'undefined' ? window.location.host : 'rentalflow';
@@ -264,7 +275,7 @@ function outro(g, st, items, local) {
   roundRect(g, W / 2 - pw / 2, H / 2 + 130, pw, 70, 35);
   g.fillStyle = dark ? '#C6F24E' : '#10291D'; g.fill();
   g.fillStyle = dark ? '#0B140F' : '#F5F1E8';
-  g.textBaseline = 'middle'; g.fillText(host, W / 2, H / 2 + 166);
+  g.textBaseline = 'middle'; centerText(g, host, W / 2, H / 2 + 166);
   g.restore();
 }
 
