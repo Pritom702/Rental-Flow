@@ -8,6 +8,14 @@ import { authRequired } from '../middleware/auth.js';
 
 const router = Router();
 
+// A post can be deleted after someone reacted to it. Its reaction and comment
+// notices would then open a dead link, so they are left out of the bell.
+// Moderation notices stay: they tell the author why the post went away.
+const LIVE_LINK = `NOT (
+  COALESCE(n.link, '') ~ '^/post/[0-9]+' AND n.type <> 'social_moderation' AND NOT EXISTS (
+    SELECT 1 FROM posts p
+     WHERE p.id = SUBSTRING(n.link FROM '^/post/([0-9]+)')::int AND p.status <> 'removed'))`;
+
 // GET /api/notifications?unread=1&limit=20 — the signed-in user's bell feed.
 router.get('/', authRequired, async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 20, 50);
@@ -17,7 +25,7 @@ router.get('/', authRequired, async (req, res) => {
        FROM notifications n
        LEFT JOIN bookings b ON b.id = n.booking_id
        LEFT JOIN items i    ON i.id = b.item_id
-      WHERE n.user_id = $1
+      WHERE n.user_id = $1 AND ${LIVE_LINK}
         ${onlyUnread ? 'AND n.read_at IS NULL' : ''}
       ORDER BY n.created_at DESC, n.id DESC
       LIMIT $2`,
@@ -25,7 +33,7 @@ router.get('/', authRequired, async (req, res) => {
   );
   const counts = await query(
     `SELECT COUNT(*) FILTER (WHERE read_at IS NULL) AS unread, COUNT(*) AS total
-       FROM notifications WHERE user_id = $1`,
+       FROM notifications n WHERE n.user_id = $1 AND ${LIVE_LINK}`,
     [req.user.id]
   );
   res.json({

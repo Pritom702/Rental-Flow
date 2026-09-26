@@ -34,9 +34,11 @@ export default function PostPage() {
   const box = useRef(null);
 
   const load = useCallback(() => api.get(`/community/posts/${id}`)
-    .then((p) => { const { comments: c, ...rest } = p; setPost(rest); setComments(c); })
+    .then((p) => { const { comments: c, ...rest } = p; setPost(rest); setComments(c); setError(''); })
     .catch((e) => setError(e.message)), [id]);
-  useEffect(() => { load(); }, [load]);
+  // Opening another post (say, from the bell while one is already open) must
+  // not keep showing the previous one while the new one loads — or if it fails.
+  useEffect(() => { setPost(null); setComments([]); setError(''); load(); }, [load]);
   useEffect(() => {
     const t = setInterval(() => { if (!document.hidden) load(); }, 20000);
     return () => clearInterval(t);
@@ -97,7 +99,7 @@ export default function PostPage() {
     setTimeout(() => box.current?.focus(), 30);
   }
 
-  if (error) return <div className="container"><div className="center-empty"><Glyph name="search" size={40} /><div className="empty-title">{error}</div><Link to="/feed" className="btn">Back to the feed</Link></div></div>;
+  if (error) return <div className="container"><div className="center-empty"><Glyph name="search" size={40} /><div className="empty-title">{error === 'This post is not available.' ? 'This post was removed' : error}</div>{error === 'This post is not available.' && <p className="muted">Its author or a moderator took it down, so there is nothing to show here any more.</p>}<Link to="/feed" className="btn">Back to the feed</Link></div></div>;
   if (!post) return <div className="container feed-page narrow"><PostSkeleton /></div>;
 
   const visible = comments.filter((c) => c.status !== 'removed');
@@ -106,11 +108,11 @@ export default function PostPage() {
 
   return (
     <div className="container feed-page narrow">
-      <button type="button" className="btn ghost small" onClick={() => (window.history.state?.idx > 0 ? navigate(-1) : navigate('/feed'))}>← Back</button>
+      <button type="button" className="btn ghost small post-back" onClick={() => (window.history.state?.idx > 0 ? navigate(-1) : navigate('/feed'))}>← Back</button>
       <PostCard post={post} full onChange={setPost} onRemove={() => navigate('/feed')} />
 
       <section className="comments" aria-label="Comments">
-        <h2>{post.comment_count ? `${post.comment_count} repl${post.comment_count === 1 ? 'y' : 'ies'}` : 'No replies yet'}</h2>
+        <h2>{!post.comment_count ? 'No replies yet' : post.comment_count === 1 ? '1 reply' : `${post.comment_count} replies`}</h2>
         {top.length === 0 && <p className="muted">Be the first — people love a reply.</p>}
         {top.map((c) => (
           <div key={c.id} className="c-thread">
