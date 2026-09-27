@@ -36,7 +36,7 @@ const TABS = [
   { id: 'top', label: 'Top', scope: 'all', sort: 'top' },
   { id: 'rent', label: 'For rent', glyph: 'rent', scope: 'all', sort: 'new', kind: 'rent' },
   { id: 'sale', label: 'For sale', glyph: 'sell', scope: 'all', sort: 'new', kind: 'sell' },
-  { id: 'saved', label: 'Kept', glyph: 'keep', scope: 'saved', sort: 'new', auth: true },
+  { id: 'saved', label: 'Saved', glyph: 'keep', scope: 'saved', sort: 'new', auth: true },
 ];
 
 export default function Feed() {
@@ -151,6 +151,8 @@ export default function Feed() {
   }
   function openComposer(kind = 'post', startWith) {
     if (!user) { navigate(`/login?mode=signup&next=${encodeURIComponent(pathname + search)}`); return; }
+    // Selling has its own listing page, like Rent it out.
+    if (kind === 'sell') { navigate('/sell'); return; }
     setComposer({ kind, startWith });
   }
   const onChange = useCallback((p) => setPosts((all) => all.map((x) => (x.id === p.id ? p : x))), []);
@@ -217,11 +219,14 @@ export default function Feed() {
 
           {!slug && <CommunityStrip />}
 
-          <div className="feed-tabs" role="tablist">
-            {tabs.map((t) => (
-              <button type="button" key={t.id} role="tab" aria-selected={t.id === tab.id} className={t.id === tab.id ? 'on' : ''} onClick={() => switchTab(t.id)}>{t.glyph && <Glyph name={t.glyph} size={15} />}{t.label}</button>
-            ))}
-            <Link to="/flows" className="reels-tab"><Glyph name="play" size={14} />Flows</Link>
+          {/* The tabs scroll on their own; Flows sits beside them, never on top. */}
+          <div className="feed-tabs">
+            <div className="ft-scroll" role="tablist">
+              {tabs.map((t) => (
+                <button type="button" key={t.id} role="tab" aria-selected={t.id === tab.id} className={t.id === tab.id ? 'on' : ''} onClick={() => switchTab(t.id)}>{t.glyph && <Glyph name={t.glyph} size={15} />}{t.label}</button>
+              ))}
+            </div>
+            <Link to="/flows" className="reels-tab" title="Flows" aria-label="Flows"><Glyph name="play" size={16} /></Link>
           </div>
 
           {fresh > 0 && (

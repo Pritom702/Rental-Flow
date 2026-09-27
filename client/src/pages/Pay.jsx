@@ -2,7 +2,7 @@
 //  RentalFlow  |  Marketplace  |  Owner: M2 - Tawheed Bin Hamid (Pritom)
 //  GitHub: @pritom702  |  Part: RentalFlow Pay — the DEMO checkout page
 // ============================================================
-// Where Buy now and booking requests pay. It is a demo and says so on the
+// Where a payment request from an owner or seller is paid. It is a demo and says so on the
 // page: no real money moves, and it does not copy any payment brand's look.
 // Choose bKash, Nagad, Rocket or a card, type demo details, pay — and get a
 // receipt. The server does what a real payment would (routes/payments.js).
@@ -83,7 +83,7 @@ export default function Pay() {
         <div className="pay-lines">
           {(p.breakdown || []).map((l) => <div key={l.label}><span>{l.label}</span><span>{money(l.amount)}</span></div>)}
           <div className="pay-total"><span>Total</span><b>{money(p.amount)}</b></div>
-          {p.purpose === 'booking' && <p className="muted small">The deposit comes back when the item is returned safely. If the owner turns the request down, everything is refunded.</p>}
+          {p.purpose === 'booking' && <p className="muted small">The deposit comes back when the item is returned safely. If the booking is cancelled, everything is refunded.</p>}
           {p.purpose === 'sale' && <p className="muted small">RentalFlow holds the money until you have the item — you are covered if it never arrives.</p>}
         </div>
 

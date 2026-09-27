@@ -185,6 +185,7 @@ function Thread({ id, onActivity }) {
         </div>
       )}
       {convo.post_id && <DealBox convo={convo} me={user} onChange={() => fetchNew(true)} />}
+      {convo.item_id && convo.payment && <RentPayBox convo={convo} onSent={(m) => { setMessages((prev) => [...prev, m]); lastId.current = Math.max(lastId.current, m.id); fetchNew(true); }} />}
 
       <div className="thread-body">
         {!messages.length && (
@@ -196,6 +197,8 @@ function Thread({ id, onActivity }) {
         )}
         {messages.map((m) => (m.kind === 'system' ? (
           <div key={m.id} className="chat-system"><Glyph name="sparkle" size={14} />{m.body}</div>
+        ) : m.kind === 'payreq' ? (
+          <PayRequest key={m.id} m={m} mine={m.sender_id === user.id} />
         ) : (
           <div key={m.id} className={`bubble${m.sender_id === user.id ? ' me' : ''}${m.guard_flags?.length && !convo.unlocked ? ' guarded' : ''}`}>
             <p translate="no">{m.body}</p>
@@ -225,6 +228,61 @@ function Thread({ id, onActivity }) {
       </form>
       )}
       {error && <div className="error">{error}</div>}
+    </div>
+  );
+}
+
+// A payment request in the chat: the owner / seller sent it, the other side
+// taps Pay and goes to RentalFlow Pay.
+function PayRequest({ m, mine }) {
+  const p = m.payment;
+  const status = p?.status || 'pending';
+  return (
+    <div className={`pay-req${mine ? ' me' : ''} ${status}`}>
+      <div className="pay-req-top"><Glyph name="coin" size={18} /><b>Payment request</b>{p && <span className="pay-req-amt">{money(p.amount)}</span>}</div>
+      <p translate="no">{m.body.replace(/^Payment request: \S+ for /, 'For ')}</p>
+      {(p?.breakdown || []).length > 1 && (
+        <ul className="pay-req-lines">{p.breakdown.map((l) => <li key={l.label}><span>{l.label}</span><b>{money(l.amount)}</b></li>)}</ul>
+      )}
+      {status === 'paid' ? <span className="pay-req-state ok"><Glyph name="check" size={14} /> Paid</span>
+        : status === 'pending' ? (mine
+          ? <span className="pay-req-state">Waiting for them to pay</span>
+          : <Link to={`/pay/${p.tran}`} className="btn accent small">{`Pay ${money(p.amount)}`}</Link>)
+          : <span className="pay-req-state">{status === 'refunded' ? 'Refunded' : 'No longer due'}</span>}
+      <small>{when(m.created_at)}</small>
+    </div>
+  );
+}
+
+// An approved rental: the owner asks for the payment from here.
+function RentPayBox({ convo, onSent }) {
+  const [busy, setBusy] = useState(false);
+  const p = convo.payment;
+  async function send() {
+    setBusy(true);
+    try {
+      const r = await api.post('/payments/request', { conversation_id: convo.id });
+      play('send');
+      say('Payment request sent', 'coin');
+      onSent(r.message);
+    } catch (e) { say(e.message, 'warn'); } finally { setBusy(false); }
+  }
+  if (!convo.iAmOwner) {
+    return (
+      <div className="deal-box done">
+        <Glyph name="coin" size={18} /><b>{`Booking approved · ${money(p.amount)}`}</b>
+        {p.requested
+          ? <span className="deal-actions"><Link to={`/pay/${p.requested}`} className="btn accent small">{`Pay ${money(p.amount)}`}</Link></span>
+          : <span>{`${convo.other_name} will send you a payment request here.`}</span>}
+      </div>
+    );
+  }
+  return (
+    <div className="deal-box done">
+      <Glyph name="coin" size={18} /><b>{`Approved · ${money(p.amount)} due`}</b>
+      <span className="deal-actions">
+        <button type="button" className="btn accent small" disabled={busy} onClick={send}>{p.requested ? 'Resend payment request' : 'Send payment request'}</button>
+      </span>
     </div>
   );
 }
@@ -263,10 +321,10 @@ function DealBox({ convo, me, onChange }) {
       onChange();
     } catch (e) { say(e.message, 'warn'); } finally { setBusy(false); }
   }
-  async function payNow() {
+  async function requestPay() {
     setBusy(true);
-    try { const { pay } = await api.post('/payments/sale', { conversation_id: convo.id }); navigate(pay); }
-    catch (e) { say(e.message, 'warn'); setBusy(false); }
+    try { await api.post('/payments/request', { conversation_id: convo.id }); play('send'); say('Payment request sent', 'coin'); onChange(); }
+    catch (e) { say(e.message, 'warn'); } finally { setBusy(false); }
   }
   if (d && ['accepted', 'completed'].includes(d.status) && d.paid_at) {
     return <div className="deal-box done"><Glyph name="check" size={18} /><b>{`Paid ${money(d.price)} through RentalFlow Pay`}</b><span>RentalFlow holds it until the hand-over. Arrange it here.</span></div>;
@@ -276,8 +334,10 @@ function DealBox({ convo, me, onChange }) {
       <div className="deal-box done">
         <Glyph name="coin" size={18} /><b>Deal agreed at {money(d.price)}</b>
         {buyer
-          ? <span className="deal-actions"><button type="button" className="btn accent small" disabled={busy} onClick={payNow}>{`Pay ${money(d.price)}`}</button></span>
-          : <span>{`Waiting for ${convo.other_name} to pay through RentalFlow.`}</span>}
+          ? (convo.payment?.requested
+            ? <span className="deal-actions"><button type="button" className="btn accent small" onClick={() => navigate(`/pay/${convo.payment.requested}`)}>{`Pay ${money(d.price)}`}</button></span>
+            : <span>{`${convo.other_name} will send you a payment request here.`}</span>)
+          : <span className="deal-actions"><button type="button" className="btn accent small" disabled={busy} onClick={requestPay}>{convo.payment?.requested ? 'Resend payment request' : 'Send payment request'}</button></span>}
       </div>
     );
   }

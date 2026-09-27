@@ -3,9 +3,9 @@
 //  GitHub: @pritom702  |  Part: Buy now — used by sell posts and the For sale grid
 // ============================================================
 // Buy now asks the seller to sell at the asking price. The seller sees the
-// buyer's rental and sales record and accepts; then the buyer pays on
-// RentalFlow Pay (a demo) and the chat opens for the hand-over. If the seller
-// already accepted, Buy now goes straight to the payment page.
+// buyer's rental and sales record and accepts, then sends a payment request
+// in the chat; the buyer pays it on RentalFlow Pay (a demo). If that request
+// is already waiting, Buy now goes straight to the payment page.
 import { useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
 import { useAuth } from '../auth.jsx';
@@ -37,6 +37,7 @@ export function useBuyNow() {
         navigate(pay);
         return;
       } catch (e) {
+        if (e.reason === 'awaiting-payment-request') { say(e.message, 'sell'); navigate(`/messages/${id}`); return; }
         if (e.reason !== 'awaiting-seller') throw e;
         // Ask the seller; an offer already waiting in this chat is fine too.
         await api.post('/market/deals', { conversation_id: id, buy_now: true }).catch((err) => {
@@ -44,7 +45,7 @@ export function useBuyNow() {
         });
       }
       play('send');
-      say('Request sent. You can pay and chat as soon as the seller accepts.', 'sell');
+      say('Request sent. Once the seller accepts, they send you a payment request here.', 'sell');
       navigate(`/messages/${id}`);
     } catch (e) { say(e.message, 'warn'); }
   };

@@ -24,3 +24,8 @@ CREATE INDEX IF NOT EXISTS payments_ref_idx ON payments (purpose, ref_id);
 
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ;
 ALTER TABLE sale_deals ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ;
+
+-- Payment requests: the owner / seller sends one into the chat once the
+-- booking is approved or the offer accepted; the message links to it.
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS requested_by INTEGER REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS payment_tran VARCHAR(60);

@@ -262,7 +262,7 @@ export default function Composer({ open, onClose, onCreated, community: fixedCom
         ) : (
           <>
             <div className="kind-row" role="tablist">
-              {Object.entries(KINDS).filter(([, v]) => !v.auto).map(([k, v]) => (
+              {Object.entries(KINDS).filter(([k, v]) => !v.auto && k !== 'sell').map(([k, v]) => (
                 <button type="button" key={k} role="tab" aria-selected={kind === k} className={`kind-pill${kind === k ? ' on' : ''}`} onClick={() => setKind(k)} title={v.hint}>
                   <Glyph name={v.glyph} size={16} />{v.label}
                 </button>
@@ -303,7 +303,7 @@ export default function Composer({ open, onClose, onCreated, community: fixedCom
             )}
 
             {kind === 'sell' && sellGate !== 'ok' && sellGate !== 'checking' && (
-              <SellerGate state={sellGate} returnTo="/feed?tab=sale&compose=sell" what="sell" />
+              <SellerGate state={sellGate} returnTo="/sell" what="sell" />
             )}
             {kind === 'sell' && (sellGate === 'ok' || sellGate === 'checking') && (
               <div className="cs-extra grid2">

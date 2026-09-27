@@ -122,6 +122,8 @@ router.get('/', authRequired, async (req, res) => {
   const { rows } = await query(
     `SELECT b.*, i.name AS item_name, i.rental_price, i.replacement_cost,
             i.status AS item_status, i.owner_id,
+            (SELECT p.tran_id FROM payments p WHERE p.purpose = 'booking' AND p.ref_id = b.id AND p.status = 'pending'
+                AND p.requested_by IS NOT NULL ORDER BY p.id DESC LIMIT 1) AS pay_tran,
             c.id AS claim_id, c.kind AS claim_kind, c.status AS claim_status, c.charges AS claim_charges,
             c.deposit_applied AS claim_deposit_applied, c.balance AS claim_balance,
             c.respond_by AS claim_respond_by, c.renter_response AS claim_response, c.paid_at AS claim_paid_at
@@ -490,6 +492,12 @@ router.patch('/:id/status', authRequired, async (req, res) => {
       await client.query(
         `INSERT INTO conversations (item_id, renter_id, owner_id) VALUES ($1, $2, $3)
          ON CONFLICT (item_id, renter_id, owner_id) WHERE item_id IS NOT NULL DO NOTHING`,
+        [rows[0].item_id, rows[0].renter_id, rows[0].owner_id]);
+      // Nothing is paid on request: the owner now sends a payment request in the chat.
+      await client.query(
+        `INSERT INTO messages (conversation_id, sender_id, body, kind)
+         SELECT id, owner_id, 'Booking approved. The owner will send a payment request here; pay it to confirm the rental.', 'system'
+           FROM conversations WHERE item_id = $1 AND renter_id = $2 AND owner_id = $3`,
         [rows[0].item_id, rows[0].renter_id, rows[0].owner_id]);
     }
 

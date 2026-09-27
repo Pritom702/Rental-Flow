@@ -69,12 +69,15 @@ export default function Bookings() {
     { key: 'requests', label: 'Requests for my items', n: requests.length, hint: 'People who want to rent your listings' },
   ];
 
-  // Pay for my own booking request (RentalFlow Pay, a demo).
-  async function payBooking(id) {
+  // Owner: ask the renter to pay an approved booking. The request lands in
+  // the chat and the renter's notifications, and leads to RentalFlow Pay.
+  async function requestPayment(id) {
     try {
-      const { pay } = await api.post('/payments/booking', { booking_id: id });
-      navigate(pay);
-    } catch (e) { setError(e.message); }
+      const r = await api.post('/payments/request', { booking_id: id });
+      setError('');
+      setSuccess('Payment request sent to the renter.');
+      navigate(`/messages/${r.conversation_id}`);
+    } catch (e) { setSuccess(''); setError(e.message); }
   }
 
   // The chat with the owner opens once they approve the request.
@@ -227,14 +230,14 @@ export default function Bookings() {
                 <div className="card-actions">
                   <span className={`badge ${booking.status}`}>{booking.status}</span>
                   {booking.paid_at && <span className="badge paid">Paid</span>}
-                  {!booking.paid_at && ['Pending', 'Approved'].includes(booking.status) && (
-                    <button className="btn accent small" onClick={() => payBooking(booking.id)}>Pay now</button>
-                  )}
+                  {!booking.paid_at && booking.status === 'Approved' && (booking.pay_tran
+                    ? <Link className="btn accent small" to={`/pay/${booking.pay_tran}`}>Pay now</Link>
+                    : <span className="muted small">Approved. The owner will send you a payment request.</span>)}
                   {['Approved', 'Completed'].includes(booking.status) && (
                     <button className="btn secondary small" onClick={() => messageOwner(booking.item_id)}><Icon name="chat" size={14} /> Message owner</button>
                   )}
                   {booking.status === 'Pending' && (
-                    <span className="muted small">You can message the owner once they approve.</span>
+                    <span className="muted small">No payment now. You can message the owner once they approve.</span>
                   )}
                   {booking.status === 'Pending' && (
                     <button className="btn secondary small" onClick={() => updateStatus(booking.id, 'Cancelled')}>Cancel request</button>
@@ -256,6 +259,12 @@ export default function Bookings() {
                     {STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}
                   </select>
                 )}
+                {booking.status === 'Approved' && !booking.paid_at && booking.renter_id && Number(booking.renter_id) !== Number(booking.owner_id) && (
+                  <button className="btn accent small" onClick={() => requestPayment(booking.id)}>
+                    <Icon name="wallet" size={14} /> {booking.pay_tran ? 'Resend payment request' : 'Send payment request'}
+                  </button>
+                )}
+                {booking.paid_at && <span className="badge paid">Paid</span>}
                 <button className="btn secondary small" onClick={() => generateAgreement(booking.id)}>Agreement PDF</button>
                 {booking.status === 'Approved' && !booking.checked_out_at && (
                   <Link className="btn small" to={`/bookings/${booking.id}/checkout`}>Check out</Link>

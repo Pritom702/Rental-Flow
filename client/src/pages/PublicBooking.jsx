@@ -5,7 +5,7 @@
 // Public marketplace page: browse items listed by members, filter by category,
 // see price + availability + owner. Reads initial search/category from the URL
 // (the landing page links here with query params).
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { celebrate } from '../fx.js';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
@@ -29,6 +29,7 @@ const PRICE_BANDS = [
   { key: '500-2000', label: '৳500 – ৳2,000', min: 500, max: 2000 },
   { key: 'o2000', label: 'Over ৳2,000', min: 2000, max: Infinity },
 ];
+// Newest listings come first unless another order is picked.
 const SORTS = [
   { key: 'best', label: 'Best match' },
   { key: 'low', label: 'Lowest price' },
@@ -48,7 +49,7 @@ export default function PublicBooking() {
   const [availOnly, setAvailOnly] = useState(params.get('available') === '1');
   const [verifiedOnly, setVerifiedOnly] = useState(params.get('verified') === '1');
   const [price, setPrice] = useState(params.get('price') || '');
-  const [sort, setSort] = useState(params.get('sort') || 'best');
+  const [sort, setSort] = useState(params.get('sort') || 'new');
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState(null);
   const [bookingAvailability, setBookingAvailability] = useState([]);
@@ -90,7 +91,7 @@ export default function PublicBooking() {
     if (availOnly) q.set('available', '1');
     if (verifiedOnly) q.set('verified', '1');
     if (price) q.set('price', price);
-    if (sort !== 'best') q.set('sort', sort);
+    if (sort !== 'new') q.set('sort', sort);
     if (params.get('item')) q.set('item', params.get('item'));
     if (q.toString() !== params.toString()) setParams(q, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -129,7 +130,7 @@ export default function PublicBooking() {
     setAvailOnly(false);
     setVerifiedOnly(false);
     setPrice('');
-    setSort('best');
+    setSort('new');
   }
   const hasFilters = Boolean(search || categoryId || availOnly || verifiedOnly || price);
 
@@ -152,16 +153,13 @@ export default function PublicBooking() {
     return [...list].sort(by);
   }, [items, availOnly, verifiedOnly, price, sort]);
 
-  // With nothing picked, the page shows a row per category instead of one long list.
-  const shelves = useMemo(() => {
-    if (hasFilters) return [];
-    return categories
-      .map((c) => ({ ...c, list: shown.filter((it) => String(it.category_id) === String(c.id)) }))
-      .filter((c) => c.list.length)
-      // Rows with real photos lead; a row of "No photo" cards looks empty.
-      .map((c) => ({ ...c, photos: c.list.filter((it) => it.cover_url).length }))
-      .sort((a, b) => b.photos - a.photos || b.list.length - a.list.length);
-  }, [categories, shown, hasFilters]);
+  // Switching category from far down the list brings the new results into view.
+  const bodyRef = useRef(null);
+  function pickCategory(id) {
+    setCategoryId(id);
+    const top = (bodyRef.current?.getBoundingClientRect().top ?? 0) + window.scrollY - 90;
+    if (window.scrollY > top) window.scrollTo({ top, behavior: 'smooth' });
+  }
   const activeCategory = categories.find((c) => String(c.id) === String(categoryId));
 
   useEffect(() => {
@@ -234,15 +232,12 @@ export default function PublicBooking() {
         ...(quote?.deposit?.needsGuarantor ? { guarantor } : {}),
         protection,
       });
-      // Members pay for the request straight away (RentalFlow Pay, a demo);
-      // it is refunded if the owner turns it down.
-      if (user && created?.id) {
-        const { pay } = await api.post('/payments/booking', { booking_id: created.id, protection });
-        navigate(pay);
-        return;
-      }
+      // Asking costs nothing: the owner reviews the request, and if they
+      // approve, sends a payment request in the chat.
       celebrate();
-      setBookingSuccess('Booking request created successfully');
+      setBookingSuccess(created?.id && user?.role === 'member'
+        ? 'Request sent. No payment needed now: if the owner approves, they will send you a payment request in Messages.'
+        : 'Booking request created successfully');
       setSelectedItem(null);
       setBookingForm({ customer_name: '', customer_email: '', start_date: '', end_date: '', notes: '' });
       setGuarantor({ name: '', phone: '', relation: '' });
@@ -327,119 +322,108 @@ export default function PublicBooking() {
         </div>
       )}
 
-      <div className="cat-rail" role="tablist" aria-label="Categories">
-        <button type="button" role="tab" aria-selected={!categoryId} className={`cat-tile${!categoryId ? ' on' : ''}`} onClick={() => setCategoryId('')}>
-          <span className="cat-ic"><Icon name="grid" size={22} /></span>
-          <b>Everything</b>
-          <small>{categories.reduce((n, c) => n + Number(c.item_count || 0), 0)}</small>
-        </button>
-        {[...categories].sort((x, y) => Number(y.item_count) - Number(x.item_count)).map((c) => (
-          <button
-            type="button"
-            role="tab"
-            key={c.id}
-            aria-selected={String(c.id) === String(categoryId)}
-            className={`cat-tile${String(c.id) === String(categoryId) ? ' on' : ''}${Number(c.item_count) ? '' : ' empty'}`}
-            onClick={() => setCategoryId(String(c.id) === String(categoryId) ? '' : String(c.id))}
-          >
-            <span className="cat-ic"><Icon name={categoryIcon(c.name)} size={22} /></span>
-            <b>{c.name}</b>
-            <small>{c.item_count}</small>
-          </button>
-        ))}
-      </div>
-
-      <div className="filter-row">
-        <button type="button" className={`chip${availOnly ? ' on' : ''}`} aria-pressed={availOnly} onClick={() => setAvailOnly(!availOnly)}>
-          <Icon name="calendar" size={14} /> Available now
-        </button>
-        <button type="button" className={`chip${verifiedOnly ? ' on' : ''}`} aria-pressed={verifiedOnly} onClick={() => setVerifiedOnly(!verifiedOnly)}>
-          <Icon name="shield" size={14} /> Verified owners
-        </button>
-        <span className="chip-sep" aria-hidden="true" />
-        {PRICE_BANDS.map((b) => (
-          <button key={b.key} type="button" className={`chip${price === b.key ? ' on' : ''}`} aria-pressed={price === b.key} onClick={() => setPrice(price === b.key ? '' : b.key)}>
-            {b.label}
-          </button>
-        ))}
-        <label className="chip sort-chip">
-          <Icon name="filter" size={14} />
-          <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort by">
-            {SORTS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
-          </select>
-        </label>
-        {hasFilters && (
-          <button className="chip clear" type="button" onClick={clearFilters}>
-            <Icon name="close" size={14} /> Clear all
-          </button>
-        )}
-      </div>
-
-      {featured.length > 0 && !hasFilters && (
-        <section className="featured-strip">
-          <div className="fs-head"><Glyph name="star" size={18} /><b>Featured</b><small>Promoted by their owners</small></div>
-          <div className="fs-row">
-            {featured.map((it) => (
-              <Link key={it.id} to={`/product/${it.id}`} className="fs-card">
-                {it.cover_url ? <img src={it.cover_url} alt="" loading="lazy" /> : <span className="fs-ph"><Icon name="package" size={24} /></span>}
-                <b>{it.name}</b>
-                <span>{money(it.rental_price)}/day{it.category_name ? ` · ${it.category_name}` : ''}</span>
-              </Link>
+      {/* Categories live in their own sticky column (a strip on phones), so
+          switching category never means scrolling back up past the products. */}
+      <div className="browse-body" ref={bodyRef}>
+        <aside className="cat-side" aria-label="Categories">
+          <div className="cat-side-title">Categories</div>
+          <div className="cat-side-list" role="tablist">
+            <button type="button" role="tab" aria-selected={!categoryId} className={`cat-row${!categoryId ? ' on' : ''}`} onClick={() => pickCategory('')}>
+              <span className="cat-ic sm"><Icon name="grid" size={16} /></span>
+              <b>Everything</b>
+              <small>{categories.reduce((n, c) => n + Number(c.item_count || 0), 0)}</small>
+            </button>
+            {[...categories].sort((x, y) => Number(y.item_count) - Number(x.item_count) || x.name.localeCompare(y.name)).map((c) => (
+              <button
+                type="button"
+                role="tab"
+                key={c.id}
+                aria-selected={String(c.id) === String(categoryId)}
+                className={`cat-row${String(c.id) === String(categoryId) ? ' on' : ''}${Number(c.item_count) ? '' : ' empty'}`}
+                onClick={() => pickCategory(String(c.id))}
+              >
+                <span className="cat-ic sm"><Icon name={categoryIcon(c.name)} size={16} /></span>
+                <b>{c.name}</b>
+                <small>{c.item_count}</small>
+              </button>
             ))}
           </div>
-        </section>
-      )}
+        </aside>
 
-      {loading ? (
-        <div className="center-empty">Loading…</div>
-      ) : shown.length === 0 ? (
-        <div className="center-empty">
-          <Icon name="search" size={30} />
-          <div className="empty-title">Nothing matches those filters</div>
-          {hasFilters
-            ? 'Try a different search term, or widen the category.'
-            : 'No items have been listed yet.'}
-          {hasFilters && (
-            <div>
-              <button className="btn secondary" type="button" onClick={clearFilters}>
-                Clear filters
+        <div className="browse-main">
+          <div className="filter-row">
+            <button type="button" className={`chip${availOnly ? ' on' : ''}`} aria-pressed={availOnly} onClick={() => setAvailOnly(!availOnly)}>
+              <Icon name="calendar" size={14} /> Available now
+            </button>
+            <button type="button" className={`chip${verifiedOnly ? ' on' : ''}`} aria-pressed={verifiedOnly} onClick={() => setVerifiedOnly(!verifiedOnly)}>
+              <Icon name="shield" size={14} /> Verified owners
+            </button>
+            <span className="chip-sep" aria-hidden="true" />
+            {PRICE_BANDS.map((b) => (
+              <button key={b.key} type="button" className={`chip${price === b.key ? ' on' : ''}`} aria-pressed={price === b.key} onClick={() => setPrice(price === b.key ? '' : b.key)}>
+                {b.label}
               </button>
-            </div>
+            ))}
+            <label className="chip sort-chip">
+              <Icon name="filter" size={14} />
+              <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort by">
+                {SORTS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+              </select>
+            </label>
+            {hasFilters && (
+              <button className="chip clear" type="button" onClick={clearFilters}>
+                <Icon name="close" size={14} /> Clear all
+              </button>
+            )}
+          </div>
+
+          {featured.length > 0 && !hasFilters && (
+            <section className="featured-strip">
+              <div className="fs-head"><Glyph name="star" size={18} /><b>Featured</b><small>Promoted by their owners</small></div>
+              <div className="fs-row">
+                {featured.map((it) => (
+                  <Link key={it.id} to={`/product/${it.id}`} className="fs-card">
+                    {it.cover_url ? <img src={it.cover_url} alt="" loading="lazy" /> : <span className="fs-ph"><Icon name="package" size={24} /></span>}
+                    <b>{it.name}</b>
+                    <span>{money(it.rental_price)}/day{it.category_name ? ` · ${it.category_name}` : ''}</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
           )}
-        </div>
-      ) : shelves.length > 0 ? (
-        shelves.map((c) => (
-          <section className="shelf" key={c.id}>
-            <div className="shelf-head">
-              <h2><span className="cat-ic sm"><Icon name={categoryIcon(c.name)} size={16} /></span>{c.name}</h2>
-              <button type="button" className="btn ghost small" onClick={() => { setCategoryId(String(c.id)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
-                {c.list.length > 8 ? `See all ${c.list.length}` : 'See all'} <Icon name="arrow-right" size={14} />
-              </button>
+
+          <div className="results-head">
+            <h2>{activeCategory ? activeCategory.name : search ? `Results for “${search}”` : 'All items'}</h2>
+            {!loading && <span className="muted">{shown.length === 1 ? '1 item' : `${shown.length} items`}</span>}
+          </div>
+          {loading ? (
+            <div className="center-empty">Loading…</div>
+          ) : shown.length === 0 ? (
+            <div className="center-empty">
+              <Icon name="search" size={30} />
+              <div className="empty-title">Nothing matches those filters</div>
+              {hasFilters
+                ? 'Try a different search term, or pick another category.'
+                : 'No items have been listed yet.'}
+              {hasFilters && (
+                <div>
+                  <button className="btn secondary" type="button" onClick={clearFilters}>
+                    Clear filters
+                  </button>
+                </div>
+              )}
             </div>
-            <div className="shelf-row">
-              {c.list.slice(0, 8).map((it) => (
+          ) : (
+            <div className="grid">
+              {shown.map((it) => (
                 <ProductCard item={it} key={it.id}>
                   <BookButton it={it} onBook={openBooking} />
                 </ProductCard>
               ))}
             </div>
-          </section>
-        ))
-      ) : (
-        <>
-          <div className="results-head">
-            <h2>{activeCategory ? activeCategory.name : search ? `Results for “${search}”` : 'All items'}</h2>
-            <span className="muted">{shown.length === 1 ? '1 item' : `${shown.length} items`}</span>
-          </div>
-          <div className="grid">
-            {shown.map((it) => (
-              <ProductCard item={it} key={it.id}>
-                <BookButton it={it} onBook={openBooking} />
-              </ProductCard>
-            ))}
-          </div>
-        </>
-      )}
+          )}
+        </div>
+      </div>
 
       {/* The booking form is a modal: previously it rendered below the item grid,
           so clicking "Request Booking" appeared to do nothing on a short page. */}
@@ -520,8 +504,8 @@ export default function PublicBooking() {
                   <span><b>Damage protection</b><small>Accidental damage covered up to the item's value — no surprise bills</small></span>
                   <b>{protection ? money(f.cover) : '—'}</b>
                 </label>
-                <div className="fee-total"><span>You pay</span><b>{money(f.pay)}</b></div>
-                <p className="muted small">Plus a refundable deposit (below). Pay only through RentalFlow — deals outside it aren't protected.</p>
+                <div className="fee-total"><span>You pay after approval</span><b>{money(f.pay)}</b></div>
+                <p className="muted small">Plus a refundable deposit (below). Nothing is charged now: if the owner approves, they send you a payment request. Pay only through RentalFlow — deals outside it aren't protected.</p>
               </div>
             );
           })()}
@@ -633,7 +617,7 @@ export default function PublicBooking() {
               <textarea rows={3} value={bookingForm.notes} onChange={(e) => setBookingForm({ ...bookingForm, notes: e.target.value })} />
             </div>
             <div className="card-actions">
-              <button className="btn" type="submit" disabled={!bookingForm.start_date || !bookingForm.end_date || bookingForm.start_date >= bookingForm.end_date || availabilityMessage.includes('overlap') || quote?.blocks?.length > 0 || quote?.ownItem}>Create booking request</button>
+              <button className="btn" type="submit" disabled={!bookingForm.start_date || !bookingForm.end_date || bookingForm.start_date >= bookingForm.end_date || availabilityMessage.includes('overlap') || quote?.blocks?.length > 0 || quote?.ownItem}>Send booking request</button>
               <button className="btn secondary" type="button" onClick={() => setSelectedItem(null)}>Cancel</button>
             </div>
           </form>

@@ -4,7 +4,8 @@
 // ============================================================
 // Create / edit an item (Features 1, 2, 3, 5).
 // Handles: catalog fields, category, tags (comma separated), status, and
-// linked accessories (comma separated).
+// linked accessories (comma separated). Everything is required except tags
+// and accessories.
 import { useEffect, useRef, useState } from 'react';
 import { celebrate } from '../fx.js';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -16,7 +17,7 @@ import { Icon } from '../icons.jsx';
 
 const STATUSES = ['Available', 'Rented', 'Damaged', 'Under Maintenance', 'Retired'];
 const empty = {
-  name: '', description: '', serial_number: '', rental_price: '',
+  name: '', description: '', rental_price: '',
   replacement_cost: '', status: 'Available', category_id: '',
   tags: '', accessories: '',
 };
@@ -122,7 +123,6 @@ export default function ItemForm() {
       setForm({
         name: it.name || '',
         description: it.description || '',
-        serial_number: it.serial_number || '',
         rental_price: it.rental_price ?? '',
         replacement_cost: it.replacement_cost ?? '',
         status: it.status || 'Available',
@@ -153,10 +153,10 @@ export default function ItemForm() {
     if (saving) return;
     if (!editing && gate !== 'ok') { setError('Verify your identity first (see above) — then your listing goes live.'); return; }   // a second tap while saving would create a duplicate
     setError('');
+    if (!images.length) { setError('Add at least one photo of the item.'); return; }
     const payload = {
       name: form.name,
-      description: form.description || null,
-      serial_number: form.serial_number || null,
+      description: form.description.trim(),
       rental_price: form.rental_price === '' ? 0 : Number(form.rental_price),
       replacement_cost: form.replacement_cost === '' ? 0 : Number(form.replacement_cost),
       status: form.status,
@@ -201,41 +201,37 @@ export default function ItemForm() {
           <input value={form.name} onChange={set('name')} maxLength={NAME_MAX} required />
         </div>
         <div className="field">
-          <label>Description <span className={`field-count${(form.description || '').length > DESCRIPTION_MAX - 50 ? ' near' : ''}`}>{(form.description || '').length}/{DESCRIPTION_MAX}</span></label>
-          <textarea rows={4} value={form.description} onChange={set('description')} maxLength={DESCRIPTION_MAX} />
+          <label>Description * <span className={`field-count${(form.description || '').length > DESCRIPTION_MAX - 50 ? ' near' : ''}`}>{(form.description || '').length}/{DESCRIPTION_MAX}</span></label>
+          <textarea rows={4} value={form.description} onChange={set('description')} maxLength={DESCRIPTION_MAX} required />
         </div>
         <div className="row">
           <div className="field">
-            <label>Serial number</label>
-            <input value={form.serial_number} onChange={set('serial_number')} />
+            <label>Category *</label>
+            <select value={form.category_id} onChange={set('category_id')} required>
+              <option value="">Choose a category…</option>
+              {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
           </div>
           <div className="field">
-            <label>Category</label>
-            <select value={form.category_id} onChange={set('category_id')}>
-              <option value="">Uncategorized</option>
-              {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            <label>Status *</label>
+            <select value={form.status} onChange={set('status')} required>
+              {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
         </div>
         <div className="row">
           <div className="field">
-            <label>Rental price / day (৳)</label>
-            <input type="number" step="0.01" value={form.rental_price} onChange={set('rental_price')} />
+            <label>Rental price / day (৳) *</label>
+            <input type="number" step="0.01" min="1" value={form.rental_price} onChange={set('rental_price')} required />
           </div>
           <div className="field">
-            <label>Replacement cost (৳)</label>
-            <input type="number" step="0.01" value={form.replacement_cost} onChange={set('replacement_cost')} />
+            <label>Replacement cost (৳) *</label>
+            <input type="number" step="0.01" min="1" value={form.replacement_cost} onChange={set('replacement_cost')} required />
           </div>
-        </div>
-        <div className="field">
-          <label>Status</label>
-          <select value={form.status} onChange={set('status')}>
-            {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
         </div>
 
         <div className="field">
-          <label>Product photos (upload from your device — you can select multiple)</label>
+          <label>Product photos * (upload from your device — you can select multiple)</label>
           <input type="file" accept="image/*" multiple onChange={onPickImages} />
           {uploading && <div className="muted" style={{ marginTop: 6 }}>Uploading…</div>}
           {images.length > 0 && (
@@ -251,11 +247,11 @@ export default function ItemForm() {
           )}
         </div>
         <div className="field">
-          <label>Tags (comma separated)</label>
+          <label>Tags (comma separated, optional)</label>
           <input value={form.tags} onChange={set('tags')} placeholder="camera, lens, accessory" />
         </div>
         <div className="field">
-          <label>Accessories (comma separated)</label>
+          <label>Accessories (comma separated, optional)</label>
           <input value={form.accessories} onChange={set('accessories')} placeholder="Battery, Charger, Tripod" />
         </div>
 

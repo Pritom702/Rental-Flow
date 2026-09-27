@@ -147,6 +147,16 @@ function lengthProblem(name, description) {
   return null;
 }
 
+// Everything on the listing form is required except tags and accessories.
+function missingField({ description, rental_price, replacement_cost, category_id, images }) {
+  if (!description || !String(description).trim()) return 'Add a description.';
+  if (!category_id) return 'Choose a category.';
+  if (!(Number(rental_price) > 0)) return 'Set a rental price per day.';
+  if (!(Number(replacement_cost) > 0)) return 'Set the replacement cost (what it would cost to replace).';
+  if (!Array.isArray(images) || !images.length) return 'Add at least one photo.';
+  return null;
+}
+
 router.post('/', authRequired, async (req, res) => {
   const {
     name, description, serial_number, rental_price, replacement_cost,
@@ -154,6 +164,8 @@ router.post('/', authRequired, async (req, res) => {
   } = req.body;
 
   if (!name) return res.status(400).json({ error: 'name is required' });
+  const missing = missingField(req.body);
+  if (missing) return res.status(400).json({ error: missing });
   const tooLong = lengthProblem(name, description);
   if (tooLong) return res.status(400).json({ error: tooLong });
   if (status && !VALID_STATUSES.includes(status)) {
@@ -220,7 +232,7 @@ router.put('/:id', authRequired, requireOwnerOrAdmin, async (req, res) => {
       `UPDATE items SET
          name = COALESCE($2, name),
          description = $3,
-         serial_number = $4,
+         serial_number = COALESCE($4, serial_number),
          rental_price = COALESCE($5, rental_price),
          replacement_cost = COALESCE($6, replacement_cost),
          status = COALESCE($7, status),

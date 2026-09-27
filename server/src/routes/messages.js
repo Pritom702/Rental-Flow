@@ -19,6 +19,7 @@ import { Router } from 'express';
 import { query } from '../db.js';
 import { authRequired } from '../middleware/auth.js';
 import { guardMessage, guardNote } from '../contactGuard.js';
+import { payableIn, pendingRequestFor } from './payments.js';
 
 const router = Router();
 router.use(authRequired);
@@ -165,12 +166,24 @@ router.get('/conversations/:id', async (req, res) => {
   );
   const unlocked = await chatUnlocked(convo);
   const { rows: msgs } = await query(
-    `SELECT id, sender_id, kind, guard_flags,
+    `SELECT id, sender_id, kind, guard_flags, payment_tran,
             ${unlocked ? 'COALESCE(raw_body, body)' : 'body'} AS body, created_at, read_at FROM messages
       WHERE conversation_id = $1 AND id > $2
       ORDER BY id LIMIT 200`,
     [convo.id, after]
   );
+  // Payment requests carry their payment's current state (pending / paid ...).
+  const trans = msgs.filter((m) => m.payment_tran).map((m) => m.payment_tran);
+  if (trans.length) {
+    const { rows: pays } = await query('SELECT tran_id, amount, status, breakdown FROM payments WHERE tran_id = ANY($1)', [trans]);
+    const byTran = Object.fromEntries(pays.map((p) => [p.tran_id, { tran: p.tran_id, amount: p.amount, status: p.status, breakdown: p.breakdown }]));
+    msgs.forEach((m) => { if (m.payment_tran) m.payment = byTran[m.payment_tran] || null; });
+  }
+  // What can be paid here: the owner / seller may send a payment request once
+  // the booking is approved or the offer accepted; the other side pays it.
+  const due = convo.item_id || convo.post_id ? await payableIn(convo) : null;
+  const pending = due ? await pendingRequestFor(convo) : null;
+  const payment = due ? { amount: due.amount, label: due.label, lines: due.lines, requested: pending?.tran_id || null } : null;
   const { rows: meta } = await query(
     `SELECT i.id AS item_id, i.name AS item_name, i.rental_price, i.status AS item_status,
             (SELECT url FROM item_images WHERE item_id = i.id ORDER BY position, id LIMIT 1) AS item_cover,
@@ -197,7 +210,7 @@ router.get('/conversations/:id', async (req, res) => {
   res.json({
     id: convo.id, iAmOwner: convo.owner_id === req.user.id, ...meta[0],
     seenUpTo: seen[0].seen_up_to, messages: msgs,
-    unlocked, deal: deal || null,
+    unlocked, deal: deal || null, payment,
     // Whether this person may write here now (a renter or buyer waits for
     // the owner's approval / the seller's acceptance).
     canWrite: !((convo.item_id || convo.post_id) && convo.renter_id === req.user.id && !unlocked),

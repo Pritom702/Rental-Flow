@@ -42,6 +42,7 @@ const TestCheckout = lazy(() => import('./pages/TestCheckout.jsx'));
 const Studio = lazy(() => import('./pages/Studio.jsx'));
 const StudioPick = lazy(() => import('./pages/StudioPick.jsx'));
 const Pay = lazy(() => import('./pages/Pay.jsx'));
+const SellForm = lazy(() => import('./pages/SellForm.jsx'));
 const Revenue = lazy(() => import('./pages/Revenue.jsx'));
 import { api } from './api.js';
 import ThemeToggle from './components/ThemeToggle.jsx';
@@ -100,7 +101,6 @@ const NAV_GROUPS = [
       { to: '/browse', icon: 'search', bi: 'rent', label: 'Browse' },
       { to: '/items/new', icon: 'plus', bi: 'rentout', label: 'Rent it out' },
       { to: '/sell', icon: 'tag', bi: 'sell', label: 'Sell something' },
-      { to: '/studio', icon: 'sparkles', bi: 'studio', label: 'Video Studio' },
       { to: '/limes', icon: 'wallet', bi: 'limes', label: 'Limes' },
       { to: '/messages', icon: 'chat', bi: 'messages', label: 'Messages', badge: 'unread' },
       { to: '/dashboard', icon: 'package', bi: 'listings', label: 'My Listings', adminLabel: 'All Listings' },
@@ -195,7 +195,7 @@ function AppShell({ children }) {
   const createChoices = (
     <>
       <Link to="/feed?compose=post" className="create-opt"><span><BrandIcon name="feed" size={32} /></span><div><b>Post</b><small>Photos, videos, questions, polls</small></div></Link>
-      <Link to="/feed?tab=sale&compose=sell" className="create-opt sell"><span><BrandIcon name="sell" size={32} /></span><div><b>Sell something</b><small>Buyers message you directly</small></div></Link>
+      <Link to="/sell" className="create-opt sell"><span><BrandIcon name="sell" size={32} /></span><div><b>Sell something</b><small>Buyers message you directly</small></div></Link>
       <Link to="/items/new" className="create-opt"><span><BrandIcon name="rent" size={32} /></span><div><b>Rent it out</b><small>List an item and earn every day</small></div></Link>
       <Link to="/studio" className="create-opt"><span><BrandIcon name="studio" size={32} /></span><div><b>Make a video</b><small>Turn listings into a video in one tap</small></div></Link>
     </>
@@ -415,7 +415,7 @@ export default function App() {
         <Route path="/flows" element={<Flow />} />
         <Route path="/flow" element={<Navigate to="/flows" replace />} />
         <Route path="/reels" element={<Navigate to="/flows" replace />} />
-        <Route path="/sell" element={<Navigate to="/feed?tab=sale&compose=sell" replace />} />
+        <Route path="/sell" element={<RequireAuth><SellForm /></RequireAuth>} />
         <Route path="/admin/moderation" element={<RequireAdmin><Moderation /></RequireAdmin>} />
         <Route path="/admin/revenue" element={<RequireAdmin><Revenue /></RequireAdmin>} />
         <Route path="/limes" element={<RequireAuth><Limes /></RequireAuth>} />
