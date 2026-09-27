@@ -7,6 +7,7 @@
 //   openClaim(...)        turn a return's charges into a claim against the deposit
 //   runEscalation(now)    move unreturned rentals through their stages (idempotent)
 //   maybeRunEscalation()  the same, at most once every few minutes (called as people use the site)
+import { compensateUnrecovered } from './listingReview.js';
 import { query, pool } from './db.js';
 import { identityVerified } from './middleware/requireVerified.js';
 import {
@@ -171,7 +172,9 @@ export async function runEscalation(now = new Date()) {
       `You did not answer within ${CLAIM_RESPONSE_HOURS} hours, so the charges now stand`
       + (Number(c.balance) > 0 ? ` and ${money(c.balance)} is owed.` : '.'));
   }
-  return { checked: rows.length, moved, autoAccepted: expired.rowCount, hoursLate: rows.map((b) => hoursLate(b.end_date, now)) };
+  // Stolen and not recovered within a month: the owner gets 50% of the replacement cost.
+  const compensated = await compensateUnrecovered().catch((e) => { console.error('compensation sweep failed', e.message); return 0; });
+  return { checked: rows.length, moved, autoAccepted: expired.rowCount, compensated, hoursLate: rows.map((b) => hoursLate(b.end_date, now)) };
 }
 
 // Runs the sweep at most once every INTERVAL minutes across all requests: the

@@ -40,7 +40,7 @@ ALTER TABLE notifications ADD CONSTRAINT notifications_type_check
                   'rental_missing', 'claim_opened', 'claim_update', 'incident',
                   'social_reaction', 'social_comment', 'social_reply', 'social_mention',
                   'social_follow', 'social_milestone', 'social_wanted', 'social_moderation',
-                  'credits', 'deal', 'ad', 'admin_alert'));
+                  'credits', 'deal', 'ad', 'admin_alert')) NOT VALID;
 
 -- "Show off" posts are ordinary posts now.
 UPDATE posts SET kind = 'post' WHERE kind = 'showcase';

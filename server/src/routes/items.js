@@ -11,7 +11,10 @@ import { syncListingPost, removeListingPost } from '../listingPosts.js';
 import { randomUUID } from 'crypto';
 import { query, pool } from '../db.js';
 import { NAME_MAX, DESCRIPTION_MAX } from '../socialUtils.js';
+import jwt from 'jsonwebtoken';
 import { authRequired } from '../middleware/auth.js';
+import { replacementFor } from '../valuationModel.js';
+import { submitForReview } from '../listingReview.js';
 import { spend, earn } from '../credits.js';
 import { listingFee } from '../marketUtils.js';
 import { assertNotRepost, noteDeletion } from '../fairPlay.js';
@@ -19,6 +22,14 @@ import { assertNotRepost, noteDeletion } from '../fairPlay.js';
 const router = Router();
 
 const VALID_STATUSES = ['Available', 'Rented', 'Damaged', 'Under Maintenance', 'Retired'];
+
+// Who is looking (browsing is public, so the token is optional).
+function viewer(req) {
+  const h = req.headers.authorization || '';
+  if (!h.startsWith('Bearer ')) return null;
+  try { return jwt.verify(h.slice(7), process.env.JWT_SECRET); } catch { return null; }
+}
+const isTeam = (v) => v && (v.role === 'admin' || v.role === 'staff');
 
 // Fetch one item with owner, category, tags, accessories.
 async function getItemFull(id) {
@@ -91,12 +102,19 @@ router.get('/', async (req, res) => {
     params.push(tag);
     clauses.push(`i.id IN (SELECT it.item_id FROM item_tags it JOIN tags t ON t.id = it.tag_id WHERE t.name = $${params.length})`);
   }
+  // A listing waiting for the admin's check is seen only by its owner and the team.
+  const v = viewer(req);
+  if (!isTeam(v)) {
+    params.push(v?.id || 0);
+    clauses.push(`(i.review_status = 'approved' OR i.owner_id = $${params.length})`);
+  }
 
   const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
   const { rows } = await query(
     `SELECT i.id, i.owner_id, u.name AS owner_name, i.name, i.description,
             i.serial_number, i.rental_price, i.replacement_cost,
             i.status, i.category_id, c.name AS category_name, i.created_at,
+            i.market_price, i.review_status, i.review_note,
             (u.verification_status = 'verified' AND u.nid_number IS NOT NULL AND u.phone_verified_at IS NOT NULL) AS owner_verified,
             (SELECT url FROM item_images WHERE item_id = i.id
               ORDER BY position, id LIMIT 1) AS cover_url,
@@ -138,6 +156,10 @@ router.get('/:id/qr', async (req, res) => {
 router.get('/:id', async (req, res) => {
   const item = await getItemFull(req.params.id);
   if (!item) return res.status(404).json({ error: 'Item not found' });
+  const v = viewer(req);
+  if (item.review_status !== 'approved' && !isTeam(v) && v?.id !== item.owner_id) {
+    return res.status(404).json({ error: 'Item not found' });
+  }
   res.json(item);
 });
 
@@ -151,11 +173,13 @@ function lengthProblem(name, description) {
 }
 
 // Everything on the listing form is required except tags and accessories.
-function missingField({ description, rental_price, replacement_cost, category_id, images }) {
+// The owner gives the market price; the replacement cost is 60% of it, set by
+// an admin when the listing is checked (listingReview.js).
+function missingField({ description, rental_price, market_price, category_id, images }) {
   if (!description || !String(description).trim()) return 'Add a description.';
   if (!category_id) return 'Choose a category.';
   if (!(Number(rental_price) > 0)) return 'Set a rental price per day.';
-  if (!(Number(replacement_cost) > 0)) return 'Set the replacement cost (what it would cost to replace).';
+  if (!(Number(market_price) > 0)) return 'Set the market price (what it would cost to buy it now).';
   if (!Array.isArray(images) || !images.length) return 'Add at least one photo.';
   return null;
 }
@@ -176,7 +200,7 @@ router.get('/me/listing-fee', authRequired, async (req, res) => {
 
 router.post('/', authRequired, async (req, res) => {
   const {
-    name, description, serial_number, rental_price, replacement_cost,
+    name, description, serial_number, rental_price, market_price,
     status, category_id, tags = [], accessories = [], images = [],
   } = req.body;
 
@@ -209,12 +233,15 @@ router.post('/', authRequired, async (req, res) => {
     await client.query('BEGIN');
     const { rows } = await client.query(
       `INSERT INTO items (owner_id, name, description, serial_number, rental_price,
-                          replacement_cost, status, category_id, qr_token)
-       VALUES ($1,$2,$3,$4,$5,$6,COALESCE($7,'Available'),$8,$9)
+                          replacement_cost, status, category_id, qr_token,
+                          market_price, review_status, listing_fee)
+       VALUES ($1,$2,$3,$4,$5,$6,COALESCE($7,'Available'),$8,$9,$10,$11,$12)
        RETURNING id`,
       [req.user.id, name, description || null, serial_number || null,
-       rental_price || 0, replacement_cost || 0,
-       status || null, category_id || null, randomUUID()]
+       rental_price || 0, replacementFor(market_price),
+       status || null, category_id || null, randomUUID(),
+       // A member's listing waits for an admin; the team's own go straight up.
+       Number(market_price), req.user.role === 'member' ? 'pending' : 'approved', fee]
     );
     itemId = rows[0].id;
 
@@ -239,17 +266,21 @@ router.post('/', authRequired, async (req, res) => {
   // while asking for another waited until timeout and answered 500 — after the
   // item had already been saved, so every retry created a duplicate listing.
   client.release();
-  await syncListingPost(itemId);   // the new listing shows up in the feed
-  res.status(201).json({ ...(await getItemFull(itemId)), limes_charged: fee });
+  // Members' listings go to the admins first; they reach the feed once approved.
+  const review = req.user.role === 'member' ? await submitForReview(itemId) : (await syncListingPost(itemId), null);
+  res.status(201).json({ ...(await getItemFull(itemId)), limes_charged: fee, pending_review: Boolean(review) });
 });
 
 // PUT /api/items/:id  — owner or admin. Full update incl. tags + accessories.
 router.put('/:id', authRequired, requireOwnerOrAdmin, async (req, res) => {
   const { id } = req.params;
   const {
-    name, description, serial_number, rental_price, replacement_cost,
+    name, description, serial_number, rental_price, market_price,
     status, category_id, tags, accessories, images,
   } = req.body;
+  // Only an admin sets the replacement cost (60% of the market price they approve).
+  const replacement_cost = req.user.role === 'admin' && req.body.replacement_cost != null ? req.body.replacement_cost : null;
+  const { rows: [before] } = await query('SELECT review_status FROM items WHERE id = $1', [id]);
 
   const tooLong = lengthProblem(name, description);
   if (tooLong) return res.status(400).json({ error: tooLong });
@@ -268,11 +299,14 @@ router.put('/:id', authRequired, requireOwnerOrAdmin, async (req, res) => {
          rental_price = COALESCE($5, rental_price),
          replacement_cost = COALESCE($6, replacement_cost),
          status = COALESCE($7, status),
-         category_id = $8
+         category_id = $8,
+         market_price = COALESCE($9, market_price),
+         -- a listing sent back for changes goes to the admins again
+         review_status = CASE WHEN review_status = 'rejected' THEN 'pending' ELSE review_status END
        WHERE id = $1`,
       [id, name, description ?? null, serial_number ?? null,
        rental_price, replacement_cost,
-       status, category_id ?? null]
+       status, category_id ?? null, Number(market_price) > 0 ? Number(market_price) : null]
     );
 
     if (Array.isArray(tags)) {
@@ -296,8 +330,10 @@ router.put('/:id', authRequired, requireOwnerOrAdmin, async (req, res) => {
     return res.status(500).json({ error: err.message });
   }
   client.release();   // before getItemFull() — see POST above
-  await syncListingPost(id);
-  res.json(await getItemFull(id));
+  const saved = await getItemFull(id);
+  if (before?.review_status === 'rejected') await submitForReview(id);   // fixed: back to the admins
+  else await syncListingPost(id);
+  res.json(saved);
 });
 
 // PATCH /api/items/:id/status  — owner or admin (Feature 3).

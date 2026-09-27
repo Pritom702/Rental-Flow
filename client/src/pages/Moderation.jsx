@@ -6,6 +6,8 @@
 //   Queue        reported posts and comments, and photos the automatic check
 //                was unsure about — most likely problems first, each with the
 //                moderation model's guess and the reasons behind it
+//   Review       new listings waiting to go live: confirm the market price the
+//                valuation model suggests (replacement cost = 60% of it)
 //   Listings     every listing for rent and item for sale: remove it, warn
 //                its owner, or message them
 //   Members      find anyone; warn, ban, unban or message them; see their history
@@ -22,6 +24,7 @@ import { Glyph } from '../social/glyphs.jsx';
 import { money } from '../money.js';
 
 const TABS = [
+  ['review', 'Review', 'rent'],
   ['queue', 'Queue', 'shield'],
   ['listings', 'Listings', 'rent'],
   ['members', 'Members', 'people'],
@@ -31,7 +34,7 @@ const TABS = [
 
 export default function Moderation() {
   const [params, setParams] = useSearchParams();
-  const tab = TABS.some(([k]) => k === params.get('tab')) ? params.get('tab') : 'queue';
+  const tab = TABS.some(([k]) => k === params.get('tab')) ? params.get('tab') : 'review';
   return (
     <div className="container admin-console">
       <div className="page-head">
@@ -48,6 +51,7 @@ export default function Moderation() {
         ))}
       </div>
       {tab === 'queue' && <Queue />}
+      {tab === 'review' && <Review />}
       {tab === 'listings' && <Listings />}
       {tab === 'members' && <Members />}
       {tab === 'communities' && <Communities />}
@@ -121,6 +125,82 @@ function Case({ c, onAct }) {
             <button type="button" className="btn small danger" onClick={() => onAct('remove', true)}>Remove as adult content</button>
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- listing review
+
+function Review() {
+  const [data, setData] = useState(null);
+  const load = useCallback(() => api.get('/moderation/review').then(setData).catch((e) => { say(e.message, 'warn'); setData({ items: [] }); }), []);
+  useEffect(() => { load(); }, [load]);
+  if (!data) return <div className="page-loading" />;
+  if (!data.items.length) {
+    return <div className="center-empty"><Glyph name="check" size={30} /><div className="empty-title">No listings waiting</div>New listings show up here, with a suggested market price.</div>;
+  }
+  return (
+    <div className="review-list">
+      <p className="muted small">
+        {`${data.items.length} waiting. The suggested market price comes from the valuation model, which has learned from ${data.model.examples} approved listing${data.model.examples === 1 ? '' : 's'} so far — every price you approve teaches it.`}
+      </p>
+      {data.items.map((it) => <ReviewCard key={it.id} it={it} onDone={load} />)}
+    </div>
+  );
+}
+
+function ReviewCard({ it, onDone }) {
+  const [market, setMarket] = useState(String(it.suggestion.market || it.market_price || ''));
+  const [busy, setBusy] = useState(false);
+  const m = Number(market) || 0;
+  const replacement = Math.round(m * 0.6);
+  async function approve() {
+    setBusy(true);
+    try {
+      await api.post(`/moderation/review/${it.id}/approve`, { market_price: m });
+      play('success');
+      say(`“${it.name}” is live — ${it.owner_name} was told`, 'shield');
+      onDone();
+    } catch (e) { say(e.message, 'warn'); setBusy(false); }
+  }
+  async function reject() {
+    const reason = window.prompt(`Send “${it.name}” back to ${it.owner_name}. What should they fix?`, 'Please add clear photos and a realistic market price.');
+    if (!reason) return;
+    setBusy(true);
+    try {
+      await api.post(`/moderation/review/${it.id}/reject`, { reason });
+      say('Sent back to the owner', 'shield');
+      onDone();
+    } catch (e) { say(e.message, 'warn'); setBusy(false); }
+  }
+  return (
+    <div className="review-card">
+      <Link to={`/product/${it.id}`} className="rc-photo">{it.image ? <img src={it.image} alt="" /> : <Glyph name="rent" size={26} />}</Link>
+      <div className="rc-main">
+        <div className="rc-top">
+          <b translate="no">{it.name}</b>
+          <span className="muted small">{`${it.category || 'No category'} · ${it.photos === 1 ? '1 photo' : `${it.photos} photos`} · ${timeAgo(it.created_at)}`}</span>
+          <span className="muted small" translate="no">{`${it.owner_name} · ${it.owner_email}`}</span>
+        </div>
+        {it.description && <p className="rc-desc" translate="no">{it.description}</p>}
+        <div className="rc-facts">
+          <span>Rent <b>{`${money(it.rental_price)}/day`}</b></span>
+          <span>Owner says <b>{money(it.market_price)}</b></span>
+          <span className="rc-suggest">Model suggests <b>{money(it.suggestion.market)}</b></span>
+        </div>
+        <ul className="rc-basis">{it.suggestion.basis.map((line) => <li key={line}>{line}</li>)}</ul>
+      </div>
+      <div className="rc-decide">
+        <label>Market price (৳)
+          <input type="number" min="1" value={market} onChange={(e) => setMarket(e.target.value)} />
+        </label>
+        <div className="rc-calc">
+          <span>Replacement (60%) <b>{money(replacement)}</b></span>
+          <span>Theft payout (50%) <b>{money(Math.round(replacement * 0.5))}</b></span>
+        </div>
+        <button type="button" className="btn accent" disabled={busy || !(m > 0)} onClick={approve}>Approve &amp; post</button>
+        <button type="button" className="btn ghost small" disabled={busy} onClick={reject}>Send back</button>
       </div>
     </div>
   );

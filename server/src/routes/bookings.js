@@ -310,8 +310,8 @@ router.post('/', authRequired, async (req, res) => {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      const existingItem = await client.query('SELECT id, name, owner_id, replacement_cost, rental_price, status FROM items WHERE id = $1', [item_id]);
-      if (!existingItem.rows[0]) {
+      const existingItem = await client.query('SELECT id, name, owner_id, replacement_cost, rental_price, status, review_status FROM items WHERE id = $1', [item_id]);
+      if (!existingItem.rows[0] || existingItem.rows[0].review_status !== 'approved') {
         await client.query('ROLLBACK');
         return res.status(404).json({ error: 'Item not found' });
       }

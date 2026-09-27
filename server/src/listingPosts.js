@@ -20,7 +20,7 @@ function bodyFor(item) {
 
 async function listingFor(itemId) {
   const { rows: [item] } = await query(
-    `SELECT i.id, i.owner_id, i.name, i.description, i.status, c.id AS community_id
+    `SELECT i.id, i.owner_id, i.name, i.description, i.status, i.review_status, c.id AS community_id
        FROM items i LEFT JOIN communities c ON c.category_id = i.category_id
       WHERE i.id = $1`,
     [itemId]
@@ -51,6 +51,7 @@ export async function syncListingPost(itemId) {
       return;
     }
     if (!item.community_id || item.status === 'Retired') return;   // no category, nowhere to show it
+    if (item.review_status !== 'approved') return;                   // waits for the admin's check
     await query(
       `INSERT INTO posts (community_id, author_id, kind, body, attachments, item_id)
        VALUES ($1, $2, 'rent', $3, $4, $5)`,

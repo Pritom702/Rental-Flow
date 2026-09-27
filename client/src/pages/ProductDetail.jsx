@@ -105,6 +105,8 @@ export default function ProductDetail() {
             <StatusBadge status={item.status} />
           </div>
           <div className="product-price">{money(item.rental_price)} <span>/ day</span></div>
+          {item.review_status === 'pending' && <div className="review-tag pending"><Icon name="shield" size={13} /> Waiting for our team to check it — renters cannot see it yet</div>}
+          {item.review_status === 'rejected' && <div className="review-tag rejected"><Icon name="shield" size={13} /> Needs changes: {item.review_note}</div>}
           <div className="muted">
             Listed by <b>{item.owner_name || 'Unknown'}</b>
             {item.category_name && <> · {item.category_name}</>}

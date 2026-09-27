@@ -19,6 +19,7 @@ import { recordAdultStrike } from '../moderation.js';
 import { assess, currentModel, recordDecision } from '../moderationCases.js';
 import { buildReport } from '../moderationModel.js';
 import { removeListingPost } from '../listingPosts.js';
+import { approveListing, rejectListing, suggestionFor, valuationModel } from '../listingReview.js';
 
 const router = Router();
 router.use(authRequired, requireRole('admin'));
@@ -187,13 +188,42 @@ router.post('/users/:id/unban', async (req, res) => {
   res.json({ ok: true });
 });
 
+// ---------------------------------------------------------------- listing review
+// New listings wait here. Each comes with the valuation model's suggested
+// market price and how it was worked out; the admin confirms or corrects it.
+router.get('/review', async (_req, res) => {
+  const model = await valuationModel();
+  const { rows } = await query(
+    `SELECT i.id, i.name, i.description, i.rental_price, i.market_price, i.category_id, i.created_at, i.review_status,
+            c.name AS category, u.id AS owner_id, u.name AS owner_name, u.email AS owner_email,
+            (SELECT url FROM item_images WHERE item_id = i.id ORDER BY position, id LIMIT 1) AS image,
+            (SELECT COUNT(*)::int FROM item_images WHERE item_id = i.id) AS photos
+       FROM items i JOIN users u ON u.id = i.owner_id LEFT JOIN categories c ON c.id = i.category_id
+      WHERE i.review_status = 'pending' ORDER BY i.created_at`);
+  const out = [];
+  for (const r of rows) out.push({ ...r, suggestion: await suggestionFor(r, model) });
+  res.json({ items: out, model: { examples: model.examples } });
+});
+
+// POST /api/moderation/review/:id/approve  { market_price }
+router.post('/review/:id/approve', async (req, res) => {
+  res.json(await approveListing(Number(req.params.id), req.user.id, req.body.market_price));
+});
+
+// POST /api/moderation/review/:id/reject  { reason }
+router.post('/review/:id/reject', async (req, res) => {
+  await rejectListing(Number(req.params.id), req.user.id, req.body.reason);
+  res.json({ ok: true });
+});
+
 // ---------------------------------------------------------------- listings
 // Rental listings (items) and things for sale (sell posts), newest first.
 router.get('/listings', async (req, res) => {
   const q = String(req.query.q || '').trim();
   const { rows } = await query(
     `SELECT * FROM (
-       SELECT 'item' AS type, i.id, i.name AS title, i.rental_price AS price, i.status, i.created_at,
+       SELECT 'item' AS type, i.id, i.name AS title, i.rental_price AS price,
+              CASE WHEN i.review_status = 'approved' THEN i.status WHEN i.review_status = 'pending' THEN 'Waiting for review' ELSE 'Sent back' END AS status, i.created_at,
               c.name AS category, u.id AS owner_id, u.name AS owner_name, u.email AS owner_email,
               u.status AS owner_status, u.warning_count,
               (SELECT url FROM item_images WHERE item_id = i.id ORDER BY position, id LIMIT 1) AS image,

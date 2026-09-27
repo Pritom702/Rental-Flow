@@ -14,11 +14,19 @@ import SellerGate, { useSellerGate } from '../social/SellerGate.jsx';
 import { useAuth } from '../auth.jsx';
 import { DESCRIPTION_MAX, NAME_MAX } from '../social/util.jsx';
 import { Icon } from '../icons.jsx';
+import { money } from '../money.js';
+import Portal from '../components/Portal.jsx';
+
+// The replacement cost is 60% of the market price; a stolen item we cannot
+// recover within a month is compensated with 50% of the replacement cost.
+// (Same rules as server/src/valuationModel.js.)
+const REPLACEMENT_RATE = 0.6;
+const COMPENSATION_RATE = 0.5;
 
 const STATUSES = ['Available', 'Rented', 'Damaged', 'Under Maintenance', 'Retired'];
 const empty = {
   name: '', description: '', rental_price: '',
-  replacement_cost: '', status: 'Available', category_id: '',
+  market_price: '', status: 'Available', category_id: '',
   tags: '', accessories: '',
 };
 
@@ -56,6 +64,7 @@ export default function ItemForm() {
   const [categories, setCategories] = useState([]);
   const [error, setError] = useState('');
   const [restored, setRestored] = useState(false);
+  const [created, setCreated] = useState(null);   // the listing just made: show the disclaimer
   // What this listing costs in Limes: the first is free, then 10, 15, 20...
   const [fee, setFee] = useState(null);
   useEffect(() => { if (!editing) api.get('/items/me/listing-fee').then(setFee).catch(() => {}); }, [editing]);
@@ -127,7 +136,8 @@ export default function ItemForm() {
         name: it.name || '',
         description: it.description || '',
         rental_price: it.rental_price ?? '',
-        replacement_cost: it.replacement_cost ?? '',
+        // Older listings had only a replacement cost: 60% of the market price.
+        market_price: it.market_price ?? (Number(it.replacement_cost) ? Math.round(Number(it.replacement_cost) / REPLACEMENT_RATE) : ''),
         status: it.status || 'Available',
         category_id: it.category_id || '',
         tags: (it.tags || []).map((t) => t.name).join(', '),
@@ -161,7 +171,7 @@ export default function ItemForm() {
       name: form.name,
       description: form.description.trim(),
       rental_price: form.rental_price === '' ? 0 : Number(form.rental_price),
-      replacement_cost: form.replacement_cost === '' ? 0 : Number(form.replacement_cost),
+      market_price: form.market_price === '' ? 0 : Number(form.market_price),
       status: form.status,
       category_id: form.category_id ? Number(form.category_id) : null,
       tags: form.tags.split(',').map((s) => s.trim()).filter(Boolean),
@@ -170,11 +180,12 @@ export default function ItemForm() {
     };
     setSaving(true);
     try {
-      if (editing) await api.put(`/items/${id}`, payload);
-      else await api.post('/items', payload);
+      const saved = editing ? await api.put(`/items/${id}`, payload) : await api.post('/items', payload);
       touched.current = false;
       clearDraft(key);
       celebrate();
+      // Every new listing: the theft-protection promise, before anything else.
+      if (!editing) { setCreated(saved); return; }
       navigate('/dashboard');
     } catch (err) {
       if (err.reason === 'seller-verification-required') setGate(err.data?.error?.includes('being checked') ? 'pending' : 'needed');
@@ -228,10 +239,20 @@ export default function ItemForm() {
             <input type="number" step="0.01" min="1" value={form.rental_price} onChange={set('rental_price')} required />
           </div>
           <div className="field">
-            <label>Replacement cost (৳) *</label>
-            <input type="number" step="0.01" min="1" value={form.replacement_cost} onChange={set('replacement_cost')} required />
+            <label>Market price (৳) *</label>
+            <input type="number" step="1" min="1" value={form.market_price} onChange={set('market_price')} placeholder="What it costs to buy now" required />
           </div>
         </div>
+        {Number(form.market_price) > 0 && (
+          <div className="hint protect-hint">
+            <Icon name="shield" size={16} />
+            <span>
+              {`Replacement cost ≈ ${money(Math.round(form.market_price * REPLACEMENT_RATE))} (60% of the market price). `}
+              {`If it is stolen and we cannot get it back within a month, you get ≈ ${money(Math.round(form.market_price * REPLACEMENT_RATE * COMPENSATION_RATE))} (50% of the replacement cost). `}
+              Our team confirms the final value before the listing goes live.
+            </span>
+          </div>
+        )}
 
         <div className="field">
           <label>Product photos * (upload from your device — you can select multiple)</label>
@@ -275,6 +296,28 @@ export default function ItemForm() {
           <button type="button" className="btn secondary" onClick={() => { clearDraft(key); navigate('/dashboard'); }}>Cancel</button>
         </div>
       </form>
+      {created && (
+        <Portal><div className="modal-backdrop">
+          <div className="modal protect-modal" role="dialog" aria-label="Your listing is protected">
+            <span className="pm-badge"><Icon name="shield" size={30} /></span>
+            <h2>Your item is protected</h2>
+            <p>
+              Every renter on RentalFlow is verified with their National ID, a live selfie and their phone number.
+              <b> If your item is stolen during a rental, we use those details to get it back.</b>
+            </p>
+            <div className="pm-promise">
+              <div><span>Replacement cost</span><b>{money(created.replacement_cost)}</b><small>60% of the market price you gave ({money(created.market_price)})</small></div>
+              <div><span>If not recovered within 1 month</span><b>{money(Math.round(Number(created.replacement_cost) * COMPENSATION_RATE))}</b><small>We pay you 50% of the replacement cost</small></div>
+            </div>
+            <p className="muted small">
+              {created.pending_review
+                ? 'Next: our team checks the listing and confirms its market price (and so the replacement cost). It goes live as soon as it is approved — we will notify you.'
+                : 'Your listing is live.'}
+            </p>
+            <button type="button" className="btn lg block" onClick={() => navigate('/dashboard')}>I understand</button>
+          </div>
+        </div></Portal>
+      )}
     </div>
   );
 }

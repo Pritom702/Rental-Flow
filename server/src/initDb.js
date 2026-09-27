@@ -62,7 +62,7 @@ async function main() {
 
   // Business: chat guard, sale deals, Limes (credits), booking fees, ads.
   await pool.query(`DROP TABLE IF EXISTS sale_deals, credit_wallets, credit_ledger, credit_orders, boosts,
-    booking_fees, ad_campaigns, ad_events, content_deletions CASCADE`);
+    booking_fees, ad_campaigns, ad_events, content_deletions, item_valuations, theft_compensations CASCADE`);
   await pool.query(fs.readFileSync(path.join(__dirname, 'schema_market.sql'), 'utf8'));
   console.log('✅ Business tables created (credits, fees, deals, ads)');
 
@@ -88,6 +88,10 @@ async function main() {
   // Repost guard, support chats, admin actions on listings.
   await pool.query(fs.readFileSync(path.join(__dirname, 'schema_fairplay.sql'), 'utf8'));
   console.log('✅ Fair-play rules ready');
+
+  // Listing review by admins, valuation model data, theft compensation.
+  await pool.query(fs.readFileSync(path.join(__dirname, 'schema_listing_review.sql'), 'utf8'));
+  console.log('✅ Listing review ready');
   await pool.end();
 }
 
