@@ -6,6 +6,9 @@
 //   • the queue: reported posts and comments, and photos the automatic check
 //     was unsure about — sorted by how likely the model thinks each is to go
 //   • members: find anyone, warn them, ban or unban them
+//   • listings: every listing for rent and every item for sale — remove it,
+//     warn its owner, or message them
+//   • message anyone: a direct chat from the RentalFlow team
 //   • communities: create new ones
 //   • the report: what the moderation model learned and what to do next
 // Every decision is logged in moderation_actions and teaches the model.
@@ -15,6 +18,7 @@ import { authRequired, requireRole } from '../middleware/auth.js';
 import { recordAdultStrike } from '../moderation.js';
 import { assess, currentModel, recordDecision } from '../moderationCases.js';
 import { buildReport } from '../moderationModel.js';
+import { removeListingPost } from '../listingPosts.js';
 
 const router = Router();
 router.use(authRequired, requireRole('admin'));
@@ -181,6 +185,93 @@ router.post('/users/:id/unban', async (req, res) => {
   await recordDecision({ adminId: req.user.id, type: 'user', id: u.id, userId: u.id, action: 'unban', reason: req.body.reason || null });
   await notify(u.id, 'Your account is active again', 'The RentalFlow team lifted the ban on your account. Welcome back — please keep to the community rules.');
   res.json({ ok: true });
+});
+
+// ---------------------------------------------------------------- listings
+// Rental listings (items) and things for sale (sell posts), newest first.
+router.get('/listings', async (req, res) => {
+  const q = String(req.query.q || '').trim();
+  const { rows } = await query(
+    `SELECT * FROM (
+       SELECT 'item' AS type, i.id, i.name AS title, i.rental_price AS price, i.status, i.created_at,
+              c.name AS category, u.id AS owner_id, u.name AS owner_name, u.email AS owner_email,
+              u.status AS owner_status, u.warning_count,
+              (SELECT url FROM item_images WHERE item_id = i.id ORDER BY position, id LIMIT 1) AS image,
+              (SELECT COUNT(*)::int FROM bookings b WHERE b.item_id = i.id) AS activity
+         FROM items i JOIN users u ON u.id = i.owner_id LEFT JOIN categories c ON c.id = i.category_id
+       UNION ALL
+       SELECT 'sale', p.id, LEFT(split_part(p.body, E'\n', 1), 80), (p.sale->>'price')::numeric,
+              CASE WHEN p.status = 'removed' THEN 'Removed' WHEN (p.sale->>'sold')::boolean THEN 'Sold' ELSE 'For sale' END,
+              p.created_at, cm.name, u.id, u.name, u.email, u.status, u.warning_count,
+              (SELECT a->>'url' FROM jsonb_array_elements(p.attachments) a WHERE a->>'type' = 'image' LIMIT 1),
+              (SELECT COUNT(*)::int FROM sale_deals d WHERE d.post_id = p.id)
+         FROM posts p JOIN users u ON u.id = p.author_id JOIN communities cm ON cm.id = p.community_id
+        WHERE p.kind = 'sell' AND p.status <> 'removed'
+     ) x
+     WHERE $1 = '' OR x.title ILIKE '%' || $1 || '%' OR x.owner_name ILIKE '%' || $1 || '%' OR x.owner_email ILIKE '%' || $1 || '%'
+     ORDER BY x.created_at DESC LIMIT 80`, [q]);
+  res.json(rows);
+});
+
+async function listingOrFail(type, id) {
+  if (type === 'item') {
+    const { rows: [it] } = await query('SELECT id, owner_id, name AS title FROM items WHERE id = $1', [id]);
+    if (it) return it;
+  } else if (type === 'sale') {
+    const { rows: [p] } = await query(`SELECT id, author_id AS owner_id, LEFT(split_part(body, E'\n', 1), 80) AS title FROM posts WHERE id = $1 AND kind = 'sell'`, [id]);
+    if (p) return p;
+  }
+  throw httpError(404, 'Listing not found.');
+}
+
+// POST /api/moderation/listings/:type/:id/remove  { reason }
+router.post('/listings/:type/:id/remove', async (req, res) => {
+  const l = await listingOrFail(req.params.type, Number(req.params.id));
+  const reason = String(req.body.reason || '').trim();
+  if (reason.length < 5) throw httpError(400, 'Write the owner a short reason.');
+  if (req.params.type === 'item') {
+    await removeListingPost(l.id);
+    await query('DELETE FROM items WHERE id = $1', [l.id]);
+    await recordDecision({ adminId: req.user.id, type: 'item', id: l.id, userId: l.owner_id, action: 'remove', reason });
+  } else {
+    await query(`UPDATE posts SET status = 'removed' WHERE id = $1`, [l.id]);
+    await recordDecision({ adminId: req.user.id, type: 'post', id: l.id, userId: l.owner_id, action: 'remove', reason });
+  }
+  await notify(l.owner_id, 'Your listing was removed', `“${snippet(l.title, 60)}” was removed by the RentalFlow team: ${reason.slice(0, 240)}`);
+  res.json({ ok: true });
+});
+
+// POST /api/moderation/listings/:type/:id/warn  { reason }
+router.post('/listings/:type/:id/warn', async (req, res) => {
+  const l = await listingOrFail(req.params.type, Number(req.params.id));
+  const u = await memberOrFail(l.owner_id, req.user.id);
+  const reason = String(req.body.reason || '').trim();
+  if (reason.length < 5) throw httpError(400, 'Write the owner a short reason for the warning.');
+  await query('UPDATE users SET warning_count = warning_count + 1 WHERE id = $1', [u.id]);
+  await recordDecision({ adminId: req.user.id, type: 'user', id: u.id, userId: u.id, action: 'warn', reason: `Listing “${snippet(l.title, 60)}”: ${reason}` });
+  await notify(u.id, 'Warning about your listing', `“${snippet(l.title, 60)}”: ${reason.slice(0, 240)} Please fix it — repeated problems lead to a ban.`,
+    req.params.type === 'item' ? `/items/${l.id}/edit` : `/post/${l.id}`);
+  res.json({ ok: true });
+});
+
+// POST /api/moderation/message  { user_id, body } — a direct chat from the RentalFlow team.
+router.post('/message', async (req, res) => {
+  const to = Number(req.body.user_id);
+  const body = String(req.body.body || '').trim();
+  if (!body) throw httpError(400, 'Write a message first.');
+  if (body.length > 2000) throw httpError(400, 'Messages can be at most 2000 characters.');
+  if (to === req.user.id) throw httpError(400, 'That is you.');
+  const { rows: [u] } = await query('SELECT id, name FROM users WHERE id = $1', [to]);
+  if (!u) throw httpError(404, 'Member not found.');
+  const { rows: [c] } = await query(
+    `INSERT INTO conversations (renter_id, owner_id, is_support) VALUES ($1, $2, TRUE)
+     ON CONFLICT (renter_id, owner_id) WHERE is_support DO UPDATE SET is_support = TRUE
+     RETURNING id`, [u.id, req.user.id]);
+  await query('INSERT INTO messages (conversation_id, sender_id, body) VALUES ($1, $2, $3)', [c.id, req.user.id, body]);
+  await query('UPDATE conversations SET last_message_at = NOW() WHERE id = $1', [c.id]);
+  await recordDecision({ adminId: req.user.id, type: 'user', id: u.id, userId: u.id, action: 'message', reason: snippet(body, 280) });
+  await notify(u.id, 'Message from the RentalFlow team', snippet(body, 200), `/messages/${c.id}`);
+  res.status(201).json({ conversation_id: c.id });
 });
 
 // ---------------------------------------------------------------- communities

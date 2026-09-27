@@ -45,8 +45,8 @@ export default function Customers() {
         <div>
           <h1>Customers</h1>
           <div className="sub">{team
-            ? 'Everyone who has booked on RentalFlow, what they spent, and how reliably they return items.'
-            : 'People who rented your listings, what they spent, and how reliably they return items.'}</div>
+            ? 'Real RentalFlow accounts that booked, what they actually paid, and how reliably they return items (clean returns ÷ completed rentals).'
+            : 'Real RentalFlow accounts that booked your listings, what they actually paid, and how reliably they return items (clean returns ÷ completed rentals).'}</div>
         </div>
         <Link to="/bookings" className="btn secondary">Bookings</Link>
       </div>

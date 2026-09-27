@@ -222,7 +222,6 @@ export default function Composer({ open, onClose, onCreated, community: fixedCom
   const others = communities.filter((c) => !c.joined);
   const placeholder = {
     post: "What's happening?",
-    showcase: 'Show what you made or shot…',
     question: 'What do you want to know?',
     guide: 'Teach something — step by step works great',
     wanted: 'What are you looking for, and when?',

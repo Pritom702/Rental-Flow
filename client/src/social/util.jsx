@@ -20,7 +20,6 @@ export const reactionLabel = (t) => REACTIONS.find((r) => r.type === t)?.label |
 // What each kind of post is, as the composer and the card show it.
 export const KINDS = {
   post:     { label: 'Post',     glyph: 'post',     hint: 'Say anything' },
-  showcase: { label: 'Show off', glyph: 'showcase', hint: 'Photos or video of what you made or shot' },
   question: { label: 'Ask',      glyph: 'question', hint: 'Get advice before you rent or buy' },
   guide:    { label: 'Guide',    glyph: 'guide',    hint: 'Teach something you know' },
   wanted:   { label: 'Wanted',   glyph: 'wanted',   hint: 'Looking for something to rent' },

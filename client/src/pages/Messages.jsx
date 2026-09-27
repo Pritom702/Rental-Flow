@@ -2,7 +2,9 @@
 //  RentalFlow  |  Messaging  |  Owner: M2 - Tawheed Bin Hamid (Pritom)
 //  GitHub: @pritom702  |  Part: conversations list + chat thread
 // ============================================================
-// Computer: conversations on the left, the open chat on the right.
+// Computer: conversations on the left, the open chat in the middle, and the
+// other person's profile, record and your history together on the right —
+// both people see each other's, so every deal is made in the open.
 // Phone:    the list first; opening a chat fills the screen, with a back button.
 // New messages are fetched every few seconds — only the ones newer than the
 // last one already on screen.
@@ -15,6 +17,7 @@ import { Icon } from '../icons.jsx';
 import { money } from '../money.js';
 import { Glyph } from '../social/glyphs.jsx';
 import { say } from '../social/toast.js';
+import { Avatar } from '../social/util.jsx';
 
 const THREAD_POLL_MS = 4000;
 const LIST_POLL_MS = 15000;
@@ -84,6 +87,7 @@ function Thread({ id, onActivity }) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [seenUpTo, setSeenUpTo] = useState(0);   // the other person has read my messages up to this id
+  const [infoOpen, setInfoOpen] = useState(false); // narrow screens: the profile panel slides in
   const bottom = useRef(null);
   const lastId = useRef(0);
 
@@ -148,6 +152,7 @@ function Thread({ id, onActivity }) {
   if (!convo) return <div className="chat-placeholder"><p className="muted">Loading…</p></div>;
 
   return (
+    <div className={`thread-wrap${infoOpen ? ' info-open' : ''}`}>
     <div className="thread">
       <header className="thread-head">
         <button className="btn ghost small thread-back" onClick={() => navigate('/messages')} aria-label="Back to conversations">←</button>
@@ -164,14 +169,20 @@ function Thread({ id, onActivity }) {
                   {convo.post_cover && <img src={convo.post_cover} alt="" />}
                   <span>For sale · {convo.post_title} · {money(convo.sale?.price)}{convo.sale?.sold ? ' · sold' : ''}</span>
                 </Link>
-              : <span className="muted">This listing was removed</span>}
+              : convo.support ? <span className="thread-item"><Glyph name="shield" size={14} /> Message from the RentalFlow team</span>
+                : <span className="muted">This listing was removed</span>}
         </div>
+        {convo.other && (
+          <button type="button" className="btn ghost small thread-info-btn" onClick={() => setInfoOpen(true)} aria-label={`About ${convo.other_name}`}>
+            <Glyph name="people" size={15} /> Profile
+          </button>
+        )}
         <button type="button" className="btn ghost small thread-report" onClick={reportOutside} title="They asked me to pay outside RentalFlow">
           <Glyph name="flag" size={15} /> Report
         </button>
       </header>
 
-      {!convo.unlocked && (
+      {!convo.unlocked && !convo.support && (
         <div className="chat-lock">
           <Glyph name="shield" size={20} />
           <div>
@@ -229,6 +240,76 @@ function Thread({ id, onActivity }) {
       )}
       {error && <div className="error">{error}</div>}
     </div>
+    {convo.other && <PersonPanel p={convo.other} together={convo.together || []} onClose={() => setInfoOpen(false)} />}
+    {infoOpen && <div className="chat-info-scrim" onClick={() => setInfoOpen(false)} />}
+    </div>
+  );
+}
+
+// The other person, in the open: who they are, their record on RentalFlow,
+// their trust score (and how it is worked out), and your history together.
+function PersonPanel({ p, together, onClose }) {
+  const since = new Date(p.member_since).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+  const tone = p.trust >= 85 ? 'good' : p.trust >= 65 ? 'ok' : 'low';
+  const stats = [
+    ['Rented', p.rented, p.rented_with_charges ? `${p.rented_with_charges} with charges` : 'all returned clean'],
+    ['Lent out', p.lent, p.listings === 1 ? '1 listing' : `${p.listings} listings`],
+    ['Bought', p.bought, null],
+    ['Sold', p.sold, null],
+  ];
+  const flags = [
+    p.not_returned > 0 && `${p.not_returned} not returned`,
+    p.claims > 0 && (p.claims === 1 ? '1 damage claim' : `${p.claims} damage claims`),
+    p.dropped > 0 && (p.dropped === 1 ? '1 deal dropped' : `${p.dropped} deals dropped`),
+    p.warning_count > 0 && (p.warning_count === 1 ? '1 warning' : `${p.warning_count} warnings`),
+    p.content_strikes > 0 && (p.content_strikes === 1 ? '1 content strike' : `${p.content_strikes} content strikes`),
+  ].filter(Boolean);
+  return (
+    <aside className="chat-info" aria-label={`About ${p.name}`}>
+      <button type="button" className="icon-btn chat-info-close" onClick={onClose} aria-label="Close"><Icon name="close" size={16} /></button>
+      <div className="ci-head">
+        <Avatar id={p.id} name={p.name} src={p.avatar_url} size={64} />
+        <b translate="no">{p.name}</b>
+        {p.handle && <span className="muted small" translate="no">@{p.handle}</span>}
+        <span className="ci-tags">
+          <em className={`tag${p.verified ? ' ok' : ''}`}>{p.verified ? 'Fully verified' : 'Not verified yet'}</em>
+          <em className="tag">{`Member since ${since}`}</em>
+          {p.status === 'suspended' && <em className="tag red">Banned</em>}
+        </span>
+        <Link to={`/u/${p.handle || p.id}`} className="btn secondary small">View profile</Link>
+      </div>
+
+      <div className={`ci-trust ${tone}`}>
+        <div className="ci-trust-top"><span>Trust score</span><b>{p.trust}</b></div>
+        <div className="ci-bar"><i style={{ width: `${p.trust}%` }} /></div>
+        <small>{`(${p.good} good + 4) ÷ (${p.good} good + ${p.bad} bad + 5) × 100`}</small>
+      </div>
+
+      <div className="ci-stats">
+        {stats.map(([label, n, sub]) => (
+          <div key={label}><b>{n}</b><span>{label}</span>{sub && <small>{sub}</small>}</div>
+        ))}
+      </div>
+      {flags.length > 0
+        ? <div className="ci-flags">{flags.map((f) => <span key={f}>{f}</span>)}</div>
+        : <div className="ci-clean"><Glyph name="check" size={14} /> No claims, dropped deals or warnings</div>}
+
+      <h4>Between you two</h4>
+      {!together.length ? <p className="muted small">Nothing yet — this is your first deal together.</p> : (
+        <ul className="ci-history">
+          {together.map((h) => (
+            <li key={`${h.type}-${h.id}`}>
+              <span className="ci-h-title">{h.title || (h.type === 'sale' ? 'Item for sale' : 'Listing')}</span>
+              <span className="muted small">
+                {h.side}
+                {h.type === 'rental' ? ` · ${String(h.start_date).slice(0, 10)} → ${String(h.end_date).slice(0, 10)}` : ` · ${money(h.price)}`}
+              </span>
+              <em className={`badge ${h.status}`}>{h.paid_at ? `${h.status} · paid` : h.status}</em>
+            </li>
+          ))}
+        </ul>
+      )}
+    </aside>
   );
 }
 

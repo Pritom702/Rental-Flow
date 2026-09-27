@@ -80,3 +80,36 @@ export function withAds(posts, ads) {
   });
   return out;
 }
+
+// ---------------------------------------------------------------- listing fee
+// Your first listing is free. After that each new one costs 5 Limes times how
+// many listings you will then have: the 2nd costs 10, the 3rd 15, the 4th 20.
+export const LISTING_FEE_STEP = 5;
+export function listingFee(listingsAfter) {
+  const n = Math.floor(Number(listingsAfter) || 0);
+  return n >= 2 ? LISTING_FEE_STEP * n : 0;
+}
+
+// ---------------------------------------------------------------- reposting
+// Deleting something and putting the same thing up again within a day, to
+// jump back to the top of the feed, costs a one-hour break.
+export const REPOST_WINDOW_HOURS = 24;
+export const REPOST_COOLDOWN_MINUTES = 60;
+// "Canon EOS R6 — like new!" and "canon eos r6 like new" are the same thing.
+export function fingerprint(text) {
+  const firstLine = String(text || '').split('\n').find((l) => l.trim()) || '';
+  return firstLine.toLowerCase().normalize('NFKC').replace(/[^\p{L}\p{N}]+/gu, ' ').trim().slice(0, 80);
+}
+
+// ---------------------------------------------------------------- trust score
+// A Bayesian average, so one good deal does not make a stranger look perfect
+// and one bad one does not ruin a long record:
+//   trust = (good + PRIOR_WEIGHT × PRIOR) ÷ (good + bad + PRIOR_WEIGHT)
+// A newcomer starts at the prior (80); every finished deal moves it.
+export const TRUST_PRIOR = 0.8;
+export const TRUST_PRIOR_WEIGHT = 5;
+export function trustScore({ good = 0, bad = 0 } = {}) {
+  const g = Math.max(0, Number(good) || 0);
+  const b = Math.max(0, Number(bad) || 0);
+  return Math.round((100 * (g + TRUST_PRIOR_WEIGHT * TRUST_PRIOR)) / (g + b + TRUST_PRIOR_WEIGHT));
+}

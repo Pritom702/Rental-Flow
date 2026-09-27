@@ -12,6 +12,9 @@ import { randomUUID } from 'crypto';
 import { query, pool } from '../db.js';
 import { NAME_MAX, DESCRIPTION_MAX } from '../socialUtils.js';
 import { authRequired } from '../middleware/auth.js';
+import { spend, earn } from '../credits.js';
+import { listingFee } from '../marketUtils.js';
+import { assertNotRepost, noteDeletion } from '../fairPlay.js';
 
 const router = Router();
 
@@ -157,6 +160,20 @@ function missingField({ description, rental_price, replacement_cost, category_id
   return null;
 }
 
+// How many listings a member has (retired ones do not count) and what the
+// next one costs in Limes.
+async function nextListingFee(user) {
+  if (user.role !== 'member') return { count: 0, fee: 0 };
+  const { rows: [r] } = await query(`SELECT COUNT(*)::int AS n FROM items WHERE owner_id = $1 AND status <> 'Retired'`, [user.id]);
+  return { count: r.n, fee: listingFee(r.n + 1) };
+}
+
+// GET /api/items/me/listing-fee — shown on the listing form before saving.
+router.get('/me/listing-fee', authRequired, async (req, res) => {
+  const { rows: [w] } = await query('SELECT balance FROM credit_wallets WHERE user_id = $1', [req.user.id]);
+  res.json({ ...(await nextListingFee(req.user)), balance: w?.balance ?? 0 });
+});
+
 router.post('/', authRequired, async (req, res) => {
   const {
     name, description, serial_number, rental_price, replacement_cost,
@@ -170,6 +187,20 @@ router.post('/', authRequired, async (req, res) => {
   if (tooLong) return res.status(400).json({ error: tooLong });
   if (status && !VALID_STATUSES.includes(status)) {
     return res.status(400).json({ error: `status must be one of: ${VALID_STATUSES.join(', ')}` });
+  }
+  // Deleting a listing and putting it up again to reach the top of the feed
+  // earns a one-hour break.
+  if (req.user.role === 'member') {
+    try { await assertNotRepost(req.user.id, name); } catch (e) {
+      return res.status(e.status || 429).json({ error: e.message, reason: e.reason, minutes: e.minutes });
+    }
+  }
+  // The first listing is free; the 2nd costs 10 Limes, the 3rd 15, the 4th 20...
+  const { fee } = await nextListingFee(req.user);
+  if (fee) {
+    try { await spend(req.user.id, fee, 'listing_fee', { note: `Listing fee: ${String(name).slice(0, 60)}` }); } catch (e) {
+      return res.status(e.status || 402).json({ error: e.status === 402 ? `This listing costs ${fee} Limes and you have ${e.balance ?? 0}. Earn more, or top up.` : e.message, reason: e.reason, fee, balance: e.balance });
+    }
   }
 
   const client = await pool.connect();
@@ -195,6 +226,7 @@ router.post('/', authRequired, async (req, res) => {
   } catch (err) {
     await client.query('ROLLBACK');
     client.release();
+    if (fee) await earn(req.user.id, fee, 'refund', { note: 'Listing fee refund' }).catch(() => {});
     if (err.code === '23505') return res.status(409).json({ error: 'Serial number already exists' });
     // Owner no longer exists (e.g. token issued before a DB reset) -> force re-login.
     if (err.constraint === 'items_owner_id_fkey') {
@@ -208,7 +240,7 @@ router.post('/', authRequired, async (req, res) => {
   // item had already been saved, so every retry created a duplicate listing.
   client.release();
   await syncListingPost(itemId);   // the new listing shows up in the feed
-  res.status(201).json(await getItemFull(itemId));
+  res.status(201).json({ ...(await getItemFull(itemId)), limes_charged: fee });
 });
 
 // PUT /api/items/:id  — owner or admin. Full update incl. tags + accessories.
@@ -284,6 +316,8 @@ router.patch('/:id/status', authRequired, requireOwnerOrAdmin, async (req, res) 
 
 // DELETE /api/items/:id  — owner or admin.
 router.delete('/:id', authRequired, requireOwnerOrAdmin, async (req, res) => {
+  const { rows: [it] } = await query('SELECT owner_id, name FROM items WHERE id = $1', [req.params.id]);
+  if (it && it.owner_id === req.user.id) await noteDeletion(it.owner_id, 'item', it.name);
   await removeListingPost(req.params.id);
   await query('DELETE FROM items WHERE id = $1', [req.params.id]);
   res.status(204).end();

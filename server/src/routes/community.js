@@ -25,6 +25,8 @@ import { noteInterestLater, interestSql } from '../interests.js';
 import { pickAds } from '../ads.js';
 import { withAds, PRICES } from '../marketUtils.js';
 import { spend, earn } from '../credits.js';
+import { assertNotRepost, noteDeletion } from '../fairPlay.js';
+import { alertAdmins, who } from '../adminAlerts.js';
 import { findFaces, faceDistance } from '../faceEngine.js';
 import { decodeJpeg } from '../imageUtils.js';
 import {
@@ -34,7 +36,8 @@ import {
 
 const router = Router();
 
-const KINDS = ['post', 'showcase', 'question', 'guide', 'wanted', 'poll', 'sell'];
+// "Show off" was dropped: a photo or video is simply a post.
+const KINDS = ['post', 'question', 'guide', 'wanted', 'poll', 'sell'];
 // RentalFlow's own reactions, and how a notification says each one.
 const REACTIONS = {
   spark: 'sparked', want: 'wants what you posted in', genius: 'found genius', wow: 'was wowed by', lol: 'laughed at', adore: 'adores',
@@ -439,6 +442,7 @@ async function noteBurst(userId) {
     'SELECT COUNT(*)::int AS n FROM posts WHERE author_id = $1 AND created_at > $2', [userId, burstSince(u?.post_cooldown_until)]);
   if (n >= BURST_POSTS) {
     await query(`UPDATE users SET post_cooldown_until = NOW() + make_interval(mins => $2) WHERE id = $1`, [userId, COOLDOWN_MINUTES]);
+    await alertAdmins('Posting burst', `${await who(userId)} posted ${n} times in a row and is paused for ${COOLDOWN_MINUTES} minutes. Check it is not spam.`);
   }
 }
 
@@ -515,6 +519,8 @@ router.post('/posts', authRequired, async (req, res) => {
 
   const kind = KINDS.includes(req.body.kind) ? req.body.kind : 'post';
   const body = String(req.body.body || '').trim();
+  // Deleted it and posted it again to get back on top? A one-hour break.
+  if (req.user.role === 'member') await assertNotRepost(me, body);
   checkBodyLength(body, kind);
   const bad = policyCheck(body);
   if (bad) throw httpError(400, bad);
@@ -662,8 +668,9 @@ router.patch('/posts/:id/sale', authRequired, async (req, res) => {
 });
 
 router.delete('/posts/:id', authRequired, async (req, res) => {
-  const { rows: [p] } = await query('SELECT author_id, community_id, status FROM posts WHERE id = $1', [req.params.id]);
+  const { rows: [p] } = await query('SELECT author_id, community_id, status, body, kind FROM posts WHERE id = $1', [req.params.id]);
   if (!p || p.status === 'removed') throw httpError(404, 'Post not found.');
+  if (p.author_id === req.user.id) await noteDeletion(p.author_id, 'post', p.body);
   if (p.author_id !== req.user.id && req.user.role !== 'admin') throw httpError(403, 'You can only delete your own posts.');
   if (p.author_id !== req.user.id) {
     // An admin removing someone else's post: logged, the author is told, and the moderation model learns from it.

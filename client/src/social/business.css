@@ -482,3 +482,8 @@ html[data-theme='dark'] .rev-legend .k-l::before, html[data-theme='dark'] .rev-d
 .pay-req.paid { border-color: var(--accent); }
 .pay-req.cancelled, .pay-req.failed { opacity: .7; border-style: dashed; }
 .pay-req small { font-size: 11px; color: var(--muted); }
+
+/* Admin console: listings with their photo. */
+.listing-thumb { width: 56px; height: 56px; border-radius: 12px; object-fit: cover; background: var(--bg); border: 1px solid var(--border); display: grid; place-items: center; }
+.listing-row .member-who a { color: inherit; text-decoration: none; }
+.listing-row .member-who a:hover { text-decoration: underline; }

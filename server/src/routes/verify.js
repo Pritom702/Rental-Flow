@@ -25,6 +25,7 @@
 // it cannot read, a face that does not match — goes to an admin instead. Each
 // admin decision trains the risk model (riskModel.js).
 import { Router } from 'express';
+import { alertAdmins, who } from '../adminAlerts.js';
 import crypto from 'crypto';
 import { query, pool } from '../db.js';
 import { authRequired, requireRole } from '../middleware/auth.js';
@@ -397,6 +398,7 @@ router.post('/nid', async (req, res) => {
   //     so a fresh account with the same card is refused — and suspended.
   const banned = await query('SELECT 1 FROM identity_blacklist WHERE nid_canonical = $1 LIMIT 1', [structure.canonical]);
   if (banned.rows.length) {
+    await alertAdmins('Blacklisted ID used again', `${await who(account.id)} tried to verify with the National ID of someone who kept a rented item. The account is being refused.`, '/admin/verifications');
     await query(
       `INSERT INTO identity_verifications
          (user_id, decision, nid_number, nid_canonical, nid_name, date_of_birth, flags, reasons)

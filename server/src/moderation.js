@@ -10,6 +10,7 @@
 //              from then on is refused by middleware/accountStatus.js
 // A strike comes from the image check (nsfwEngine.js) or from an admin who
 // removes reported content as adult.
+import { alertAdmins, who } from './adminAlerts.js';
 import { query } from './db.js';
 import { screenImage, canScreen } from './nsfwEngine.js';
 
@@ -34,6 +35,8 @@ export async function recordAdultStrike(userId, where) {
       banned
         ? `You shared adult content again (${where}). Accounts that do this twice are banned.`
         : `Porn and nudity are not allowed on RentalFlow (${where}). This is your one warning — next time your account will be banned.`]);
+  await alertAdmins(banned ? 'Member banned for adult content' : 'Adult content blocked',
+    `${await who(userId)} tried to share adult content (${where}). Strike ${u.content_strikes}${banned ? ' — the account is now banned.' : '.'}`);
   return { strikes: u.content_strikes, banned };
 }
 

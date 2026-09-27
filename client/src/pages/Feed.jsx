@@ -28,9 +28,10 @@ import { Glyph, Medallion } from '../social/glyphs.jsx';
 
 const NEW_POLL_MS = 45000;
 
+// Newest listings and posts always come first; "Top" ranks by reactions.
 const TABS = [
-  { id: 'foryou', label: 'For you', scope: 'home', sort: 'hot', auth: true },
-  { id: 'hot', label: 'Hot', scope: 'all', sort: 'hot', guest: true },
+  { id: 'foryou', label: 'For you', scope: 'home', sort: 'new', auth: true },
+  { id: 'hot', label: 'Latest', scope: 'all', sort: 'new', guest: true },
   { id: 'following', label: 'Following', scope: 'following', sort: 'new', auth: true },
   { id: 'new', label: 'New', scope: 'all', sort: 'new' },
   { id: 'top', label: 'Top', scope: 'all', sort: 'top' },
@@ -94,7 +95,7 @@ export default function Feed() {
     const p = new URLSearchParams(params);
     p.delete('compose');
     setParams(p, { replace: true });
-    openComposer(want === 'media' ? 'showcase' : want, want === 'media' ? 'media' : undefined);
+    openComposer(want === 'media' ? 'post' : want, want === 'media' ? 'media' : undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params]);
 
@@ -210,7 +211,7 @@ export default function Feed() {
             {user ? <Avatar id={user.id} name={user.name} src={me?.avatar_url} size={40} /> : <span className="av av-a" style={{ width: 40, height: 40 }}>+</span>}
             <span className="cp-text">{user ? `What's on your mind, ${user.name.split(' ')[0]}?` : 'Join RentalFlow to post, react and chat'}</span>
             <span className="cp-tools" onClick={(e) => e.stopPropagation()}>
-              <button type="button" onClick={() => openComposer('showcase', 'media')} title="Photo or video"><Glyph name="media" size={20} /></button>
+              <button type="button" onClick={() => openComposer('post', 'media')} title="Photo or video"><Glyph name="media" size={20} /></button>
               <button type="button" onClick={() => openComposer('question')} title="Ask"><Glyph name="question" size={20} /></button>
               <button type="button" onClick={() => openComposer('poll')} title="Poll"><Glyph name="poll" size={20} /></button>
               <button type="button" className="cp-sell" onClick={() => openComposer('sell')}><Glyph name="sell" size={16} />Sell</button>

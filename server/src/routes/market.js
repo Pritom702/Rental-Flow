@@ -247,8 +247,7 @@ router.post('/report-offplatform', authRequired, async (req, res) => {
   const paid = await earn(req.user.id, EARN.report_offplatform, 'report', { ref: `report:${c.id}`, note: 'Reported a request to pay outside' }).catch(() => null);
   if (paid == null) return res.json({ ok: true, already: true });
   await query('UPDATE users SET offplatform_flags = offplatform_flags + 3 WHERE id = $1', [other]);
-  const { rows: admins } = await query(`SELECT id FROM users WHERE role = 'admin' AND status = 'active'`);
-  for (const a of admins) await notify(a.id, 'social_moderation', 'Someone was asked to pay outside RentalFlow', `Conversation #${c.id}`, `/admin/revenue`);
+  await alertAdmins('Asked to pay outside RentalFlow', `${await who(req.user.id)} reported ${await who(other)} in chat #${c.id} for asking to deal or pay outside RentalFlow.`);
   res.json({ ok: true, limes: EARN.report_offplatform });
 });
 

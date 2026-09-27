@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
-import { Icon } from '../icons.jsx';
+import { Icon, categoryIcon } from '../icons.jsx';
 import { exportAgreementPdf, exportReturnSummaryPdf } from '../pdf.js';
 import { money } from '../money.js';
 import RenterModal from '../components/RenterModal.jsx';
@@ -17,6 +17,7 @@ export default function Bookings() {
   const [items, setItems] = useState([]);
   const [selectedItem, setSelectedItem] = useState('');
   const [statusFilter, setStatusFilter] = useState(params.get('status') || '');
+  const [category, setCategory] = useState(params.get('category') || '');
   // A member is on two sides of the market: things they rent from others, and
   // requests other people send for their own listings. ?view= picks one.
   const view = params.get('view') || 'all';
@@ -62,7 +63,14 @@ export default function Bookings() {
   const isMember = user?.role === 'member';
   const renting = bookings.filter((b) => b.my_role === 'renter');
   const requests = bookings.filter((b) => b.my_role === 'owner');
-  const shown = !isMember || view === 'all' ? bookings : view === 'renting' ? renting : requests;
+  const sideShown = !isMember || view === 'all' ? bookings : view === 'renting' ? renting : requests;
+  // Categories that appear in these bookings, with how many each.
+  const categories = useMemo(() => {
+    const m = new Map();
+    sideShown.forEach((b) => { const k = b.category_name || 'Other'; m.set(k, (m.get(k) || 0) + 1); });
+    return [...m.entries()].sort((a, b) => b[1] - a[1]);
+  }, [sideShown]);
+  const shown = category ? sideShown.filter((b) => (b.category_name || 'Other') === category) : sideShown;
   const VIEWS = [
     { key: 'all', label: 'All', n: bookings.length },
     { key: 'renting', label: 'My rentals', n: renting.length, hint: 'Things you are renting from others' },
@@ -177,15 +185,33 @@ export default function Bookings() {
         </div>
       )}
 
-      <div className="toolbar">
-        <select value={selectedItem} onChange={(e) => setSelectedItem(e.target.value)}>
-          <option value="">All items</option>
-          {items.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-        </select>
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-          <option value="">All statuses</option>
-          {STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}
-        </select>
+      <div className="bk-filters">
+        {categories.length > 0 && (
+          <div className="filter-row bk-cats" role="tablist" aria-label="Category">
+            <button type="button" className={`chip${!category ? ' on' : ''}`} onClick={() => setCategory('')}>
+              <Icon name="grid" size={14} /> All categories <b>{sideShown.length}</b>
+            </button>
+            {categories.map(([name, n]) => (
+              <button type="button" key={name} className={`chip${category === name ? ' on' : ''}`} onClick={() => setCategory(category === name ? '' : name)}>
+                <Icon name={categoryIcon(name)} size={14} /> {name} <b>{n}</b>
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="filter-row bk-status" role="tablist" aria-label="Status">
+          {['', ...STATUS_OPTIONS].map((s) => (
+            <button type="button" key={s || 'all'} className={`chip${statusFilter === s ? ' on' : ''}`} onClick={() => setStatusFilter(s)}>
+              {s || 'Any status'}
+            </button>
+          ))}
+          <label className="chip sort-chip">
+            <Icon name="package" size={14} />
+            <select value={selectedItem} onChange={(e) => setSelectedItem(e.target.value)} aria-label="Item">
+              <option value="">All items</option>
+              {items.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+          </label>
+        </div>
       </div>
 
       {shown.length === 0 ? (
@@ -197,28 +223,32 @@ export default function Bookings() {
           {view === 'renting' && !statusFilter && <div><Link to="/browse" className="btn">Find something to rent</Link></div>}
         </div>
       ) : (
-        <div className="grid">
+        <div className="bk-list">
           {shown.map((booking) => (
-            <div className="card" key={booking.id}>
-              <h3>{booking.item_name || 'Item'}</h3>
-              <div className="serial">{booking.customer_name} · {booking.customer_email}</div>
-              <div className="desc">{booking.notes || 'No notes provided.'}</div>
-              <div className="muted" style={{ fontSize: 13, marginBottom: 8 }}>
-                {booking.start_date} → {booking.end_date}
+            <div className={`card bk-card status-${booking.status}`} key={booking.id}>
+              <Link to={`/product/${booking.item_id}`} className="bk-photo">
+                {booking.item_cover ? <img src={booking.item_cover} alt="" loading="lazy" /> : <Icon name="package" size={30} />}
+              </Link>
+              <div className="bk-body">
+              <div className="bk-top">
+                <h3>{booking.item_name || 'Item'}</h3>
+                <span className={`badge ${booking.status}`}>{booking.status}</span>
+              </div>
+              <div className="bk-meta">
+                {booking.category_name && <span><Icon name={categoryIcon(booking.category_name)} size={13} /> {booking.category_name}</span>}
+                <span><Icon name="calendar" size={13} /> {`${String(booking.start_date).slice(0, 10)} → ${String(booking.end_date).slice(0, 10)}`}</span>
+                <span><Icon name="user" size={13} /> {booking.my_role === 'renter' ? `Owner: ${booking.owner_name || '—'}` : `Renter: ${booking.customer_name}`}</span>
                 {booking.overdue_days > 0 && !['Completed', 'Cancelled', 'Rejected'].includes(booking.status) && (
-                  <span style={{ color: 'var(--danger, #c0392b)', fontWeight: 600 }}>
-                    {' '}· {booking.overdue_days} day(s) overdue
-                  </span>
+                  <span className="bk-late">{booking.overdue_days === 1 ? '1 day overdue' : `${booking.overdue_days} days overdue`}</span>
                 )}
               </div>
-              <div className="price" style={{ fontSize: 16 }}>
-                Late fee: {money(booking.late_fee_amount)}
+              <div className="bk-money">
+                <span>Rent <b>{`${money(booking.rental_price)}/day`}</b></span>
+                <span>Deposit <b>{money(booking.deposit_amount)}</b></span>
+                {Number(booking.late_fee_amount) > 0 && <span>Late fee <b>{money(booking.late_fee_amount)}</b></span>}
+                {Number(booking.penalty_amount) > 0 && <span>Penalty <b>{money(booking.penalty_amount)}</b></span>}
               </div>
-              {Number(booking.penalty_amount) > 0 && (
-                <div className="price" style={{ fontSize: 16 }}>
-                  Penalty: {money(booking.penalty_amount)}
-                </div>
-              )}
+              {booking.notes && <div className="bk-notes">{booking.notes}</div>}
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '8px 0', fontSize: 12 }}>
                 {booking.agreement_number && <span className="tag">📄 {booking.agreement_number}</span>}
                 {booking.checked_out_at && <span className="tag">✔ checked out</span>}
@@ -228,7 +258,6 @@ export default function Bookings() {
                 onError={(m) => { setSuccess(''); setError(m); }} onDone={(m) => { setError(''); setSuccess(m); }} />
               {booking.my_role === 'renter' ? (
                 <div className="card-actions">
-                  <span className={`badge ${booking.status}`}>{booking.status}</span>
                   {booking.paid_at && <span className="badge paid">Paid</span>}
                   {!booking.paid_at && booking.status === 'Approved' && (booking.pay_tran
                     ? <Link className="btn accent small" to={`/pay/${booking.pay_tran}`}>Pay now</Link>
@@ -280,6 +309,7 @@ export default function Bookings() {
                 )}
               </div>
               )}
+              </div>
             </div>
           ))}
         </div>

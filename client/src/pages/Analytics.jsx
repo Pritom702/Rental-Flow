@@ -56,8 +56,8 @@ export default function Analytics() {
         <div>
           <h1>Analytics</h1>
           <div className="sub">{team
-            ? 'Revenue, fleet utilization and where the money actually comes from — across the whole platform.'
-            : 'What your own listings earned, how often they are rented, and which ones earn the most.'}</div>
+            ? 'Real money only: rentals and sales paid through RentalFlow, across the whole platform.'
+            : 'Real money only: what your listings earned from rentals that were paid through RentalFlow, and what you sold.'}</div>
         </div>
         <div className="toolbar" style={{ margin: 0 }}>
           {RANGES.map((r) => (
@@ -97,6 +97,7 @@ export default function Analytics() {
               hint={`${money(overview.lateFees)} late · ${money(overview.penalties)} damage`}
             />
             <StatTile label="Deposits held" value={money(overview.depositsHeld)} hint="Refundable — not counted as revenue" />
+            <StatTile label={`Sales · last ${overview.windowDays} days`} value={money(overview.salesAmount || 0)} hint={overview.sales === 1 ? '1 item sold and paid' : `${overview.sales || 0} items sold and paid`} />
           </div>
 
           <div className="analytics-grid">

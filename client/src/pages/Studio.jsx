@@ -156,7 +156,7 @@ export default function Studio() {
       const url = await step('upload', uploadVideo(file, frames, (p) => setProgress(p)), 240, 'Uploading took too long. Check your connection and try again.');
       const community = slugOf(list[0].category_name) || 'cameras';
       const post = await step('post', api.post('/community/posts', {
-        community, kind: 'showcase', body: caption, item_id: list[0].id, studio: true,
+        community, kind: 'post', body: caption, item_id: list[0].id, studio: true,
         attachments: [{ type: 'video', url, poster: posterUp.url, duration, w: W, h: H, color: null }],
       }), 90, 'Posting took too long. Please try again.');
       setStage('');

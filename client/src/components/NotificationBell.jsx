@@ -12,6 +12,7 @@ import { useAuth } from '../auth.jsx';
 import { play } from '../sfx.js';
 
 const POLL_MS = 20000;
+const ADMIN_POLL_MS = 5000;
 
 const STYLES = `
 .bell-wrap { position: relative; display: inline-flex; }
@@ -92,7 +93,8 @@ export default function NotificationBell({ labeled = false }) {
   useEffect(() => {
     if (!user) return undefined;
     load();
-    const timer = setInterval(load, POLL_MS);
+    // Admins hear about anything fishy within seconds.
+    const timer = setInterval(load, user.role === 'admin' ? ADMIN_POLL_MS : POLL_MS);
     return () => clearInterval(timer);
   }, [user]);
 

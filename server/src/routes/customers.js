@@ -17,6 +17,10 @@ const router = Router();
 const REVENUE_SQL = `
   ((b.end_date - b.start_date) * i.rental_price) + b.late_fee_amount + b.penalty_amount
 `;
+// Real customers only: people with a RentalFlow account who booked, and only
+// what they actually paid (not requests, not seeded demo bookings).
+const PAID_REVENUE_SQL = `CASE WHEN b.paid_at IS NOT NULL AND b.status IN ('Approved', 'Completed') THEN ${REVENUE_SQL} ELSE 0 END`;
+const REAL = `b.renter_id IS NOT NULL`;
 
 // Admin and staff run the whole counter. A member's customers are the people
 // who booked the member's own listings — never anyone else's.
@@ -25,7 +29,7 @@ const isTeam = (user) => user.role === 'admin' || user.role === 'staff';
 // GET /api/customers?q= — the CRM list, best customers first.
 router.get('/', authRequired, async (req, res) => {
   const params = [];
-  let where = `WHERE b.status <> 'Rejected'`;
+  let where = `WHERE b.status <> 'Rejected' AND ${REAL}`;
   if (req.query.q) {
     params.push(`%${String(req.query.q).toLowerCase()}%`);
     where += ` AND (LOWER(b.customer_email) LIKE $1 OR LOWER(b.customer_name) LIKE $1)`;
@@ -38,7 +42,7 @@ router.get('/', authRequired, async (req, res) => {
     `SELECT LOWER(b.customer_email)                              AS email,
             MAX(b.customer_name)                                 AS name,
             COUNT(*)                                             AS booking_count,
-            COALESCE(SUM(${REVENUE_SQL}), 0)                     AS total_spend,
+            COALESCE(SUM(${PAID_REVENUE_SQL}), 0)                AS total_spend,
             COALESCE(SUM(b.late_fee_amount), 0)                  AS late_fees,
             COALESCE(SUM(b.penalty_amount), 0)                   AS penalties,
             MIN(b.start_date)                                    AS first_rental,
@@ -92,13 +96,13 @@ router.get('/summary', authRequired, async (req, res) => {
             COUNT(*)                              AS bookings,
             COUNT(DISTINCT LOWER(customer_email))
               FILTER (WHERE created_at > NOW() - INTERVAL '30 days') AS new_customers
-       FROM bookings b WHERE status <> 'Rejected'${scope}`,
+       FROM bookings b WHERE status <> 'Rejected' AND ${REAL}${scope}`,
     params
   );
   const repeat = await query(
     `SELECT COUNT(*) AS repeat_customers FROM (
         SELECT LOWER(customer_email) FROM bookings b
-         WHERE status <> 'Rejected'${scope}
+         WHERE status <> 'Rejected' AND ${REAL}${scope}
          GROUP BY LOWER(customer_email) HAVING COUNT(*) > 1
      ) AS repeats`,
     params
@@ -127,10 +131,10 @@ router.get('/:email', authRequired, async (req, res) => {
   }
   const { rows } = await query(
     `SELECT b.*, i.name AS item_name, i.rental_price,
-            ${REVENUE_SQL} AS revenue
+            ${PAID_REVENUE_SQL} AS revenue
        FROM bookings b
        JOIN items i ON i.id = b.item_id
-      WHERE LOWER(b.customer_email) = $1${scope}
+      WHERE LOWER(b.customer_email) = $1 AND ${REAL}${scope}
       ORDER BY b.start_date DESC`,
     params
   );

@@ -20,6 +20,8 @@ import { query } from '../db.js';
 import { authRequired } from '../middleware/auth.js';
 import { guardMessage, guardNote } from '../contactGuard.js';
 import { payableIn, pendingRequestFor } from './payments.js';
+import { personRecord, sharedHistory } from '../peopleRecord.js';
+import { alertAdmins, who } from '../adminAlerts.js';
 
 const router = Router();
 router.use(authRequired);
@@ -59,6 +61,7 @@ async function buyerRecord(userId) {
 // approved for this item, or an offer accepted on this sale — the chat is
 // "locked" and contact details are covered up (see contactGuard.js).
 export async function chatUnlocked(convo) {
+  if (convo.is_support) return true;   // the RentalFlow team writing to a member
   if (convo.item_id) {
     const { rows } = await query(
       `SELECT 1 FROM bookings WHERE item_id = $1 AND renter_id = $2 AND status IN ('Approved', 'Completed') LIMIT 1`,
@@ -87,7 +90,8 @@ router.get('/unread', async (req, res) => {
 router.get('/conversations', async (req, res) => {
   const { rows } = await query(
     `SELECT c.id, c.item_id, c.post_id, c.last_message_at, c.created_at,
-            COALESCE(i.name, CASE WHEN p.id IS NOT NULL THEN 'For sale · ' || LEFT(p.body, 50) END) AS item_name,
+            COALESCE(i.name, CASE WHEN p.id IS NOT NULL THEN 'For sale · ' || LEFT(p.body, 50) END,
+                     CASE WHEN c.is_support THEN 'Message from the RentalFlow team' END) AS item_name, c.is_support,
             COALESCE((SELECT url FROM item_images WHERE item_id = c.item_id ORDER BY position, id LIMIT 1),
                      (SELECT a->>'url' FROM jsonb_array_elements(p.attachments) a WHERE a->>'type' = 'image' LIMIT 1)) AS item_cover,
             other.id AS other_id, other.name AS other_name,
@@ -217,6 +221,11 @@ router.get('/conversations/:id', async (req, res) => {
     renter_id: convo.renter_id,
     // A seller deciding on an offer sees who is asking.
     buyer: convo.post_id && convo.owner_id === req.user.id ? await buyerRecord(convo.renter_id) : null,
+    // Full transparency: both people see each other's profile, record and
+    // everything they have done together, beside the chat.
+    other: after ? undefined : await personRecord(convo.owner_id === req.user.id ? convo.renter_id : convo.owner_id),
+    together: after ? undefined : await sharedHistory(req.user.id, convo.owner_id === req.user.id ? convo.renter_id : convo.owner_id),
+    support: Boolean(convo.is_support),
   });
 });
 
@@ -247,6 +256,9 @@ router.post('/conversations/:id', async (req, res) => {
   if (g.flags.length) {
     await query('UPDATE users SET offplatform_flags = offplatform_flags + $2 WHERE id = $1',
       [req.user.id, g.flags.includes('outside') || g.flags.includes('wallet') ? 2 : 1]);
+    await alertAdmins('Contact details or outside payment in a locked chat',
+      `${await who(req.user.id)} wrote ${g.flags.join(', ')} in chat #${convo.id} before the deal was on RentalFlow. It was hidden from the other person.`,
+      `/admin/moderation?tab=members`);
   }
   await query('UPDATE conversations SET last_message_at = NOW() WHERE id = $1', [convo.id]);
   res.status(201).json({ ...rows[0], guardNote: guardNote(g.flags) });

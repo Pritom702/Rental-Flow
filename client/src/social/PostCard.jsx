@@ -212,7 +212,7 @@ function PostCard({ post, onChange, onRemove, full = false }) {
 
   return (
     <article ref={cardRef} onClickCapture={adClick} className={`post-card kind-${post.kind}${post.status !== 'visible' ? ' is-hidden' : ''}${post.is_top ? ' is-top' : ''}${post.sponsored ? ' is-ad' : ''}`} id={post.sponsored ? `ad-${post.sponsored.id}` : `post-${post.id}`}>
-      {post.kind !== 'post' && (
+      {post.kind !== 'post' && KINDS[post.kind] && (
         <span className={`kind-ribbon k-${post.kind}`}><Glyph name={KINDS[post.kind].glyph} size={14} />{KINDS[post.kind].label}</span>
       )}
       {reason && !full && <div className={`pc-reason${post.sponsored ? ' ad' : ''}`}><Glyph name={reason.glyph} size={14} />{reason.text}</div>}

@@ -121,7 +121,9 @@ router.get('/', authRequired, async (req, res) => {
   const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
   const { rows } = await query(
     `SELECT b.*, i.name AS item_name, i.rental_price, i.replacement_cost,
-            i.status AS item_status, i.owner_id,
+            i.status AS item_status, i.owner_id, i.category_id, cat.name AS category_name,
+            (SELECT url FROM item_images WHERE item_id = i.id ORDER BY position, id LIMIT 1) AS item_cover,
+            own.name AS owner_name,
             (SELECT p.tran_id FROM payments p WHERE p.purpose = 'booking' AND p.ref_id = b.id AND p.status = 'pending'
                 AND p.requested_by IS NOT NULL ORDER BY p.id DESC LIMIT 1) AS pay_tran,
             c.id AS claim_id, c.kind AS claim_kind, c.status AS claim_status, c.charges AS claim_charges,
@@ -129,9 +131,11 @@ router.get('/', authRequired, async (req, res) => {
             c.respond_by AS claim_respond_by, c.renter_response AS claim_response, c.paid_at AS claim_paid_at
        FROM bookings b
        LEFT JOIN items i ON i.id = b.item_id
+       LEFT JOIN categories cat ON cat.id = i.category_id
+       LEFT JOIN users own ON own.id = i.owner_id
        LEFT JOIN damage_claims c ON c.booking_id = b.id
        ${where}
-       ORDER BY b.start_date ASC, b.id DESC`,
+       ORDER BY b.created_at DESC, b.id DESC`,
     params
   );
   const me = req.user;

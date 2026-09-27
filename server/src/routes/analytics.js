@@ -16,8 +16,10 @@ const REVENUE_SQL = `
   ((b.end_date - b.start_date) * i.rental_price) + b.late_fee_amount + b.penalty_amount
 `;
 
-// Only money that was actually earned: cancelled / rejected requests are excluded.
-const EARNING_STATUSES = `b.status IN ('Approved', 'Completed')`;
+// Real money only: a booking counts once the renter actually paid for it
+// through RentalFlow Pay (paid_at), and it was not cancelled or rejected.
+// Demo bookings typed in at the counter or seeded for a demo never count.
+const EARNING_STATUSES = `b.status IN ('Approved', 'Completed') AND b.paid_at IS NOT NULL`;
 
 // Admin and staff see the whole platform. A member sees only the business
 // they run: bookings on their own listings, and their own items.
@@ -48,7 +50,7 @@ router.get('/overview', authRequired, async (req, res) => {
             COALESCE(SUM(b.late_fee_amount), 0) AS late_fees,
             COALESCE(SUM(b.penalty_amount), 0)  AS penalties
        FROM bookings b JOIN items i ON i.id = b.item_id
-      WHERE ${EARNING_STATUSES} AND b.start_date >= $1 AND b.start_date <= $2${cScope}`,
+      WHERE ${EARNING_STATUSES} AND b.paid_at::date >= $1 AND b.paid_at::date <= $2${cScope}`,
     cp
   );
 
@@ -59,7 +61,7 @@ router.get('/overview', authRequired, async (req, res) => {
   const previous = await query(
     `SELECT COALESCE(SUM(${REVENUE_SQL}), 0) AS revenue
        FROM bookings b JOIN items i ON i.id = b.item_id
-      WHERE ${EARNING_STATUSES} AND b.start_date >= $1 AND b.start_date < $2${pScope}`,
+      WHERE ${EARNING_STATUSES} AND b.paid_at::date >= $1 AND b.paid_at::date < $2${pScope}`,
     pp
   );
 
@@ -76,6 +78,14 @@ router.get('/overview', authRequired, async (req, res) => {
   const itemCount = await query(`SELECT COUNT(*) AS count FROM items WHERE status != 'Retired'${iScope}`, ip);
   const totalItems = Number(itemCount.rows[0].count) || 0;
   const utilization = fleetUtilization(fleet.rows, start, end, totalItems);
+
+  // Things sold and paid for through RentalFlow in the same window.
+  const sp = [start, end];
+  let sScope = '';
+  if (!isTeam(req.user)) { sp.push(req.user.id); sScope = ` AND d.seller_id = $${sp.length}`; }
+  const { rows: [sales] } = await query(
+    `SELECT COUNT(*)::int AS n, COALESCE(SUM(d.price), 0)::int AS amount
+       FROM sale_deals d WHERE d.paid_at IS NOT NULL AND d.paid_at::date >= $1 AND d.paid_at::date <= $2${sScope}`, sp);
 
   const row = current.rows[0];
   const revenue = Number(row.revenue);
@@ -94,6 +104,8 @@ router.get('/overview', authRequired, async (req, res) => {
     penalties: Number(Number(row.penalties).toFixed(2)),
     fleetUtilization: utilization,
     totalItems,
+    sales: sales.n,
+    salesAmount: sales.amount,
   });
 });
 
@@ -103,7 +115,7 @@ router.get('/revenue-trend', authRequired, async (req, res) => {
   const params = [];
   const scope = ownerScope(req, params);
   const { rows } = await query(
-    `SELECT TO_CHAR(b.start_date, 'YYYY-MM') AS month,
+    `SELECT TO_CHAR(b.paid_at, 'YYYY-MM') AS month,
             COALESCE(SUM(${REVENUE_SQL}), 0) AS revenue
        FROM bookings b JOIN items i ON i.id = b.item_id
       WHERE ${EARNING_STATUSES}${scope}

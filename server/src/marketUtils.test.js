@@ -51,3 +51,28 @@ test('ads: 10 views per Lime, and they slot between posts', () => {
   assert.equal(mixed[10], 'B');
   assert.deepEqual(withAds(['p0', 'p1'], ['A']), ['p0', 'p1'], 'no ad on a page too short for its slot');
 });
+
+test('listing fee: first free, then 10, 15, 20 Limes', async () => {
+  const { listingFee } = await import('./marketUtils.js');
+  assert.equal(listingFee(1), 0);
+  assert.equal(listingFee(2), 10);
+  assert.equal(listingFee(3), 15);
+  assert.equal(listingFee(4), 20);
+  assert.equal(listingFee(0), 0);
+});
+
+test('repost fingerprint ignores case, punctuation and later lines', async () => {
+  const { fingerprint } = await import('./marketUtils.js');
+  assert.equal(fingerprint('Canon EOS R6 — like new!\n\nDetails'), fingerprint('canon eos r6 like new'));
+  assert.notEqual(fingerprint('Canon EOS R6'), fingerprint('Canon EOS R5'));
+  assert.equal(fingerprint(''), '');
+});
+
+test('trust score is a Bayesian average around 80', async () => {
+  const { trustScore } = await import('./marketUtils.js');
+  assert.equal(trustScore({}), 80);
+  assert.equal(trustScore({ good: 1 }), 83);          // (1 + 4) / 6
+  assert.equal(trustScore({ good: 20 }), 96);         // (20 + 4) / 25
+  assert.equal(trustScore({ bad: 1 }), 67);           // 4 / 6
+  assert.ok(trustScore({ good: 10, bad: 1 }) > trustScore({ good: 1 }));
+});

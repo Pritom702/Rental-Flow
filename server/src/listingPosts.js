@@ -57,9 +57,19 @@ export async function syncListingPost(itemId) {
       [item.community_id, item.owner_id, bodyFor(item), JSON.stringify(item.attachments), item.id]
     );
     await query('UPDATE communities SET post_count = post_count + 1 WHERE id = $1', [item.community_id]);
+    await joinCommunity(item.owner_id, item.community_id);
   } catch (e) {
     console.error('Could not post the listing to the feed:', e.message);
   }
+}
+
+// Listing (or selling) something in a category makes you a member of that
+// category's community, so it shows up in your communities and feed.
+export async function joinCommunity(userId, communityId) {
+  if (!userId || !communityId) return;
+  const { rowCount } = await query(
+    'INSERT INTO community_members (community_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [communityId, userId]);
+  if (rowCount) await query('UPDATE communities SET member_count = member_count + 1 WHERE id = $1', [communityId]);
 }
 
 // Before a listing is deleted: its post goes too.

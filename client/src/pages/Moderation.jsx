@@ -6,20 +6,24 @@
 //   Queue        reported posts and comments, and photos the automatic check
 //                was unsure about — most likely problems first, each with the
 //                moderation model's guess and the reasons behind it
-//   Members      find anyone; warn, ban or unban; see their history
+//   Listings     every listing for rent and item for sale: remove it, warn
+//                its owner, or message them
+//   Members      find anyone; warn, ban, unban or message them; see their history
 //   Communities  create a new community
 //   Report       what the model learned from your decisions, and what to do next
 // Every remove / keep decision teaches the model (server: moderationModel.js).
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
 import { play } from '../sfx.js';
 import { Avatar, timeAgo } from '../social/util.jsx';
 import { say } from '../social/toast.js';
 import { Glyph } from '../social/glyphs.jsx';
+import { money } from '../money.js';
 
 const TABS = [
   ['queue', 'Queue', 'shield'],
+  ['listings', 'Listings', 'rent'],
   ['members', 'Members', 'people'],
   ['communities', 'Communities', 'plus'],
   ['report', 'Report', 'trend'],
@@ -33,7 +37,7 @@ export default function Moderation() {
       <div className="page-head">
         <div>
           <h1>Moderation</h1>
-          <div className="sub">You have the last word: remove or keep content, warn or ban members, create communities. Every decision teaches the moderation model.</div>
+          <div className="sub">You have the last word: remove or keep posts and listings, warn, ban or message anyone, create communities. Every decision teaches the moderation model.</div>
         </div>
       </div>
       <div className="seg admin-tabs" role="tablist">
@@ -44,6 +48,7 @@ export default function Moderation() {
         ))}
       </div>
       {tab === 'queue' && <Queue />}
+      {tab === 'listings' && <Listings />}
       {tab === 'members' && <Members />}
       {tab === 'communities' && <Communities />}
       {tab === 'report' && <Report />}
@@ -121,6 +126,77 @@ function Case({ c, onAct }) {
   );
 }
 
+// A direct chat from the RentalFlow team to anyone.
+function useMessageMember() {
+  const navigate = useNavigate();
+  return async (id, name, draft = '') => {
+    const body = window.prompt(`Message to ${name} (from the RentalFlow team):`, draft);
+    if (!body || !body.trim()) return;
+    try {
+      const r = await api.post('/moderation/message', { user_id: id, body });
+      play('send');
+      say(`Message sent to ${name}`, 'chat');
+      navigate(`/messages/${r.conversation_id}`);
+    } catch (e) { say(e.message, 'warn'); }
+  };
+}
+
+// ---------------------------------------------------------------- listings
+
+function Listings() {
+  const [q, setQ] = useState('');
+  const [rows, setRows] = useState(null);
+  const message = useMessageMember();
+  const load = useCallback((text) => api.get(`/moderation/listings?q=${encodeURIComponent(text)}`).then(setRows).catch(() => setRows([])), []);
+  useEffect(() => { const t = setTimeout(() => load(q), 250); return () => clearTimeout(t); }, [q, load]);
+
+  async function act(l, action) {
+    const reason = window.prompt(action === 'remove'
+      ? `Remove “${l.title}”? The owner is told why. Reason:`
+      : `Warning to ${l.owner_name} about “${l.title}” — what should they fix?`,
+    action === 'remove' ? 'It breaks the listing rules.' : 'Please fix the photos, price or description.');
+    if (!reason) return;
+    try {
+      await api.post(`/moderation/listings/${l.type}/${l.id}/${action}`, { reason });
+      play('success');
+      say(action === 'remove' ? 'Listing removed — the owner was told' : `${l.owner_name} was warned`, 'shield');
+      load(q);
+    } catch (e) { say(e.message, 'warn'); }
+  }
+
+  return (
+    <div>
+      <input className="admin-search" placeholder="Search listings by name, owner or email…" value={q} onChange={(e) => setQ(e.target.value)} />
+      {!rows ? <div className="page-loading" /> : !rows.length ? <p className="muted">No listings match.</p> : (
+        <div className="member-list">
+          {rows.map((l) => (
+            <div key={`${l.type}-${l.id}`} className={`member-row listing-row${l.owner_status === 'suspended' ? ' banned' : ''}`}>
+              {l.image ? <img className="listing-thumb" src={l.image} alt="" loading="lazy" /> : <span className="listing-thumb ph"><Glyph name="rent" size={20} /></span>}
+              <div className="member-who">
+                <Link to={l.type === 'item' ? `/product/${l.id}` : `/post/${l.id}`} translate="no"><b>{l.title}</b></Link>
+                <span className="muted small" translate="no">{`${l.owner_name} · ${l.owner_email}`}</span>
+                <span className="member-tags">
+                  <em className="tag">{l.type === 'item' ? 'For rent' : 'For sale'}</em>
+                  <em className="tag">{l.type === 'item' ? `${money(l.price)}/day` : money(l.price)}</em>
+                  {l.category && <em className="tag">{l.category}</em>}
+                  <em className="tag">{l.status}</em>
+                  {l.warning_count > 0 && <em className="tag amber">{l.warning_count === 1 ? 'owner has 1 warning' : `owner has ${l.warning_count} warnings`}</em>}
+                  <em className="tag">{timeAgo(l.created_at)}</em>
+                </span>
+              </div>
+              <div className="member-actions">
+                <button type="button" className="btn ghost small" onClick={() => message(l.owner_id, l.owner_name, `About your listing “${l.title}”: `)}>Message</button>
+                <button type="button" className="btn secondary small" onClick={() => act(l, 'warn')}>Warn</button>
+                <button type="button" className="btn danger small" onClick={() => act(l, 'remove')}>Remove</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------- members
 
 function Members() {
@@ -128,6 +204,7 @@ function Members() {
   const [rows, setRows] = useState(null);
   const [open, setOpen] = useState(null);      // member id whose history is open
   const [history, setHistory] = useState([]);
+  const message = useMessageMember();
   const load = useCallback((text) => api.get(`/moderation/users?q=${encodeURIComponent(text)}`).then(setRows).catch(() => setRows([])), []);
   useEffect(() => { const t = setTimeout(() => load(q), 250); return () => clearTimeout(t); }, [q, load]);
 
@@ -177,6 +254,7 @@ function Members() {
               </div>
               <div className="member-actions">
                 <button type="button" className="btn ghost small" onClick={() => showHistory(u.id)}>{open === u.id ? 'Hide history' : 'History'}</button>
+                <button type="button" className="btn ghost small" onClick={() => message(u.id, u.name)}>Message</button>
                 {u.role !== 'admin' && (
                   <>
                     <button type="button" className="btn secondary small" onClick={() => act(u, 'warn')}>Warn</button>
@@ -203,7 +281,7 @@ function Members() {
 
 const ACTION_LABEL = {
   remove: 'Content removed', remove_adult: 'Removed as adult content', restore: 'Content restored', dismiss: 'Reports dismissed',
-  approve_photo: 'Flagged photo kept', remove_photo: 'Photo removed', warn: 'Warned', ban: 'Banned', unban: 'Ban lifted',
+  approve_photo: 'Flagged photo kept', remove_photo: 'Photo removed', warn: 'Warned', ban: 'Banned', unban: 'Ban lifted', message: 'Messaged by the team',
 };
 
 // ---------------------------------------------------------------- communities

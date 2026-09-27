@@ -56,6 +56,9 @@ export default function ItemForm() {
   const [categories, setCategories] = useState([]);
   const [error, setError] = useState('');
   const [restored, setRestored] = useState(false);
+  // What this listing costs in Limes: the first is free, then 10, 15, 20...
+  const [fee, setFee] = useState(null);
+  useEffect(() => { if (!editing) api.get('/items/me/listing-fee').then(setFee).catch(() => {}); }, [editing]);
 
   // A draft is written only after the member actually changes something, so
   // opening the form (or loading a listing to edit) never counts as a draft.
@@ -255,6 +258,14 @@ export default function ItemForm() {
           <input value={form.accessories} onChange={set('accessories')} placeholder="Battery, Charger, Tripod" />
         </div>
 
+        {!editing && fee && (
+          <div className={`hint${fee.fee > fee.balance ? ' warn' : ''}`}>
+            {fee.fee === 0
+              ? <><b>Your first listing is free.</b> After that each new listing costs 5 Limes × how many you will have (2nd: 10, 3rd: 15, 4th: 20).</>
+              : <><b>{`This listing costs ${fee.fee} Limes`}</b>{` — it will be listing number ${fee.count + 1} (5 × ${fee.count + 1}). You have ${fee.balance} Limes.`}
+                {fee.fee > fee.balance && <> <a href="/limes">Get more Limes</a></>}</>}
+          </div>
+        )}
         {error && <div className="error"><Icon name="shield" size={16} /> {error}</div>}
 
         <div style={{ display: 'flex', gap: 10 }}>
