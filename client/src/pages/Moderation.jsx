@@ -6,8 +6,9 @@
 //   Queue        reported posts and comments, and photos the automatic check
 //                was unsure about — most likely problems first, each with the
 //                moderation model's guess and the reasons behind it
-//   Review       new listings waiting to go live: confirm the market price the
-//                valuation model suggests (replacement cost = 60% of it)
+//   Review       new listings (already live) waiting for their replacement
+//                cost: confirm the market price the valuation model suggests
+//                (replacement cost = 60% of it); the owner is notified
 //   Listings     every listing for rent and item for sale: remove it, warn
 //                its owner, or message them
 //   Members      find anyone; warn, ban, unban or message them; see their history
@@ -138,12 +139,12 @@ function Review() {
   useEffect(() => { load(); }, [load]);
   if (!data) return <div className="page-loading" />;
   if (!data.items.length) {
-    return <div className="center-empty"><Glyph name="check" size={30} /><div className="empty-title">No listings waiting</div>New listings show up here, with a suggested market price.</div>;
+    return <div className="center-empty"><Glyph name="check" size={30} /><div className="empty-title">No listings waiting</div>New listings show up here so you can set their replacement cost, with a suggested market price.</div>;
   }
   return (
     <div className="review-list">
       <p className="muted small">
-        {`${data.items.length} waiting. The suggested market price comes from the valuation model, which has learned from ${data.model.examples} approved listing${data.model.examples === 1 ? '' : 's'} so far — every price you approve teaches it.`}
+        {`${data.items.length} live listing${data.items.length === 1 ? '' : 's'} waiting for a replacement cost. The suggested market price comes from the valuation model, which has learned from ${data.model.examples} approved listing${data.model.examples === 1 ? '' : 's'} so far — every price you approve teaches it.`}
       </p>
       {data.items.map((it) => <ReviewCard key={it.id} it={it} onDone={load} />)}
     </div>
@@ -160,7 +161,7 @@ function ReviewCard({ it, onDone }) {
     try {
       await api.post(`/moderation/review/${it.id}/approve`, { market_price: m });
       play('success');
-      say(`“${it.name}” is live — ${it.owner_name} was told`, 'shield');
+      say(`Replacement cost set — ${it.owner_name} was notified`, 'shield');
       onDone();
     } catch (e) { say(e.message, 'warn'); setBusy(false); }
   }
@@ -199,7 +200,7 @@ function ReviewCard({ it, onDone }) {
           <span>Replacement (60%) <b>{money(replacement)}</b></span>
           <span>Theft payout (50%) <b>{money(Math.round(replacement * 0.5))}</b></span>
         </div>
-        <button type="button" className="btn accent" disabled={busy || !(m > 0)} onClick={approve}>Approve &amp; post</button>
+        <button type="button" className="btn accent" disabled={busy || !(m > 0)} onClick={approve}>Set replacement cost</button>
         <button type="button" className="btn ghost small" disabled={busy} onClick={reject}>Send back</button>
       </div>
     </div>

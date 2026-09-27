@@ -223,7 +223,7 @@ router.get('/listings', async (req, res) => {
   const { rows } = await query(
     `SELECT * FROM (
        SELECT 'item' AS type, i.id, i.name AS title, i.rental_price AS price,
-              CASE WHEN i.review_status = 'approved' THEN i.status WHEN i.review_status = 'pending' THEN 'Waiting for review' ELSE 'Sent back' END AS status, i.created_at,
+              CASE WHEN i.review_status = 'rejected' THEN 'Sent back' ELSE i.status END AS status, i.created_at,
               c.name AS category, u.id AS owner_id, u.name AS owner_name, u.email AS owner_email,
               u.status AS owner_status, u.warning_count,
               (SELECT url FROM item_images WHERE item_id = i.id ORDER BY position, id LIMIT 1) AS image,

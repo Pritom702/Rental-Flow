@@ -102,11 +102,12 @@ router.get('/', async (req, res) => {
     params.push(tag);
     clauses.push(`i.id IN (SELECT it.item_id FROM item_tags it JOIN tags t ON t.id = it.tag_id WHERE t.name = $${params.length})`);
   }
-  // A listing waiting for the admin's check is seen only by its owner and the team.
+  // Listings go live at once. Only one an admin sent back for changes is
+  // hidden, from everyone but its owner and the team.
   const v = viewer(req);
   if (!isTeam(v)) {
     params.push(v?.id || 0);
-    clauses.push(`(i.review_status = 'approved' OR i.owner_id = $${params.length})`);
+    clauses.push(`(i.review_status <> 'rejected' OR i.owner_id = $${params.length})`);
   }
 
   const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
@@ -157,7 +158,7 @@ router.get('/:id', async (req, res) => {
   const item = await getItemFull(req.params.id);
   if (!item) return res.status(404).json({ error: 'Item not found' });
   const v = viewer(req);
-  if (item.review_status !== 'approved' && !isTeam(v) && v?.id !== item.owner_id) {
+  if (item.review_status === 'rejected' && !isTeam(v) && v?.id !== item.owner_id) {
     return res.status(404).json({ error: 'Item not found' });
   }
   res.json(item);
@@ -240,7 +241,7 @@ router.post('/', authRequired, async (req, res) => {
       [req.user.id, name, description || null, serial_number || null,
        rental_price || 0, replacementFor(market_price),
        status || null, category_id || null, randomUUID(),
-       // A member's listing waits for an admin; the team's own go straight up.
+       // A member's listing is live at once; its replacement cost waits for an admin.
        Number(market_price), req.user.role === 'member' ? 'pending' : 'approved', fee]
     );
     itemId = rows[0].id;
@@ -266,8 +267,9 @@ router.post('/', authRequired, async (req, res) => {
   // while asking for another waited until timeout and answered 500 — after the
   // item had already been saved, so every retry created a duplicate listing.
   client.release();
-  // Members' listings go to the admins first; they reach the feed once approved.
-  const review = req.user.role === 'member' ? await submitForReview(itemId) : (await syncListingPost(itemId), null);
+  // Live straight away (and in the feed); an admin then sets the replacement cost.
+  await syncListingPost(itemId);
+  const review = req.user.role === 'member' ? await submitForReview(itemId) : null;
   res.status(201).json({ ...(await getItemFull(itemId)), limes_charged: fee, pending_review: Boolean(review) });
 });
 
@@ -331,8 +333,8 @@ router.put('/:id', authRequired, requireOwnerOrAdmin, async (req, res) => {
   }
   client.release();   // before getItemFull() — see POST above
   const saved = await getItemFull(id);
+  await syncListingPost(id);
   if (before?.review_status === 'rejected') await submitForReview(id);   // fixed: back to the admins
-  else await syncListingPost(id);
   res.json(saved);
 });
 

@@ -166,7 +166,7 @@ router.get('/featured', async (_req, res) => {
     `SELECT DISTINCT ON (i.id) i.id, i.name, i.rental_price, i.status, c.name AS category_name, u.name AS owner_name,
             (SELECT url FROM item_images WHERE item_id = i.id ORDER BY position, id LIMIT 1) AS cover_url, b.ends_at
        FROM boosts b JOIN items i ON i.id = b.target_id LEFT JOIN categories c ON c.id = i.category_id LEFT JOIN users u ON u.id = i.owner_id
-      WHERE b.kind = 'item' AND b.ends_at > NOW() AND i.status = 'Available' AND i.review_status = 'approved'
+      WHERE b.kind = 'item' AND b.ends_at > NOW() AND i.status = 'Available' AND i.review_status <> 'rejected'
       ORDER BY i.id, b.ends_at DESC LIMIT 12`);
   res.json(rows);
 });

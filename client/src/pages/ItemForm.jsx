@@ -249,7 +249,7 @@ export default function ItemForm() {
             <span>
               {`Replacement cost ≈ ${money(Math.round(form.market_price * REPLACEMENT_RATE))} (60% of the market price). `}
               {`If it is stolen and we cannot get it back within a month, you get ≈ ${money(Math.round(form.market_price * REPLACEMENT_RATE * COMPENSATION_RATE))} (50% of the replacement cost). `}
-              Our team confirms the final value before the listing goes live.
+              Your listing goes live straight away; our team then confirms the final replacement cost.
             </span>
           </div>
         )}
@@ -306,12 +306,12 @@ export default function ItemForm() {
               <b> If your item is stolen during a rental, we use those details to get it back.</b>
             </p>
             <div className="pm-promise">
-              <div><span>Replacement cost</span><b>{money(created.replacement_cost)}</b><small>60% of the market price you gave ({money(created.market_price)})</small></div>
+              <div><span>Replacement cost</span><b>{money(created.replacement_cost)}</b><small>{`60% of the market price you gave (${money(created.market_price)})${created.pending_review ? ' — for now, until our team sets it' : ''}`}</small></div>
               <div><span>If not recovered within 1 month</span><b>{money(Math.round(Number(created.replacement_cost) * COMPENSATION_RATE))}</b><small>We pay you 50% of the replacement cost</small></div>
             </div>
             <p className="muted small">
               {created.pending_review
-                ? 'Next: our team checks the listing and confirms its market price (and so the replacement cost). It goes live as soon as it is approved — we will notify you.'
+                ? 'Your listing is live now. Our team will check its market price and set the final replacement cost — we will notify you.'
                 : 'Your listing is live.'}
             </p>
             <button type="button" className="btn lg block" onClick={() => navigate('/dashboard')}>I understand</button>

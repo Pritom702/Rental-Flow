@@ -44,14 +44,14 @@ export async function syncListingPost(itemId) {
       await query(
         `UPDATE posts SET body = $2, attachments = $3,
                 community_id = COALESCE($4, community_id),
-                status = CASE WHEN $5 = 'Retired' THEN 'hidden' WHEN status = 'hidden' THEN 'visible' ELSE status END
+                status = CASE WHEN $5 = 'Retired' OR $6 = 'rejected' THEN 'hidden' WHEN status = 'hidden' THEN 'visible' ELSE status END
           WHERE id = $1 AND status <> 'removed'`,
-        [post.id, bodyFor(item), JSON.stringify(item.attachments), item.community_id, item.status]
+        [post.id, bodyFor(item), JSON.stringify(item.attachments), item.community_id, item.status, item.review_status]
       );
       return;
     }
     if (!item.community_id || item.status === 'Retired') return;   // no category, nowhere to show it
-    if (item.review_status !== 'approved') return;                   // waits for the admin's check
+    if (item.review_status === 'rejected') return;                   // sent back by an admin for changes
     await query(
       `INSERT INTO posts (community_id, author_id, kind, body, attachments, item_id)
        VALUES ($1, $2, 'rent', $3, $4, $5)`,

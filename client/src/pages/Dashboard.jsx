@@ -166,7 +166,7 @@ export default function Dashboard() {
                 <h3>{it.name}</h3>
                 <StatusBadge status={it.status} />
               </div>
-              {it.review_status === 'pending' && <div className="review-tag pending"><Icon name="shield" size={13} /> Waiting for our team to check it — not visible to renters yet</div>}
+              {it.review_status === 'pending' && <div className="review-tag pending"><Icon name="shield" size={13} /> Live · our team is setting the replacement cost</div>}
               {it.review_status === 'rejected' && <div className="review-tag rejected"><Icon name="shield" size={13} /> Needs changes: {it.review_note} <Link to={`/items/${it.id}/edit`}>Edit</Link></div>}
               <div className="serial">
                 {it.serial_number || '—'} · {it.category_name || 'Uncategorized'}

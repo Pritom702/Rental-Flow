@@ -2,11 +2,13 @@
 //  RentalFlow  |  Trust  |  Owner: M2 - Tawheed Bin Hamid (Pritom)
 //  GitHub: @pritom702  |  Part: new listings wait for an admin's valuation
 // ============================================================
-// A member's new listing is saved as 'pending': hidden from renters and the
-// feed. Every admin is notified with a suggested market price from
+// A member's new listing goes live at once, with review_status 'pending': its
+// replacement cost is not confirmed yet (until then it is 60% of the price the
+// owner gave). Every admin is notified with a suggested market price from
 // valuationModel.js. The admin confirms (or corrects) it; the replacement cost
-// becomes 60% of that, the listing goes live, the owner is told, and the
-// approved price becomes a new example the model learns from.
+// becomes 60% of that, the owner is told, and the approved price becomes a new
+// example the model learns from. An admin can also send a listing back for
+// changes, which hides it until the owner edits it.
 import { query } from './db.js';
 import { learn, suggest, replacementFor, compensationFor, RECOVERY_DAYS } from './valuationModel.js';
 import { syncListingPost } from './listingPosts.js';
@@ -38,8 +40,8 @@ export async function submitForReview(itemId) {
   await query('UPDATE items SET suggested_market = $2 WHERE id = $1', [itemId, s.market || null]);
   const { rows: admins } = await query(`SELECT id FROM users WHERE role = 'admin' AND status <> 'suspended'`);
   for (const a of admins) {
-    await tell(a.id, 'listing_review', `New listing to review: ${it.name}`,
-      `${it.owner_name} listed “${it.name}” (${it.category_name || 'no category'}, ${taka(it.rental_price)}/day, says it is worth ${taka(it.market_price)}). Suggested market price ${taka(s.market)} → replacement cost ${taka(s.replacement)}.`,
+    await tell(a.id, 'listing_review', `Set the replacement cost: ${it.name}`,
+      `${it.owner_name} listed “${it.name}” (${it.category_name || 'no category'}, ${taka(it.rental_price)}/day, says it is worth ${taka(it.market_price)}). It is live. Suggested market price ${taka(s.market)} → replacement cost ${taka(s.replacement)}.`,
       '/admin/moderation?tab=review');
   }
   return s;
@@ -50,7 +52,7 @@ export async function approveListing(itemId, adminId, marketPrice) {
   if (!(market > 0)) throw httpError(400, 'Set the market price.');
   const { rows: [it] } = await query('SELECT * FROM items WHERE id = $1', [itemId]);
   if (!it) throw httpError(404, 'Listing not found.');
-  if (it.review_status === 'approved') throw httpError(409, 'This listing is already live.');
+  if (it.review_status === 'approved') throw httpError(409, 'The replacement cost of this listing is already set.');
   const replacement = replacementFor(market);
   await query(
     `UPDATE items SET review_status = 'approved', market_price = $2, replacement_cost = $3,
@@ -60,8 +62,8 @@ export async function approveListing(itemId, adminId, marketPrice) {
     `INSERT INTO item_valuations (item_id, category_id, daily, declared, suggested, approved_market, admin_id)
      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
     [itemId, it.category_id, it.rental_price, it.market_price, it.suggested_market, market, adminId]);
-  await syncListingPost(itemId);   // now it shows in the feed
-  await tell(it.owner_id, 'listing_decision', `Your listing is live: ${it.name}`,
+  await syncListingPost(itemId);
+  await tell(it.owner_id, 'listing_decision', `Replacement cost set: ${it.name}`,
     `Our team checked “${it.name}”. Market price ${taka(market)}, so its replacement cost is ${taka(replacement)} (60%). `
     + `If it is ever stolen during a rental and we cannot recover it within ${RECOVERY_DAYS} days, you get ${taka(compensationFor(replacement))} (50% of the replacement cost).`,
     `/product/${itemId}`);
@@ -75,6 +77,7 @@ export async function rejectListing(itemId, adminId, reason) {
   if (!it) throw httpError(404, 'Listing not found.');
   await query(`UPDATE items SET review_status = 'rejected', reviewed_by = $2, reviewed_at = NOW(), review_note = $3 WHERE id = $1`,
     [itemId, adminId, note.slice(0, 300)]);
+  await syncListingPost(itemId);   // hides its feed post until it is fixed
   // The listing fee comes back when the listing does not go live.
   if (it.listing_fee > 0) {
     await earn(it.owner_id, it.listing_fee, 'refund', { note: `Listing fee refund: ${it.name}`, ref: `listing-refund:${itemId}` }).catch(() => {});
