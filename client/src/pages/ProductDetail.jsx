@@ -5,6 +5,7 @@
 // Everything about one listing: every photo, the full description, what comes
 // with it, and two ways forward — request a booking, or ask the lister first.
 import { useEffect, useState } from 'react';
+import AdminListingActions from '../components/AdminListingActions.jsx';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api.js';
 import { useAuth } from '../auth.jsx';
@@ -109,8 +110,12 @@ export default function ProductDetail() {
             {item.category_name && <> · {item.category_name}</>}
           </div>
 
+          {user?.role === 'admin' && !mine && (
+            <AdminListingActions id={item.id} title={item.name} ownerId={item.owner_id} ownerName={item.owner_name} large
+              onRemoved={() => navigate('/browse', { replace: true })} />
+          )}
           <div className="product-actions">
-            {!mine && (
+            {!mine && user?.role !== 'admin' && (
               <button className="btn accent lg" disabled={!available}
                 onClick={() => navigate(user
                   ? `/browse?item=${item.id}`

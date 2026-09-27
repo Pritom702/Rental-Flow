@@ -10,6 +10,7 @@
 // the bottom). Every 45 seconds it asks — cheaply — whether anything new was
 // posted, and shows a "new posts" pill instead of moving the page under you.
 import { useCallback, useEffect, useRef, useState } from 'react';
+import AdminListingActions from '../components/AdminListingActions.jsx';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
 import { useAuth } from '../auth.jsx';
@@ -252,7 +253,7 @@ export default function Feed() {
             <EmptyFeed tab={tab} slug={slug} onCompose={openComposer} />
           ) : saleGrid ? (
             <div className="sale-grid">
-              {posts.map((p) => <SaleTile key={p.id} post={p} />)}
+              {posts.map((p) => <SaleTile key={p.id} post={p} onRemove={onRemove} />)}
             </div>
           ) : (
             <div className="feed-list">
@@ -455,11 +456,11 @@ function TrendingRail() {
   );
 }
 
-function SaleTile({ post }) {
+function SaleTile({ post, onRemove }) {
   const { user } = useAuth();
   const buy = useBuyNow();
   const cover = (post.attachments || []).find((a) => a.type === 'image') || (post.attachments || []).find((a) => a.type === 'video');
-  const canBuy = !post.sale?.sold && user?.id !== post.author_id;
+  const canBuy = !post.sale?.sold && user?.id !== post.author_id && user?.role !== 'admin';
   return (
     <div className={`sale-tile${post.sale?.sold ? ' sold' : ''}`}>
       <Link to={`/post/${post.id}`} className="st-link">
@@ -472,6 +473,8 @@ function SaleTile({ post }) {
         <span className="st-meta">{CONDITIONS[post.sale?.condition] || 'Good'}{post.sale?.negotiable ? ' · Negotiable' : ''}</span>
       </Link>
       {canBuy && <button type="button" className="btn accent small st-buy" onClick={() => buy(post)}><Glyph name="coin" size={14} /> Buy now</button>}
+      <AdminListingActions type="sale" id={post.id} title={String(post.body || 'Item for sale').split('\n')[0].slice(0, 60)}
+        ownerId={post.author_id} ownerName={post.author_name} onRemoved={() => onRemove?.(post.id)} />
     </div>
   );
 }

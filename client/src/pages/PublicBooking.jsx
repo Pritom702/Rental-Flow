@@ -16,6 +16,7 @@ import { money } from '../money.js';
 import { rentalDays, rentalFees } from '../social/fees.js';
 import { Glyph } from '../social/glyphs.jsx';
 import Portal from '../components/Portal.jsx';
+import AdminListingActions from '../components/AdminListingActions.jsx';
 
 // Local calendar date as YYYY-MM-DD. toISOString() would give the UTC date,
 // which in Bangladesh (UTC+6) is the previous day for any local midnight.
@@ -417,7 +418,7 @@ export default function PublicBooking() {
             <div className="grid">
               {shown.map((it) => (
                 <ProductCard item={it} key={it.id}>
-                  <BookButton it={it} onBook={openBooking} />
+                  <BookButton it={it} onBook={openBooking} onRemoved={() => setItems((all) => all.filter((x) => x.id !== it.id))} />
                 </ProductCard>
               ))}
             </div>
@@ -630,9 +631,13 @@ export default function PublicBooking() {
   );
 }
 
-function BookButton({ it, onBook }) {
+function BookButton({ it, onBook, onRemoved }) {
   const { user } = useAuth();
   const free = it.status === 'Available';
+  // Admins moderate instead of booking: remove, warn or message the owner.
+  if (user?.role === 'admin') {
+    return <AdminListingActions id={it.id} title={it.name} ownerId={it.owner_id} ownerName={it.owner_name} onRemoved={onRemoved} />;
+  }
   // Your own listing: nothing to book, so it links to the listing instead.
   if (user && Number(it.owner_id) === Number(user.id)) {
     return (

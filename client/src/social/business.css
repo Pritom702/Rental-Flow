@@ -487,3 +487,7 @@ html[data-theme='dark'] .rev-legend .k-l::before, html[data-theme='dark'] .rev-d
 .listing-thumb { width: 56px; height: 56px; border-radius: 12px; object-fit: cover; background: var(--bg); border: 1px solid var(--border); display: grid; place-items: center; }
 .listing-row .member-who a { color: inherit; text-decoration: none; }
 .listing-row .member-who a:hover { text-decoration: underline; }
+
+/* Admin controls on listing cards and the product page. */
+.admin-listing-actions { flex-wrap: wrap; gap: 6px; }
+.sale-tile .admin-listing-actions { padding: 0 10px 10px; }
